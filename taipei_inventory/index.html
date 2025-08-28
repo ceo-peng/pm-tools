@@ -1,1 +1,1211 @@
-<h1>Taipei Inventory Tool</h1>
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>庫存扣減系統 - Warehouse Inventory Deduction System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #333;
+            background: #fff;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .section {
+            background: #fff;
+            border: 1px solid #e5e5e5;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #1a1a1a;
+            border-bottom: 2px solid #f2c14e;
+            padding-bottom: 8px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-label {
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: #555;
+        }
+
+        .form-select, .form-input {
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.2s;
+            background: #fff;
+        }
+
+        .form-select:focus, .form-input:focus {
+            outline: none;
+            border-color: #f2c14e;
+            box-shadow: 0 0 0 3px rgba(242, 193, 78, 0.1);
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .qty-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .qty-controls {
+            display: flex;
+            align-items: center;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .qty-btn {
+            background: #f8f9fa;
+            border: none;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .qty-btn:hover {
+            background: #e9ecef;
+        }
+
+        .qty-input {
+            border: none;
+            padding: 8px 12px;
+            width: 60px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .qty-input:focus {
+            outline: none;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #f2c14e, #e6b345);
+            color: #fff;
+            box-shadow: 0 2px 4px rgba(242, 193, 78, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(242, 193, 78, 0.4);
+        }
+
+        .btn-secondary {
+            background: #fff;
+            color: #666;
+            border: 1px solid #ddd;
+        }
+
+        .btn-secondary:hover {
+            background: #f8f9fa;
+            border-color: #ccc;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: #fff;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: #fff;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .cart-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .cart-table th,
+        .cart-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .cart-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .order-preview {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .order-preview-header {
+            background: linear-gradient(135deg, #f2c14e, #e6b345);
+            color: #fff;
+            padding: 12px 20px;
+            font-weight: 600;
+        }
+
+        .order-preview-content {
+            padding: 16px 20px;
+        }
+
+        .preview-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .preview-row:last-child {
+            border-bottom: none;
+        }
+
+        .preview-label {
+            font-weight: 500;
+            color: #495057;
+            min-width: 120px;
+        }
+
+        .preview-value {
+            color: #212529;
+            font-weight: 500;
+        }
+
+        .cart-summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            border-top: 2px solid #f2c14e;
+            margin-top: 16px;
+        }
+
+        .summary-item {
+            font-weight: 500;
+        }
+
+        .cart-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .import-section {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 40px;
+        }
+
+        .import-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #495057;
+        }
+
+        .import-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .import-textarea {
+            width: 100%;
+            height: 120px;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 13px;
+            resize: vertical;
+        }
+
+        .import-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 500;
+            z-index: 1000;
+            transform: translateX(100%);
+            transition: transform 0.3s;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast.success {
+            background: #28a745;
+        }
+
+        .toast.error {
+            background: #dc3545;
+        }
+
+        @media (max-width: 860px) {
+            .container {
+                padding: 16px;
+            }
+
+            .form-grid,
+            .filter-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .import-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .cart-actions {
+                flex-direction: column;
+            }
+
+            .cart-summary {
+                flex-direction: column;
+                gap: 8px;
+                align-items: flex-start;
+            }
+
+            .import-buttons {
+                justify-content: stretch;
+            }
+
+            .import-buttons .btn {
+                flex: 1;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 出貨訂單資訊 -->
+        <div class="section">
+            <h2 class="section-title">📦 出貨訂單資訊</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="selCustomer" class="form-label">出貨客戶</label>
+                    <select id="selCustomer" class="form-select">
+                        <option value="">請選擇出貨客戶</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="po" class="form-label">PO 出貨單號</label>
+                    <input type="text" id="po" class="form-input" placeholder="請輸入 PO 出貨單號">
+                </div>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="formDateId" class="form-label">出貨單_日期_ID</label>
+                    <input type="text" id="formDateId" class="form-input" readonly placeholder="自動生成">
+                </div>
+            </div>
+        </div>
+
+        <!-- 庫存扣減商品清單 -->
+        <div class="section">
+            <h2 class="section-title">📋 出貨商品挑選 (庫存扣減)</h2>
+            <div class="filter-grid">
+                <div class="form-group">
+                    <label for="selCategory" class="form-label">商品品類</label>
+                    <select id="selCategory" class="form-select">
+                        <option value="">全部品類</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="selSeries" class="form-label">商品系列</label>
+                    <select id="selSeries" class="form-select">
+                        <option value="">全部系列</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="selProduct" class="form-label">商品名稱</label>
+                    <select id="selProduct" class="form-select">
+                        <option value="">請選擇出貨商品</option>
+                    </select>
+                </div>
+            </div>
+            <div class="qty-section">
+                <label class="form-label">出貨數量：</label>
+                <div class="qty-controls">
+                    <button id="dec" class="qty-btn">−</button>
+                    <input type="number" id="qty" class="qty-input" value="1" min="1">
+                    <button id="inc" class="qty-btn">+</button>
+                </div>
+                <button id="addBtn" class="btn btn-primary">加入出貨清單</button>
+            </div>
+        </div>
+
+        <!-- 出貨清單預覽 -->
+        <div class="section">
+            <h2 class="section-title">📦 出貨清單預覽 (庫存扣減確認)</h2>
+            
+            <!-- 出貨訂單資訊預覽 -->
+            <div class="order-preview">
+                <div class="order-preview-header">
+                    <h3>📋 出貨訂單資訊</h3>
+                </div>
+                <div class="order-preview-content">
+                    <div class="preview-row">
+                        <span class="preview-label">出貨客戶:</span>
+                        <span id="previewCustomer" class="preview-value">請選擇客戶</span>
+                    </div>
+                    <div class="preview-row">
+                        <span class="preview-label">PO 出貨單號:</span>
+                        <span id="previewPO" class="preview-value">請輸入 PO 編號</span>
+                    </div>
+                    <div class="preview-row">
+                        <span class="preview-label">出貨單_日期_ID:</span>
+                        <span id="previewFormDateId" class="preview-value">待生成</span>
+                    </div>
+                </div>
+            </div>
+            
+            <table id="cartTable" class="cart-table">
+                <thead>
+                    <tr>
+                        <th>商品名稱</th>
+                        <th>出貨數量</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+            <div class="cart-summary">
+                <div class="summary-item">總項目：<span id="totalItems">0</span> 項</div>
+                <div class="summary-item">總出貨數量：<span id="totalQty">0</span> 件</div>
+            </div>
+            <div class="cart-actions">
+                <button id="btnClear" class="btn btn-secondary">清空清單</button>
+                <button id="btnSubmit" class="btn btn-success">🚀 提交庫存扣減</button>
+                <button id="btnReset" class="btn btn-danger">🔄 重置所有資料</button>
+            </div>
+        </div>
+
+        <!-- 匯入資料 -->
+        <div class="import-section">
+            <h3 class="import-title">📥 匯入資料（系統用）</h3>
+            <div class="import-grid">
+                <div class="form-group">
+                    <label for="csvABC" class="form-label">商品 CSV (A,B,C)</label>
+                    <textarea id="csvABC" class="import-textarea" placeholder="品類,系列,產品&#10;電子產品,手機,iPhone 15&#10;電子產品,平板,iPad Pro"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="csvCus" class="form-label">客戶 CSV (id,name)</label>
+                    <textarea id="csvCus" class="import-textarea" placeholder="id,name&#10;C001,客戶A&#10;C002,客戶B"></textarea>
+                </div>
+            </div>
+            <div class="import-buttons">
+                <button id="btnParseABC" class="btn btn-secondary">載入商品</button>
+                <button id="btnParseCus" class="btn btn-secondary">載入客戶</button>
+                <button id="btnOverwriteAll" class="btn btn-primary">清除舊資料並覆蓋</button>
+                <button id="btnClearLocal" class="btn btn-danger">清除本機儲存</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // 常數定義
+        const WEBHOOK_URL = "https://hook.us2.make.com/nbjdxrfypgoosj4qqxnzfmj9o29jq3c2";
+        const STORAGE_KEY = "pm_order_data_v2";
+
+        // 預設資料（硬編碼）
+        const PRODUCTS_DEFAULT_CSV = `正品(大),金萃油,仙人掌籽超能量金萃油 15ml (2027-07-30)
+正品(旅),金萃油,仙人掌籽超能量金萃油 5ml (2027-05-10)
+正品(體),金萃油,仙人掌籽超能量金萃油 1.5ml (2025-09-28)
+正品(體),金萃油,仙人掌籽超能量金萃油 1.5ml (2026-05-29)
+正品(大),金萃油,摩洛哥堅果賦活金萃油 28ml (2027-04-08)
+正品(大),金萃油,摩洛哥堅果賦活金萃油 28ml (2027-10-08)
+正品(旅),金萃油,摩洛哥堅果賦活金萃油 5ml (2026-09-30)
+正品(旅),金萃油,摩洛哥堅果賦活金萃油 5ml (2028-07-22)
+正品(體),金萃油,摩洛哥堅果賦活金萃油 1.5ml (2025-09-28)
+正品(體),金萃油,摩洛哥堅果賦活金萃油 1.5ml (2026-05-29)
+正品(大),超級複方油,超級複方油 玫瑰煥顏 28ml (2027-04-10)
+正品(大),超級複方油,超級複方油 玫瑰煥顏 28ml (2027-10-08)
+正品(旅),超級複方油,超級複方油 玫瑰煥顏 5ml (2025-08-08)
+正品(旅),超級複方油,超級複方油 玫瑰煥顏 5ml (2026-09-30)
+正品(體),超級複方油,超級複方油 玫瑰煥顏 1.5ml (2025-09-28)
+正品(體),超級複方油,超級複方油 玫瑰煥顏 1.5ml (2026-05-29)
+正品(大),超級複方油,超級複方油 莓果亮采 28ml (2026-02-20)
+正品(大),超級複方油,超級複方油 莓果亮采 28ml (2027-04-10)
+正品(旅),超級複方油,超級複方油 莓果亮采 5ml (2025-08-08)
+正品(旅),超級複方油,超級複方油 莓果亮采 5ml (2026-09-30)
+正品(體),超級複方油,超級複方油 莓果亮采 1.5ml (2025-09-28)
+正品(體),超級複方油,超級複方油 莓果亮采 1.5ml (2026-05-29)
+正品(大),美體極萃油,美體極萃油 保濕透白 120ml (2028-05-08)
+正品(旅),美體極萃油,美體極萃油 保濕透白 4ml (2028-12-20)
+正品(大),美體極萃油,美體極萃油 賦活修護 120ml (2028-05-08)
+正品(旅),美體極萃油,美體極萃油 賦活修護 4ml (2028-12-20)
+正品(大),超能前導精華露,超能前導精華露 鎖水亮澤 120ml (2028-10-16)
+正品(旅),超能前導精華露,超能前導精華露 鎖水亮澤 5ml (2026-06-13)
+正品(旅),超能前導精華露,超能前導精華露 鎖水亮澤 5ml (2028-04-26)
+正品(體),超能前導精華露,超能前導精華露 鎖水亮澤 2ml (2026-09-28)
+正品(大),超能前導精華露,超能前導精華露 金燦緊實 120ml (2028-10-16)
+正品(旅),超能前導精華露,超能前導精華露 金燦緊實 5ml (2026-06-13)
+正品(旅),超能前導精華露,超能前導精華露 金燦緊實 5ml (2027-10-16)
+正品(體),超能前導精華露,超能前導精華露 金燦緊實 2ml (2026-09-28)
+正品(大),完美極萃面膜,完美極萃面膜 鎖水能量(五入組) (2025-05-26)
+正品(大),完美極萃面膜,完美極萃面膜 鎖水能量(五入組) (2028-08-12)
+正品(旅),完美極萃面膜,完美極萃面膜 鎖水能量(單片) (2028-08-12)
+正品(大),完美極萃面膜,完美極萃面膜 透亮能量(五入組) (2025-05-26)
+正品(大),完美極萃面膜,完美極萃面膜 透亮能量(五入組) (2028-08-12)
+正品(旅),完美極萃面膜,完美極萃面膜 透亮能量(單片) (2028-08-12)
+正品(大),完美極萃面膜,完美極萃面膜 賦活能量(五入組) (2025-05-24)
+正品(大),完美極萃面膜,完美極萃面膜 賦活能量(五入組) (2028-08-12)
+正品(旅),完美極萃面膜,完美極萃面膜 賦活能量(單片) (2028-08-12)
+正品(大),完美極萃面膜,完美極萃面膜 三日驚豔組(三入組) (2028-08-12)
+正品(大),晶鑽極緻潔顏皂,晶鑽仙人掌籽金萃油極緻潔顏皂 120g (2026-10-02)
+正品(旅),晶鑽極緻潔顏皂,晶鑽仙人掌籽金萃油極緻潔顏皂 25g (2027-08-23)
+正品(旅),晶鑽極緻潔顏皂,晶鑽仙人掌籽金萃油極緻潔顏皂 25g (2028-05-30)
+正品(大),晶鑽極緻潔顏皂,晶鑽摩洛哥堅果金萃油極緻潔顏皂 120g (2025-08-29)
+正品(大),晶鑽極緻潔顏皂,晶鑽摩洛哥堅果金萃油極緻潔顏皂 120g (2026-10-02)
+正品(大),晶鑽極緻潔顏皂,晶鑽摩洛哥堅果金萃油極緻潔顏皂 120g (2028-05-30)
+正品(旅),晶鑽極緻潔顏皂,晶鑽摩洛哥堅果金萃油極緻潔顏皂 25g (2025-08-29)
+正品(旅),晶鑽極緻潔顏皂,晶鑽摩洛哥堅果金萃油極緻潔顏皂 25g (2027-08-23)
+正品(旅),晶鑽極緻潔顏皂,晶鑽摩洛哥堅果金萃油極緻潔顏皂 25g (2028-05-30)
+正品(大),晶鑽極緻潔顏皂,晶鑽絕世番紅花極緻潔顏皂 120g (2025-08-29)
+正品(大),晶鑽極緻潔顏皂,晶鑽絕世番紅花極緻潔顏皂 120g (2026-10-02)
+正品(大),晶鑽極緻潔顏皂,晶鑽絕世番紅花極緻潔顏皂 120g (2028-05-30)
+正品(旅),晶鑽極緻潔顏皂,晶鑽絕世番紅花極緻潔顏皂 25g (2025-08-29)
+正品(旅),晶鑽極緻潔顏皂,晶鑽絕世番紅花極緻潔顏皂 25g (2027-08-23)
+正品(旅),晶鑽極緻潔顏皂,晶鑽絕世番紅花極緻潔顏皂 25g (2028-05-30)
+正品(大),晶鑽極緻潔顏皂,晶鑽皇家大馬士革玫瑰極緻潔顏皂 120g (2025-08-29)
+正品(大),晶鑽極緻潔顏皂,晶鑽皇家大馬士革玫瑰極緻潔顏皂 120g (2026-10-02)
+正品(旅),晶鑽極緻潔顏皂,晶鑽皇家大馬士革玫瑰極緻潔顏皂 25g (2025-08-29)
+正品(旅),晶鑽極緻潔顏皂,晶鑽皇家大馬士革玫瑰極緻潔顏皂 25g (2027-08-23)
+正品(旅),晶鑽極緻潔顏皂,晶鑽皇家大馬士革玫瑰極緻潔顏皂 25g (2028-05-30)
+正品(大),晶鑽極緻潔顏皂,晶鑽金燦薑黃蜂蜜極緻潔顏皂 120g (2025-08-29)
+正品(大),晶鑽極緻潔顏皂,晶鑽金燦薑黃蜂蜜極緻潔顏皂 120g (2026-10-02)
+正品(旅),晶鑽極緻潔顏皂,晶鑽金燦薑黃蜂蜜極緻潔顏皂 25g (2027-08-23)
+正品(旅),晶鑽極緻潔顏皂,晶鑽金燦薑黃蜂蜜極緻潔顏皂 25g (2028-05-30)
+正品(大),晶鑽極緻潔顏皂,晶鑽煥采活性炭極緻潔顏皂 120g (2025-08-29)
+正品(旅),晶鑽極緻潔顏皂,晶鑽煥采活性炭極緻潔顏皂 120g (2026-10-02)
+正品(旅),晶鑽極緻潔顏皂,晶鑽煥采活性炭極緻潔顏皂 120g (2028-05-30)
+正品(旅),晶鑽極緻潔顏皂,晶鑽煥采活性炭極緻潔顏皂 25g (2025-08-29)
+正品(旅),晶鑽極緻潔顏皂,晶鑽煥采活性炭極緻潔顏皂 25g (2027-08-23)
+正品(旅),晶鑽極緻潔顏皂,晶鑽煥采活性炭極緻潔顏皂 25g (2028-05-30)
+正品(大),晶鑽極緻潔顏皂,晶鑽晶亮黑種草籽油極緻潔顏皂 120g (2026-10-02)
+正品(大),晶鑽極緻潔顏皂,晶鑽晶亮黑種草籽油極緻潔顏皂 120g (2028-05-30)
+正品(旅),晶鑽極緻潔顏皂,晶鑽晶亮黑種草籽油極緻潔顏皂 25g (2025-08-29)
+正品(旅),晶鑽極緻潔顏皂,晶鑽晶亮黑種草籽油極緻潔顏皂 25g (2028-05-30)
+正品(體),體驗組,鉑翡斯金色減法保養_仙油勻淨體驗組 (2025-09-28)
+正品(體),體驗組,鉑翡斯金色減法保養_摩油潤澤體驗組 (2025-09-28)
+正品(體),體驗組,鉑翡斯金色減法保養_玫瑰煥顏體驗組 (2025-09-28)
+正品(體),體驗組,鉑翡斯金色減法保養_莓果亮采體驗組 (2025-09-28)
+包材,品牌Pizza盒,鉑翡斯 PIZZA盒-中 (28.5*23*9 cm)
+包材,品牌Pizza盒,鉑翡斯 PIZZA盒-小 (20*20*7.5 cm)
+包材,品牌紙箱,鉑翡斯三插舌紙箱-大 (38*38*21 cm)
+包材,品牌製作物,品牌紙袋-白 L (40.5*14*31.5 cm)
+包材,品牌製作物,品牌紙袋-白 M (20.5*11*25 cm)
+包材,品牌製作物,品牌紙袋-白 S (14.5*8.5*19 cm)
+包材,品牌製作物,品牌襯紙 (插畫款)
+包材,品牌製作物,品牌信封袋-紅 (12.5*7.5 cm)
+包材,品牌製作物,OPP：精裝盒 (6.9*44 cm)
+包材,品牌製作物,OPP：前導液 (26.1*16.5 cm)
+包材,品牌製作物,OPP：身體油 (27*16.6 cm)
+包材,品牌製作物,OPP：面膜/金色保養體驗卡共用 (13*42 cm)
+貼紙,品牌貼紙,圓形霧面貼 (1*1 cm)
+貼紙,品牌貼紙,圓形霧面貼 (2*2 cm)
+貼紙,品牌貼紙,金色大皇冠貼紙 (5*5 cm)
+貼紙,品牌貼紙,金色小皇冠貼紙 (2*2 cm)
+貼紙,品牌貼紙,皇冠貼紙-雷射紙
+貼紙,中文標,中文標：仙人掌籽超能量金萃油15ml (5.5*4.5 cm)
+貼紙,中文標,中文標：摩洛哥堅果賦活金萃油 28ml (5.5*4.5 cm)
+貼紙,中文標,中文標：超級複方油 玫瑰煥顏 28ml (5.5*4.5 cm)
+貼紙,中文標,中文標：超級複方油 莓果亮采 28ml (5.5*4.5 cm)
+印刷品,DM,202312版_美體油DM
+印刷品,DM,202407版_全產品DM
+印刷品,DM,油保養使用指南小卡
+周邊,品牌製作物,永恆翡儷經典真皮化妝包
+周邊,品牌製作物,潛遊原棉仙人掌托特包 (38*42 cm)
+周邊,品牌製作物,超能量原棉托特包系列-迷你手提 (16*12 cm)
+周邊,品牌製作物,翡翠心語多功能拉提板
+周邊,品牌製作物,永恆經典真皮珠寶盤系列-品牌綠
+周邊,品牌製作物,永恆經典真皮珠寶盤系列-堅果黃
+周邊,品牌製作物,品牌皮套 (綠) 8*8cm
+周邊,品牌製作物,T型按摩棒皮套組
+周邊,品牌製作物,晶鑽手工皂碟
+周邊,品牌製作物,「摩洛藝境」陶瓷杯墊 系列  顏色: 綠底交織紋
+周邊,品牌製作物,「摩洛藝境」陶瓷杯墊 系列  顏色: 綠底金星芒
+周邊,品牌製作物,「摩洛藝境」陶瓷杯墊 系列  顏色: 紅底交織紋
+周邊,品牌製作物,「摩洛藝境」陶瓷杯墊 系列  顏色: 紅底繁花紋
+周邊,品牌製作物,「摩洛藝境」陶瓷杯墊 系列  顏色: 四色花磚紋
+周邊,品牌製作物,「摩洛藝境」陶瓷杯墊 系列  顏色: 白底紅星芒
+周邊,品牌製作物,「摩洛藝境」陶瓷杯墊 系列  顏色: 白底細花紋
+周邊,品牌製作物,「摩洛藝境」陶瓷杯墊 系列  顏色: 萬花繽紛紋
+周邊,品牌製作物,翡翠鎖光玉石滾輪
+周邊,品牌製作物,100%生絲摩洛哥傳統沐浴手套
+周邊,品牌製作物,晶潤柔膚矽膠刷`;
+
+        const CUSTOMERS_DEFAULT_CSV = `官網,官網
+AE,AE
+MO,MO
+雅虎,雅虎
+蝦皮,蝦皮
+肯驛,肯驛
+PK,PK
+員購,員購
+其他,其他`;
+
+        // 全域變數
+        let PRODUCTS = [];
+        let CUSTOMERS = [];
+        let cart = [];
+
+        // 工具函數
+        function slug(str) {
+            return (str || "").toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+        }
+
+        function parseCSV(text) {
+            if (!text || !text.trim()) return [];
+            
+            const rows = [];
+            const lines = text.replace(/\r/g, '').split(/\n+/);
+            
+            for (let line of lines) {
+                line = line.trim();
+                if (!line) continue;
+                
+                const row = [];
+                let current = '';
+                let inQuotes = false;
+                
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    const nextChar = line[i + 1];
+                    
+                    if (char === '"') {
+                        if (inQuotes && nextChar === '"') {
+                            current += '"';
+                            i++; // skip next quote
+                        } else {
+                            inQuotes = !inQuotes;
+                        }
+                    } else if (!inQuotes && (char === ',' || char === '，' || char === ';' || char === '\t')) {
+                        row.push(current.trim());
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                
+                row.push(current.trim());
+                if (row.length >= 2) {
+                    rows.push(row);
+                }
+            }
+            
+            return rows;
+        }
+
+        function saveLocal() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                    PRODUCTS,
+                    CUSTOMERS
+                }));
+            } catch (e) {
+                console.error('Failed to save to localStorage:', e);
+            }
+        }
+
+        function loadLocal() {
+            try {
+                const data = localStorage.getItem(STORAGE_KEY);
+                if (data) {
+                    const parsed = JSON.parse(data);
+                    if (parsed.PRODUCTS && parsed.CUSTOMERS) {
+                        PRODUCTS = parsed.PRODUCTS;
+                        CUSTOMERS = parsed.CUSTOMERS;
+                        return true;
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load from localStorage:', e);
+            }
+            return false;
+        }
+
+        function clearLocal() {
+            localStorage.removeItem(STORAGE_KEY);
+            initializeDefaultData();
+            renderAll();
+            showToast('本機儲存已清除，已還原預設資料', 'success');
+        }
+
+        function initializeDefaultData() {
+            const productRows = parseCSV(PRODUCTS_DEFAULT_CSV);
+            PRODUCTS = productRows.map(([A, B, C]) => ({ A: A || '', B: B || '', C: C || '' }));
+            
+            const customerRows = parseCSV(CUSTOMERS_DEFAULT_CSV);
+            CUSTOMERS = customerRows.map(([id, name]) => ({ id: id || '', name: name || '' }));
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
+        }
+
+        function generateFormDateId() {
+            const customerSelect = document.getElementById('selCustomer');
+            const formDateIdInput = document.getElementById('formDateId');
+            
+            if (!customerSelect.value) {
+                formDateIdInput.value = '';
+                updateOrderPreview();
+                return;
+            }
+            
+            // 找到客戶名稱
+            const selectedCustomer = CUSTOMERS.find(c => c.id === customerSelect.value);
+            const customerName = selectedCustomer ? selectedCustomer.name : customerSelect.value;
+            
+            // 生成時間戳
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            
+            const dateTimeStr = `${year}${month}${day}-${hours}${minutes}`;
+            const formDateId = `${customerName}-${dateTimeStr}`;
+            
+            formDateIdInput.value = formDateId;
+            updateOrderPreview();
+        }
+
+        function updateOrderPreview() {
+            const customerSelect = document.getElementById('selCustomer');
+            const poInput = document.getElementById('po');
+            const formDateIdInput = document.getElementById('formDateId');
+            
+            // 更新客戶預覽
+            const previewCustomer = document.getElementById('previewCustomer');
+            if (customerSelect.value) {
+                const selectedCustomer = CUSTOMERS.find(c => c.id === customerSelect.value);
+                previewCustomer.textContent = selectedCustomer ? selectedCustomer.name : customerSelect.value;
+            } else {
+                previewCustomer.textContent = '請選擇客戶';
+            }
+            
+            // 更新PO編號預覽
+            const previewPO = document.getElementById('previewPO');
+            previewPO.textContent = poInput.value.trim() || '請輸入 PO 編號';
+            
+            // 更新表單ID預覽
+            const previewFormDateId = document.getElementById('previewFormDateId');
+            previewFormDateId.textContent = formDateIdInput.value || '待生成';
+        }
+
+        // 渲染函數
+        function renderCustomers() {
+            const select = document.getElementById('selCustomer');
+            select.innerHTML = '<option value="">請選擇客戶</option>';
+            
+            // 保持原始上傳順序，不進行排序
+            CUSTOMERS.forEach(customer => {
+                const option = document.createElement('option');
+                option.value = customer.id;
+                option.textContent = customer.name;
+                select.appendChild(option);
+            });
+        }
+
+        function renderFilters() {
+            // 保持原始上傳順序的去重處理
+            const seenCategories = new Set();
+            const seenSeries = new Set();
+            const categories = [];
+            const series = [];
+            
+            // 按原始順序取得品類和系列
+            PRODUCTS.forEach(p => {
+                if (!seenCategories.has(p.A)) {
+                    seenCategories.add(p.A);
+                    categories.push(p.A);
+                }
+                if (!seenSeries.has(p.B)) {
+                    seenSeries.add(p.B);
+                    series.push(p.B);
+                }
+            });
+            
+            // 產品按原始順序
+            const products = [...PRODUCTS];
+            
+            // 品類下拉
+            const catSelect = document.getElementById('selCategory');
+            catSelect.innerHTML = '<option value="">全部品類</option>';
+            categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat;
+                catSelect.appendChild(option);
+            });
+            
+            // 系列下拉
+            const serSelect = document.getElementById('selSeries');
+            serSelect.innerHTML = '<option value="">全部系列</option>';
+            series.forEach(ser => {
+                const option = document.createElement('option');
+                option.value = ser;
+                option.textContent = ser;
+                serSelect.appendChild(option);
+            });
+            
+            // 產品下拉
+            const prodSelect = document.getElementById('selProduct');
+            prodSelect.innerHTML = '<option value="">請選擇產品</option>';
+            products.forEach(prod => {
+                const option = document.createElement('option');
+                option.value = JSON.stringify(prod);
+                option.textContent = prod.C;
+                prodSelect.appendChild(option);
+            });
+        }
+
+        function filterProducts() {
+            const categoryValue = document.getElementById('selCategory').value;
+            const seriesValue = document.getElementById('selSeries').value;
+            
+            let filtered = [...PRODUCTS];
+            
+            if (categoryValue) {
+                filtered = filtered.filter(p => p.A === categoryValue);
+            }
+            
+            if (seriesValue) {
+                filtered = filtered.filter(p => p.B === seriesValue);
+            }
+            
+            filtered.sort((a, b) => a.C.localeCompare(b.C, 'zh-Hant'));
+            
+            const prodSelect = document.getElementById('selProduct');
+            prodSelect.innerHTML = '<option value="">請選擇產品</option>';
+            
+            filtered.forEach(prod => {
+                const option = document.createElement('option');
+                option.value = JSON.stringify(prod);
+                option.textContent = prod.C;
+                prodSelect.appendChild(option);
+            });
+        }
+
+        function renderCart() {
+            const tbody = document.querySelector('#cartTable tbody');
+            tbody.innerHTML = '';
+            
+            cart.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.C}</td>
+                    <td>
+                        <div class="qty-controls">
+                            <button class="qty-btn" onclick="updateCartQty(${index}, -1)">−</button>
+                            <input type="number" class="qty-input" value="${item.qty}" min="1" onchange="setCartQty(${index}, this.value)">
+                            <button class="qty-btn" onclick="updateCartQty(${index}, 1)">+</button>
+                        </div>
+                    </td>
+                    <td>
+                        <button class="btn btn-danger" onclick="removeFromCart(${index})">刪除</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            // 更新統計
+            document.getElementById('totalItems').textContent = cart.length;
+            document.getElementById('totalQty').textContent = cart.reduce((sum, item) => sum + item.qty, 0);
+        }
+
+        function renderAll() {
+            renderCustomers();
+            renderFilters();
+            renderCart();
+        }
+
+        // 事件處理
+        function updateCartQty(index, change) {
+            cart[index].qty = Math.max(1, cart[index].qty + change);
+            renderCart();
+        }
+
+        function setCartQty(index, value) {
+            const qty = parseInt(value) || 1;
+            cart[index].qty = Math.max(1, qty);
+            renderCart();
+        }
+
+        function removeFromCart(index) {
+            cart.splice(index, 1);
+            renderCart();
+            showToast('已從清單中移除', 'success');
+        }
+
+        function addToCart() {
+            const productSelect = document.getElementById('selProduct');
+            const qtyInput = document.getElementById('qty');
+            
+            if (!productSelect.value) {
+                showToast('請選擇產品', 'error');
+                return;
+            }
+            
+            const product = JSON.parse(productSelect.value);
+            const qty = Math.max(1, parseInt(qtyInput.value) || 1);
+            
+            // 檢查是否已存在
+            const existingIndex = cart.findIndex(item => 
+                item.A === product.A && item.B === product.B && item.C === product.C
+            );
+            
+            if (existingIndex >= 0) {
+                cart[existingIndex].qty += qty;
+                showToast('數量已累加', 'success');
+            } else {
+                cart.push({ ...product, qty });
+                showToast('已加入清單', 'success');
+            }
+            
+            renderCart();
+            qtyInput.value = 1;
+        }
+
+        function clearCart() {
+            if (cart.length === 0) {
+                showToast('清單已經是空的', 'error');
+                return;
+            }
+            
+            if (confirm('確定要清空清單嗎？')) {
+                cart = [];
+                renderCart();
+                showToast('清單已清空', 'success');
+            }
+        }
+
+        function submitOrder() {
+            const customerSelect = document.getElementById('selCustomer');
+            const poInput = document.getElementById('po');
+            
+            if (!customerSelect.value) {
+                showToast('請選擇出貨客戶', 'error');
+                return;
+            }
+            
+            if (!poInput.value.trim()) {
+                showToast('請輸入 PO 出貨單號', 'error');
+                return;
+            }
+            
+            if (cart.length === 0) {
+                showToast('出貨清單是空的', 'error');
+                return;
+            }
+            
+            const formDateIdInput = document.getElementById('formDateId');
+            const selectedCustomer = CUSTOMERS.find(c => c.id === customerSelect.value);
+            const customerName = selectedCustomer ? selectedCustomer.name : customerSelect.value;
+            
+            // 創建確認訊息
+            const totalQty = cart.reduce((sum, item) => sum + item.qty, 0);
+            const confirmMessage = `🚀 確認要提交庫存扣減嗎？
+
+📦 出貨客戶: ${customerName}
+📋 PO 出貨單號: ${poInput.value.trim()}
+🆔 出貨單_日期_ID: ${formDateIdInput.value}
+
+📊 商品項目: ${cart.length} 項
+📦 總出貨數量: ${totalQty} 件
+
+⚠️ 此操作將會提交到庫存扣減系統更新庫存數量，確定要繼續嗎？`;
+            
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+            
+            const orderData = {
+                customer_id: customerSelect.value,
+                po_number: poInput.value.trim(),
+                表單_日期_ID: formDateIdInput.value,
+                items: cart.map(item => ({
+                    category: item.A,
+                    series: item.B,
+                    product: item.C,
+                    qty: item.qty,
+                    id: `${slug(item.A)}__${slug(item.B)}__${slug(item.C)}`
+                })),
+                meta: {
+                    source: "warehouse-inventory-deduction",
+                    timestamp_iso: new Date().toISOString(),
+                    counts: {
+                        lines: cart.length,
+                        total_qty: cart.reduce((sum, item) => sum + item.qty, 0)
+                    }
+                }
+            };
+            
+            fetch(WEBHOOK_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(orderData)
+            })
+            .then(response => {
+                if (response.ok) {
+                    showToast('✅ 庫存扣減提交成功！', 'success');
+                } else {
+                    throw new Error('Network response was not ok');
+                }
+            })
+            .catch(error => {
+                console.error('Submit error:', error);
+                showToast('❌ 提交失敗，請稍後再試', 'error');
+            });
+        }
+
+        function resetAllData() {
+            if (!confirm('🔄 確定要重置所有資料嗎？這將清空所有欄位和出貨清單！')) {
+                return;
+            }
+            
+            // 清空表單欄位
+            document.getElementById('selCustomer').value = '';
+            document.getElementById('po').value = '';
+            document.getElementById('formDateId').value = '';
+            
+            // 清空購物車
+            cart = [];
+            
+            // 重置產品篩選
+            document.getElementById('selCategory').value = '';
+            document.getElementById('selSeries').value = '';
+            document.getElementById('selProduct').value = '';
+            document.getElementById('qty').value = '1';
+            
+            // 重新渲染
+            renderCart();
+            updateOrderPreview();
+            filterProducts();
+            
+            showToast('🔄 已重置所有資料', 'success');
+        }
+
+        // CSV 匯入處理
+        function importProducts() {
+            const csvText = document.getElementById('csvABC').value.trim();
+            if (!csvText) {
+                showToast('請輸入商品 CSV 資料', 'error');
+                return;
+            }
+            
+            try {
+                const rows = parseCSV(csvText);
+                PRODUCTS = rows.map(([A, B, C]) => ({ A: A || '', B: B || '', C: C || '' }));
+                saveLocal();
+                renderFilters();
+                showToast(`已載入 ${PRODUCTS.length} 個商品`, 'success');
+            } catch (error) {
+                showToast('商品 CSV 格式錯誤', 'error');
+            }
+        }
+
+        function importCustomers() {
+            const csvText = document.getElementById('csvCus').value.trim();
+            if (!csvText) {
+                showToast('請輸入客戶 CSV 資料', 'error');
+                return;
+            }
+            
+            try {
+                const rows = parseCSV(csvText);
+                CUSTOMERS = rows.map(([id, name]) => ({ id: id || '', name: name || '' }));
+                saveLocal();
+                renderCustomers();
+                showToast(`已載入 ${CUSTOMERS.length} 個客戶`, 'success');
+            } catch (error) {
+                showToast('客戶 CSV 格式錯誤', 'error');
+            }
+        }
+
+        function overwriteAll() {
+            const productsCsv = document.getElementById('csvABC').value.trim();
+            const customersCsv = document.getElementById('csvCus').value.trim();
+            
+            if (!productsCsv && !customersCsv) {
+                showToast('請至少輸入一種資料', 'error');
+                return;
+            }
+            
+            if (productsCsv) {
+                try {
+                    const rows = parseCSV(productsCsv);
+                    PRODUCTS = rows.map(([A, B, C]) => ({ A: A || '', B: B || '', C: C || '' }));
+                } catch (error) {
+                    showToast('商品 CSV 格式錯誤', 'error');
+                    return;
+                }
+            }
+            
+            if (customersCsv) {
+                try {
+                    const rows = parseCSV(customersCsv);
+                    CUSTOMERS = rows.map(([id, name]) => ({ id: id || '', name: name || '' }));
+                } catch (error) {
+                    showToast('客戶 CSV 格式錯誤', 'error');
+                    return;
+                }
+            }
+            
+            saveLocal();
+            renderAll();
+            showToast('資料已覆蓋並儲存', 'success');
+        }
+
+        // 事件綁定
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化資料
+            if (!loadLocal()) {
+                initializeDefaultData();
+            }
+            renderAll();
+            
+            // 數量控制
+            document.getElementById('inc').onclick = () => {
+                const qtyInput = document.getElementById('qty');
+                qtyInput.value = Math.max(1, parseInt(qtyInput.value) || 1) + 1;
+            };
+            
+            document.getElementById('dec').onclick = () => {
+                const qtyInput = document.getElementById('qty');
+                qtyInput.value = Math.max(1, (parseInt(qtyInput.value) || 1) - 1);
+            };
+            
+            document.getElementById('qty').onchange = function() {
+                this.value = Math.max(1, parseInt(this.value) || 1);
+            };
+            
+            // 篩選聯動
+            document.getElementById('selCategory').onchange = filterProducts;
+            document.getElementById('selSeries').onchange = filterProducts;
+            
+            document.getElementById('selProduct').onchange = function() {
+                if (this.value) {
+                    const product = JSON.parse(this.value);
+                    // 同步篩選器
+                    document.getElementById('selCategory').value = product.A;
+                    document.getElementById('selSeries').value = product.B;
+                }
+            };
+            
+            // 客戶選擇事件 - 自動生成表單_日期_ID
+            document.getElementById('selCustomer').onchange = generateFormDateId;
+            
+            // PO編號輸入事件 - 更新預覽
+            document.getElementById('po').oninput = updateOrderPreview;
+            
+            // 按鈕事件
+            document.getElementById('addBtn').onclick = addToCart;
+            document.getElementById('btnClear').onclick = clearCart;
+            document.getElementById('btnSubmit').onclick = submitOrder;
+            document.getElementById('btnReset').onclick = resetAllData;
+            
+            // 匯入按鈕
+            document.getElementById('btnParseABC').onclick = importProducts;
+            document.getElementById('btnParseCus').onclick = importCustomers;
+            document.getElementById('btnOverwriteAll').onclick = overwriteAll;
+            document.getElementById('btnClearLocal').onclick = clearLocal;
+        });
+    </script>
+</body>
+</html>
