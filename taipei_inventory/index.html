@@ -28,10 +28,10 @@
 
         .section {
             background: #fff;
-            border: 1px solid #eee;
+            border: 1px solid #e5e5e5;
             border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
+            padding: 24px;
+            margin-bottom: 24px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         }
 
@@ -42,6 +42,140 @@
             color: #1a1a1a;
             border-bottom: 2px solid #f2c14e;
             padding-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .data-source-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        .data-source-badge.remote {
+            background: #28a745;
+            color: white;
+        }
+
+        .data-source-badge.local {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .data-source-badge.defaults {
+            background: #6c757d;
+            color: white;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-refresh {
+            padding: 6px;
+            border: none;
+            border-radius: 6px;
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-refresh:hover {
+            background: #0056b3;
+        }
+
+        .accordion {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .accordion-header {
+            background: #f8f9fa;
+            padding: 16px 20px;
+            border: none;
+            width: 100%;
+            text-align: left;
+            font-size: 16px;
+            font-weight: 600;
+            color: #495057;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .accordion-header:hover {
+            background: #e9ecef;
+        }
+
+        .accordion-content {
+            display: none;
+            padding: 20px;
+            background: #fff;
+        }
+
+        .accordion-content.open {
+            display: block;
+        }
+
+        .admin-login-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: #fff;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 300px;
+            text-align: center;
+        }
+
+        .bundle-section {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .bundle-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .bundle-select {
+            flex: 1;
+            min-width: 200px;
         }
 
         .form-grid {
@@ -63,10 +197,10 @@
         }
 
         .form-select, .form-input {
-            padding: 8px 10px;
-            border: 1px solid #eee;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
             border-radius: 8px;
-            font-size: 13px;
+            font-size: 14px;
             transition: all 0.2s;
             background: #fff;
         }
@@ -180,12 +314,12 @@
         .cart-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 12px;
+            margin-bottom: 20px;
         }
 
         .cart-table th,
         .cart-table td {
-            padding: 8px;
+            padding: 12px;
             text-align: left;
             border-bottom: 1px solid #eee;
         }
@@ -194,55 +328,33 @@
             background: #f8f9fa;
             font-weight: 600;
             color: #555;
-            font-size: 13px;
-        }
-
-        .cart-table td {
-            font-size: 13px;
-        }
-
-        .cart-table td:first-child {
-            font-weight: 600;
-            font-size: 15px;
-            width: 50%;
-        }
-
-        .cart-table td:nth-child(2) {
-            width: 30%;
-        }
-
-        .cart-table td:last-child {
-            width: 20%;
-            text-align: right;
         }
 
         .order-preview {
             background: #f8f9fa;
             border: 1px solid #dee2e6;
             border-radius: 8px;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
             overflow: hidden;
         }
 
         .order-preview-header {
             background: linear-gradient(135deg, #f2c14e, #e6b345);
             color: #fff;
-            padding: 10px 16px;
+            padding: 12px 20px;
             font-weight: 600;
-            font-size: 14px;
         }
 
         .order-preview-content {
-            padding: 12px 16px;
+            padding: 16px 20px;
         }
 
         .preview-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 6px 0;
+            padding: 8px 0;
             border-bottom: 1px solid #e9ecef;
-            font-size: 13px;
         }
 
         .preview-row:last-child {
@@ -264,10 +376,9 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 0;
+            padding: 16px 0;
             border-top: 2px solid #f2c14e;
-            margin-top: 12px;
-            font-size: 13px;
+            margin-top: 16px;
         }
 
         .summary-item {
@@ -401,7 +512,7 @@
                             </label>
                         </div>
                     </div>
-                    <button id="btnReset" class="btn btn-danger" style="height: fit-content; padding: 6px 12px; font-size: 13px;">🔄 重置資料</button>
+                    <button id="btnReset" class="btn btn-danger" style="height: fit-content; padding: 8px 16px; font-size: 14px;">🔄 重置所有資料</button>
                 </div>
             </div>
             
@@ -450,29 +561,40 @@
             </div>
         </div>
 
+        <!-- 標題列 -->
+        <div style="position: fixed; top: 0; right: 20px; z-index: 999; padding: 10px 0;">
+            <div class="header-controls">
+                <span id="dataSourceBadge" class="data-source-badge defaults">Defaults</span>
+                <button id="btnRefreshData" class="btn-refresh" title="重新整理資料">🔄</button>
+                <div id="dataErrorNotice" style="display: none; background: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+                    遠端資料載入失敗，已使用本機資料
+                </div>
+            </div>
+        </div>
+
         <!-- 庫存扣減商品清單 -->
         <div class="section">
             <h2 class="section-title">📋 出貨商品挑選 (庫存扣減)</h2>
             
-            <!-- 套組選擇 -->
-            <div style="background: #fefefe; border: 1px solid #eee; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-                <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 12px; color: #333;">🎁 套組選擇</h3>
-                <div style="display: flex; gap: 12px; align-items: end; flex-wrap: wrap;">
-                    <div class="form-group" style="min-width: 200px; margin-bottom: 0;">
-                        <label for="selBundle" class="form-label">選擇套組</label>
+            <!-- 套組選擇區 -->
+            <div class="bundle-section">
+                <h4 style="margin-bottom: 12px; color: #495057;">📦 套組快選</h4>
+                <div class="bundle-controls">
+                    <div class="form-group bundle-select">
+                        <label for="selBundle" class="form-label">套組名稱</label>
                         <select id="selBundle" class="form-select">
                             <option value="">請選擇套組</option>
                         </select>
                     </div>
-                    <div class="form-group" style="min-width: 100px; margin-bottom: 0;">
-                        <label for="bundleQty" class="form-label">套組數量</label>
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <button id="bundleDec" class="qty-btn">−</button>
-                            <input type="number" id="bundleQty" class="qty-input" value="1" min="1" style="width: 60px;">
-                            <button id="bundleInc" class="qty-btn">+</button>
+                    <div class="form-group">
+                        <label class="form-label">套組數量</label>
+                        <div class="qty-controls">
+                            <button class="qty-btn" onclick="updateBundleQty(-1)">−</button>
+                            <input type="number" id="bundleQty" class="qty-input" value="1" min="1">
+                            <button class="qty-btn" onclick="updateBundleQty(1)">+</button>
                         </div>
                     </div>
-                    <button id="btnAddBundle" class="btn btn-primary" style="height: fit-content;">加入套組</button>
+                    <button id="btnAddBundle" class="btn btn-primary" style="align-self: flex-end;">加入套組</button>
                 </div>
             </div>
             
@@ -576,24 +698,52 @@
             </div>
         </div>
 
-        <!-- 匯入資料 -->
+        <!-- 匯入資料 (折疊式管理區) -->
         <div class="import-section">
-            <h3 class="import-title">📥 匯入資料（系統用）</h3>
-            <div class="import-grid">
-                <div class="form-group">
-                    <label for="csvABC" class="form-label">商品 CSV (A,B,C)</label>
-                    <textarea id="csvABC" class="import-textarea" placeholder="品類,系列,產品&#10;電子產品,手機,iPhone 15&#10;電子產品,平板,iPad Pro"></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="csvCus" class="form-label">客戶 CSV (id,name)</label>
-                    <textarea id="csvCus" class="import-textarea" placeholder="id,name&#10;C001,客戶A&#10;C002,客戶B"></textarea>
+            <div class="accordion">
+                <button class="accordion-header" id="accordionToggle">
+                    📥 匯入資料（系統用）
+                    <div class="admin-login-section">
+                        <button id="btnAdminLogin" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">管理登入</button>
+                        <span id="accordionIcon">▼</span>
+                    </div>
+                </button>
+                <div class="accordion-content" id="accordionContent">
+                    <div class="import-grid">
+                        <div class="form-group">
+                            <label for="csvABC" class="form-label">商品 CSV (A,B,C)</label>
+                            <textarea id="csvABC" class="import-textarea" placeholder="品類,系列,產品&#10;電子產品,手機,iPhone 15&#10;電子產品,平板,iPad Pro"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="csvCus" class="form-label">客戶 CSV (id,name)</label>
+                            <textarea id="csvCus" class="import-textarea" placeholder="id,name&#10;C001,客戶A&#10;C002,客戶B"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="csvBundles" class="form-label">套組 CSV (bundle_id,bundle_name,product_id,qty,active)</label>
+                            <textarea id="csvBundles" class="import-textarea" placeholder="bundle_summer_2025,暑期特惠三件組,仙人掌籽超能量金萃油 15ml,2,1&#10;bundle_summer_2025,暑期特惠三件組,摩洛哥堅果賦活金萃油 28ml,1,1"></textarea>
+                        </div>
+                    </div>
+                    <div class="import-buttons">
+                        <button id="btnParseABC" class="btn btn-secondary">載入商品</button>
+                        <button id="btnParseCus" class="btn btn-secondary">載入客戶</button>
+                        <button id="btnParseBundles" class="btn btn-secondary">載入套組</button>
+                        <button id="btnOverwriteAll" class="btn btn-primary">清除舊資料並覆蓋</button>
+                        <button id="btnClearLocal" class="btn btn-danger">清除本機儲存</button>
+                    </div>
                 </div>
             </div>
-            <div class="import-buttons">
-                <button id="btnParseABC" class="btn btn-secondary">載入商品</button>
-                <button id="btnParseCus" class="btn btn-secondary">載入客戶</button>
-                <button id="btnOverwriteAll" class="btn btn-primary">清除舊資料並覆蓋</button>
-                <button id="btnClearLocal" class="btn btn-danger">清除本機儲存</button>
+        </div>
+
+        <!-- 管理員PIN驗證模態框 -->
+        <div id="adminModal" class="modal">
+            <div class="modal-content">
+                <h4>管理員驗證</h4>
+                <p>請輸入管理員PIN：</p>
+                <input type="password" id="adminPin" placeholder="請輸入8位PIN" maxlength="8" style="width: 100%; padding: 8px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px;">
+                <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center;">
+                    <button id="btnConfirmPin" class="btn btn-primary">確認</button>
+                    <button id="btnCancelPin" class="btn btn-secondary">取消</button>
+                </div>
             </div>
         </div>
     </div>
@@ -604,6 +754,16 @@
         // 常數定義
         const WEBHOOK_URL = "https://hook.us2.make.com/nbjdxrfypgoosj4qqxnzfmj9o29jq3c2";
         const STORAGE_KEY = "pm_order_data_v2";
+        
+        // 配置
+        const CONFIG = {
+            remote: {
+                products: 'https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/products.json',
+                customers: 'https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/customers.json',
+                bundlesCsv: 'https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/bundle_items.csv'
+            },
+            adminPin: '50963212'
+        };
         
         // 非銷售類別常數 - 使用中文作為唯一值
         const NON_SALES_CATEGORIES = [
@@ -617,6 +777,13 @@
         
         // 全域變數
         let MODE = 'sales';
+        let PRODUCTS = [];
+        let CUSTOMERS = [];
+        let BUNDLES = [];
+        let cart = [];
+        let opSign = 'sub';
+        let dataSource = 'defaults';
+        let adminAuthenticated = false;
 
         // 預設資料（硬編碼）
         const PRODUCTS_DEFAULT_CSV = `正品(大),金萃油,仙人掌籽超能量金萃油 15ml (2027-07-30)
@@ -756,11 +923,7 @@ PK,PK
 員購,員購
 其他,其他`;
 
-        // 全域變數
-        let PRODUCTS = [];
-        let CUSTOMERS = [];
-        let cart = [];
-        let opSign = 'sub';
+        // (Global variables already defined above)
 
         // 工具函數
         function slug(str) {
@@ -809,12 +972,55 @@ PK,PK
             return rows;
         }
 
+        // 資料載入函數
+        async function loadDataFromRemote() {
+            try {
+                const [productsRes, customersRes, bundlesRes] = await Promise.allSettled([
+                    fetch(CONFIG.remote.products),
+                    fetch(CONFIG.remote.customers),
+                    fetch(CONFIG.remote.bundlesCsv)
+                ]);
+
+                let success = true;
+                
+                // 載入 products.json
+                if (productsRes.status === 'fulfilled' && productsRes.value.ok) {
+                    PRODUCTS = await productsRes.value.json();
+                } else {
+                    success = false;
+                }
+
+                // 載入 customers.json
+                if (customersRes.status === 'fulfilled' && customersRes.value.ok) {
+                    CUSTOMERS = await customersRes.value.json();
+                } else {
+                    success = false;
+                }
+
+                // 載入 bundle_items.csv
+                if (bundlesRes.status === 'fulfilled' && bundlesRes.value.ok) {
+                    const csvText = await bundlesRes.value.text();
+                    BUNDLES = parseBundleCSV(csvText);
+                } else {
+                    success = false;
+                }
+
+                if (success) {
+                    dataSource = 'remote';
+                    console.log('[data-source]', {source: 'remote', products: PRODUCTS.length, customers: CUSTOMERS.length, bundles: BUNDLES.length});
+                    return true;
+                }
+            } catch (error) {
+                console.error('Remote data loading failed:', error);
+            }
+            return false;
+        }
+
         function saveLocal() {
             try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify({
-                    PRODUCTS,
-                    CUSTOMERS
-                }));
+                localStorage.setItem('pm_products_v1', JSON.stringify(PRODUCTS));
+                localStorage.setItem('pm_customers_v1', JSON.stringify(CUSTOMERS));
+                localStorage.setItem('pm_bundles_v1', JSON.stringify(BUNDLES));
             } catch (e) {
                 console.error('Failed to save to localStorage:', e);
             }
@@ -822,19 +1028,94 @@ PK,PK
 
         function loadLocal() {
             try {
-                const data = localStorage.getItem(STORAGE_KEY);
-                if (data) {
-                    const parsed = JSON.parse(data);
-                    if (parsed.PRODUCTS && parsed.CUSTOMERS) {
-                        PRODUCTS = parsed.PRODUCTS;
-                        CUSTOMERS = parsed.CUSTOMERS;
-                        return true;
-                    }
+                const products = localStorage.getItem('pm_products_v1');
+                const customers = localStorage.getItem('pm_customers_v1');
+                const bundles = localStorage.getItem('pm_bundles_v1');
+                
+                if (products && customers) {
+                    PRODUCTS = JSON.parse(products);
+                    CUSTOMERS = JSON.parse(customers);
+                    BUNDLES = bundles ? JSON.parse(bundles) : [];
+                    dataSource = 'local';
+                    console.log('[data-source]', {source: 'local', products: PRODUCTS.length, customers: CUSTOMERS.length, bundles: BUNDLES.length});
+                    return true;
                 }
             } catch (e) {
                 console.error('Failed to load from localStorage:', e);
             }
             return false;
+        }
+
+        async function loadDataWithFallback() {
+            // 檢查 URL 查詢參數
+            const urlParams = new URLSearchParams(window.location.search);
+            const dataParam = urlParams.get('data');
+            
+            if (dataParam === 'local') {
+                if (loadLocal()) return;
+            } else if (dataParam === 'remote') {
+                if (await loadDataFromRemote()) return;
+                showDataError();
+            } else {
+                // 預設：遠端優先
+                if (await loadDataFromRemote()) return;
+                if (loadLocal()) {
+                    showDataError();
+                    return;
+                }
+            }
+            
+            // 回退到預設資料
+            initializeDefaultData();
+            dataSource = 'defaults';
+            console.log('[data-source]', {source: 'defaults', products: PRODUCTS.length, customers: CUSTOMERS.length, bundles: BUNDLES.length});
+        }
+
+        function showDataError() {
+            const notice = document.getElementById('dataErrorNotice');
+            if (notice) {
+                notice.style.display = 'block';
+                setTimeout(() => notice.style.display = 'none', 5000);
+            }
+        }
+
+        function updateDataSourceBadge() {
+            const badge = document.getElementById('dataSourceBadge');
+            if (badge) {
+                badge.className = `data-source-badge ${dataSource}`;
+                badge.textContent = dataSource === 'remote' ? 'Remote' : 
+                                  dataSource === 'local' ? 'Local' : 'Defaults';
+            }
+        }
+
+        function parseBundleCSV(csvText) {
+            const rows = parseCSV(csvText);
+            const bundleMap = new Map();
+            
+            rows.forEach(row => {
+                const [bundleId, bundleName, productId, qty, active] = row;
+                if (!bundleId || !productId) return;
+                
+                const qtyNum = parseInt(qty) || 1;
+                const isActive = active === '1' || active === 'true';
+                
+                if (!bundleMap.has(bundleId)) {
+                    bundleMap.set(bundleId, {
+                        id: bundleId,
+                        name_zh: bundleName || bundleId,
+                        items: [],
+                        active: isActive
+                    });
+                }
+                
+                const bundle = bundleMap.get(bundleId);
+                bundle.items.push({
+                    product_id: productId,
+                    qty_per_bundle: qtyNum
+                });
+            });
+            
+            return Array.from(bundleMap.values()).filter(bundle => bundle.active);
         }
 
         function clearLocal() {
@@ -1113,6 +1394,18 @@ PK,PK
             });
         }
 
+        function renderBundles() {
+            const bundleSelect = document.getElementById('selBundle');
+            bundleSelect.innerHTML = '<option value="">請選擇套組</option>';
+            
+            BUNDLES.forEach(bundle => {
+                const option = document.createElement('option');
+                option.value = bundle.id;
+                option.textContent = bundle.name_zh;
+                bundleSelect.appendChild(option);
+            });
+        }
+
         function filterProducts() {
             const categoryValue = document.getElementById('selCategory').value;
             const seriesValue = document.getElementById('selSeries').value;
@@ -1167,23 +1460,153 @@ PK,PK
             document.getElementById('totalQty').textContent = cart.reduce((sum, item) => sum + item.qty, 0);
         }
 
-        function renderBundles() {
-            const select = document.getElementById('selBundle');
-            select.innerHTML = '<option value="">請選擇套組</option>';
-            
-            BUNDLES.forEach(bundle => {
-                const option = document.createElement('option');
-                option.value = bundle.id;
-                option.textContent = bundle.name;
-                select.appendChild(option);
-            });
-        }
-
         function renderAll() {
             renderCustomers();
             renderFilters();
             renderBundles();
             renderCart();
+            updateDataSourceBadge();
+        }
+
+        // 套組相關函數
+        function updateBundleQty(change) {
+            const bundleQtyInput = document.getElementById('bundleQty');
+            const currentQty = parseInt(bundleQtyInput.value) || 1;
+            bundleQtyInput.value = Math.max(1, currentQty + change);
+        }
+
+        function addBundleToCart() {
+            const bundleSelect = document.getElementById('selBundle');
+            const bundleQtyInput = document.getElementById('bundleQty');
+            
+            if (!bundleSelect.value) {
+                showToast('請選擇套組', 'error');
+                return;
+            }
+            
+            const selectedBundle = BUNDLES.find(b => b.id === bundleSelect.value);
+            if (!selectedBundle) {
+                showToast('找不到選擇的套組', 'error');
+                return;
+            }
+            
+            const bundleQty = parseInt(bundleQtyInput.value) || 1;
+            let addedCount = 0;
+            
+            selectedBundle.items.forEach(bundleItem => {
+                const product = PRODUCTS.find(p => p.C === bundleItem.product_id);
+                if (!product) {
+                    showToast(`找不到商品 product_id：${bundleItem.product_id}`, 'error');
+                    return;
+                }
+                
+                const totalQty = bundleItem.qty_per_bundle * bundleQty;
+                
+                // 檢查是否已存在
+                const existingIndex = cart.findIndex(item => 
+                    item.A === product.A && item.B === product.B && item.C === product.C
+                );
+                
+                if (existingIndex >= 0) {
+                    cart[existingIndex].qty += totalQty;
+                } else {
+                    cart.push({ ...product, qty: totalQty });
+                }
+                addedCount++;
+            });
+            
+            if (addedCount > 0) {
+                renderCart();
+                showToast(`已加入套組：${selectedBundle.name_zh} x${bundleQty}`, 'success');
+                bundleQtyInput.value = 1;
+            }
+        }
+
+        // 管理員驗證相關函數
+        function checkAdminAuth() {
+            const sessionAuth = sessionStorage.getItem('admin_auth_time');
+            if (sessionAuth) {
+                const authTime = parseInt(sessionAuth);
+                const now = Date.now();
+                if (now - authTime < 30 * 60 * 1000) { // 30分鐘
+                    adminAuthenticated = true;
+                    return true;
+                }
+            }
+            adminAuthenticated = false;
+            return false;
+        }
+
+        function showAdminModal() {
+            if (checkAdminAuth()) {
+                toggleAccordion();
+                return;
+            }
+            
+            const modal = document.getElementById('adminModal');
+            const pinInput = document.getElementById('adminPin');
+            modal.style.display = 'block';
+            pinInput.value = '';
+            pinInput.focus();
+        }
+
+        function hideAdminModal() {
+            const modal = document.getElementById('adminModal');
+            modal.style.display = 'none';
+        }
+
+        function confirmAdminPin() {
+            const pinInput = document.getElementById('adminPin');
+            const pin = pinInput.value.trim();
+            
+            if (pin === CONFIG.adminPin) {
+                adminAuthenticated = true;
+                sessionStorage.setItem('admin_auth_time', Date.now().toString());
+                hideAdminModal();
+                toggleAccordion();
+                showToast('管理員驗證成功', 'success');
+            } else {
+                showToast('PIN碼錯誤', 'error');
+                pinInput.value = '';
+                pinInput.focus();
+            }
+        }
+
+        function toggleAccordion() {
+            const content = document.getElementById('accordionContent');
+            const icon = document.getElementById('accordionIcon');
+            
+            if (content.classList.contains('open')) {
+                content.classList.remove('open');
+                icon.textContent = '▼';
+            } else {
+                content.classList.add('open');
+                icon.textContent = '▲';
+            }
+        }
+
+        async function refreshData() {
+            const refreshBtn = document.getElementById('btnRefreshData');
+            refreshBtn.disabled = true;
+            refreshBtn.textContent = '⟳';
+            
+            // 清除本機儲存
+            localStorage.removeItem('pm_products_v1');
+            localStorage.removeItem('pm_customers_v1');
+            localStorage.removeItem('pm_bundles_v1');
+            
+            // 重新載入遠端資料
+            await loadDataWithFallback();
+            renderAll();
+            
+            if (dataSource === 'remote') {
+                showToast('已重新整理遠端資料', 'success');
+            } else {
+                showToast('遠端資料載入失敗，已使用備用資料', 'error');
+            }
+            
+            refreshBtn.disabled = false;
+            refreshBtn.textContent = '🔄';
         }
 
         // 事件處理
@@ -1231,57 +1654,6 @@ PK,PK
             
             renderCart();
             qtyInput.value = 1;
-        }
-
-        function addBundleToCart() {
-            const bundleSelect = document.getElementById('selBundle');
-            const bundleQtyInput = document.getElementById('bundleQty');
-            
-            if (!bundleSelect.value) {
-                showToast('請選擇套組', 'error');
-                return;
-            }
-            
-            const selectedBundle = BUNDLES.find(b => b.id === bundleSelect.value);
-            if (!selectedBundle) {
-                showToast('套組不存在', 'error');
-                return;
-            }
-            
-            const bundleQty = Math.max(1, parseInt(bundleQtyInput.value) || 1);
-            let addedCount = 0;
-            
-            selectedBundle.items.forEach(bundleItem => {
-                // 將 productKey 轉換為產品對象
-                const [A, B, C] = bundleItem.productKey.split('__');
-                const product = { A, B, C };
-                const totalQty = bundleItem.qtyPerBundle * bundleQty;
-                
-                // 檢查產品是否存在於 PRODUCTS 中
-                const productExists = PRODUCTS.find(p => p.A === A && p.B === B && p.C === C);
-                if (!productExists) {
-                    showToast(`套組中的產品「${C}」不存在於商品清單中`, 'error');
-                    return;
-                }
-                
-                // 檢查是否已存在於購物車
-                const existingIndex = cart.findIndex(item => 
-                    item.A === A && item.B === B && item.C === C
-                );
-                
-                if (existingIndex >= 0) {
-                    cart[existingIndex].qty += totalQty;
-                } else {
-                    cart.push({ ...product, qty: totalQty });
-                }
-                addedCount++;
-            });
-            
-            if (addedCount > 0) {
-                renderCart();
-                showToast(`已加入套組「${selectedBundle.name}」×${bundleQty}`, 'success');
-                bundleQtyInput.value = 1;
-            }
         }
 
         function clearCart() {
@@ -1541,6 +1913,23 @@ const mode = MODE; // 'sales' | 'non_sales'
             }
         }
 
+        function importBundles() {
+            const csvText = document.getElementById('csvBundles').value.trim();
+            if (!csvText) {
+                showToast('請輸入套組 CSV 資料', 'error');
+                return;
+            }
+            
+            try {
+                BUNDLES = parseBundleCSV(csvText);
+                saveLocal();
+                renderBundles();
+                showToast(`已載入 ${BUNDLES.length} 個套組`, 'success');
+            } catch (error) {
+                showToast('套組 CSV 格式錯誤', 'error');
+            }
+        }
+
         function overwriteAll() {
             const productsCsv = document.getElementById('csvABC').value.trim();
             const customersCsv = document.getElementById('csvCus').value.trim();
@@ -1576,28 +1965,11 @@ const mode = MODE; // 'sales' | 'non_sales'
         }
 
         // 事件綁定
-        document.addEventListener('DOMContentLoaded', function() {
-            // 初始化資料
-            if (!loadLocal()) {
-                initializeDefaultData();
-            }
+        document.addEventListener('DOMContentLoaded', async function() {
+            // 初始化資料（使用新的雙來源系統）
+            await loadDataWithFallback();
             renderAll();
             renderMode();
-            
-            // 套組數量控制
-            document.getElementById('bundleInc').onclick = () => {
-                const bundleQtyInput = document.getElementById('bundleQty');
-                bundleQtyInput.value = Math.max(1, parseInt(bundleQtyInput.value) || 1) + 1;
-            };
-            
-            document.getElementById('bundleDec').onclick = () => {
-                const bundleQtyInput = document.getElementById('bundleQty');
-                bundleQtyInput.value = Math.max(1, (parseInt(bundleQtyInput.value) || 1) - 1);
-            };
-            
-            document.getElementById('bundleQty').onchange = function() {
-                this.value = Math.max(1, parseInt(this.value) || 1);
-            };
             
             // 數量控制
             document.getElementById('inc').onclick = () => {
@@ -1664,16 +2036,39 @@ const mode = MODE; // 'sales' | 'non_sales'
             
             // 按鈕事件
             document.getElementById('addBtn').onclick = addToCart;
-            document.getElementById('btnAddBundle').onclick = addBundleToCart;
             document.getElementById('btnClear').onclick = clearCart;
             document.getElementById('btnSubmit').onclick = submitOrder;
             document.getElementById('btnReset').onclick = resetAllData;
             
+            // 套組按鈕
+            document.getElementById('btnAddBundle').onclick = addBundleToCart;
+            
+            // 資料管理按鈕
+            document.getElementById('btnRefreshData').onclick = refreshData;
+            document.getElementById('btnAdminLogin').onclick = showAdminModal;
+            document.getElementById('btnConfirmPin').onclick = confirmAdminPin;
+            document.getElementById('btnCancelPin').onclick = hideAdminModal;
+            
             // 匯入按鈕
             document.getElementById('btnParseABC').onclick = importProducts;
             document.getElementById('btnParseCus').onclick = importCustomers;
+            document.getElementById('btnParseBundles').onclick = importBundles;
             document.getElementById('btnOverwriteAll').onclick = overwriteAll;
             document.getElementById('btnClearLocal').onclick = clearLocal;
+            
+            // 管理員PIN輸入事件
+            document.getElementById('adminPin').onkeypress = function(e) {
+                if (e.key === 'Enter') {
+                    confirmAdminPin();
+                }
+            };
+            
+            // 點擊模態框外部關閉
+            document.getElementById('adminModal').onclick = function(e) {
+                if (e.target === this) {
+                    hideAdminModal();
+                }
+            };
         });
     </script>
 </body>
