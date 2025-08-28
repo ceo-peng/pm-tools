@@ -361,8 +361,29 @@
         <!-- 出貨訂單資訊 -->
         <div class="section">
             <h2 class="section-title">📦 出貨訂單資訊</h2>
+            
+            <!-- 模式切換與重置按鈕 -->
+            <div class="form-group" style="margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <label class="form-label">作業模式</label>
+                        <div style="display: flex; gap: 20px; align-items: center; margin-top: 8px;">
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="radio" name="mode" value="sales" checked id="modeSales">
+                                <span>銷售 (Sales)</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="radio" name="mode" value="non_sales" id="modeNonSales">
+                                <span>非銷售 (Non-Sales)</span>
+                            </label>
+                        </div>
+                    </div>
+                    <button id="btnReset" class="btn btn-danger" style="height: fit-content; padding: 8px 16px; font-size: 14px;">🔄 重置所有資料</button>
+                </div>
+            </div>
+            
             <div class="form-grid">
-                <div class="form-group">
+                <div class="form-group" id="groupCustomer">
                     <label for="selCustomer" class="form-label">出貨客戶</label>
                     <select id="selCustomer" class="form-select">
                         <option value="">請選擇出貨客戶</option>
@@ -373,6 +394,31 @@
                     <input type="text" id="po" class="form-input" placeholder="請輸入 PO 出貨單號">
                 </div>
             </div>
+            
+            <!-- 非銷售專用欄位 -->
+            <div id="nonSalesFields" style="display: none;">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="selNonSalesCategory" class="form-label">非銷售類別</label>
+                        <select id="selNonSalesCategory" class="form-select">
+                            <option value="">請選擇類別</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="selUrgency" class="form-label">緊急程度</label>
+                        <select id="selUrgency" class="form-select">
+                            <option value="0">一般 (0)</option>
+                            <option value="1">緊急 (1)</option>
+                            <option value="2">特急 (2)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="txtNote" class="form-label">備註</label>
+                    <textarea id="txtNote" class="form-input" style="min-height: 80px;" placeholder="請輸入備註"></textarea>
+                </div>
+            </div>
+            
             <div class="form-grid">
                 <div class="form-group">
                     <label for="formDateId" class="form-label">出貨單_日期_ID</label>
@@ -404,14 +450,29 @@
                     </select>
                 </div>
             </div>
+            <!-- 入/出庫切換 -->
+            <div id="opSignSection" class="qty-section" style="margin-bottom: 16px;">
+                <label class="form-label">操作類型：</label>
+                <div style="display: flex; gap: 20px; align-items: center;">
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                        <input type="radio" name="opSign" value="sub" checked id="opSignSub">
+                        <span>出貨 (−)</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                        <input type="radio" name="opSign" value="add" id="opSignAdd">
+                        <span>進貨 (+)</span>
+                    </label>
+                </div>
+            </div>
+            
             <div class="qty-section">
-                <label class="form-label">出貨數量：</label>
+                <label class="form-label">數量：</label>
                 <div class="qty-controls">
                     <button id="dec" class="qty-btn">−</button>
                     <input type="number" id="qty" class="qty-input" value="1" min="1">
                     <button id="inc" class="qty-btn">+</button>
                 </div>
-                <button id="addBtn" class="btn btn-primary">加入出貨清單</button>
+                <button id="addBtn" class="btn btn-primary">加入清單</button>
             </div>
         </div>
 
@@ -437,6 +498,14 @@
                         <span class="preview-label">出貨單_日期_ID:</span>
                         <span id="previewFormDateId" class="preview-value">待生成</span>
                     </div>
+                    <div class="preview-row">
+                        <span class="preview-label">緊急程度:</span>
+                        <span id="previewUrgency" class="preview-value">一般</span>
+                    </div>
+                    <div class="preview-row">
+                        <span class="preview-label">備註:</span>
+                        <span id="previewNote" class="preview-value">無</span>
+                    </div>
                 </div>
             </div>
             
@@ -458,7 +527,6 @@
             <div class="cart-actions">
                 <button id="btnClear" class="btn btn-secondary">清空清單</button>
                 <button id="btnSubmit" class="btn btn-success">🚀 提交庫存扣減</button>
-                <button id="btnReset" class="btn btn-danger">🔄 重置所有資料</button>
             </div>
         </div>
 
@@ -490,6 +558,19 @@
         // 常數定義
         const WEBHOOK_URL = "https://hook.us2.make.com/nbjdxrfypgoosj4qqxnzfmj9o29jq3c2";
         const STORAGE_KEY = "pm_order_data_v2";
+        
+        // 非銷售類別常數 - 使用中文作為唯一值
+        const NON_SALES_CATEGORIES = [
+            { id:'退庫',         name:'退庫', defaultSign:'minus',  order:1 },
+            { id:'盤點',          name:'盤點', defaultSign:'any',   order:2 },
+            { id:'行銷',       name:'行銷', defaultSign:'minus', order:3 },
+            { id:'客退', name:'客退', defaultSign:'plus',  order:4 },
+            { id:'歸倉',           name:'歸倉', defaultSign:'plus',   order:5 },
+            { id:'其他',           name:'其他', defaultSign:'any',   order:6 }
+        ];
+        
+        // 全域變數
+        let MODE = 'sales';
 
         // 預設資料（硬編碼）
         const PRODUCTS_DEFAULT_CSV = `正品(大),金萃油,仙人掌籽超能量金萃油 15ml (2027-07-30)
@@ -633,6 +714,7 @@ PK,PK
         let PRODUCTS = [];
         let CUSTOMERS = [];
         let cart = [];
+        let opSign = 'sub';
 
         // 工具函數
         function slug(str) {
@@ -735,18 +817,7 @@ PK,PK
         }
 
         function generateFormDateId() {
-            const customerSelect = document.getElementById('selCustomer');
             const formDateIdInput = document.getElementById('formDateId');
-            
-            if (!customerSelect.value) {
-                formDateIdInput.value = '';
-                updateOrderPreview();
-                return;
-            }
-            
-            // 找到客戶名稱
-            const selectedCustomer = CUSTOMERS.find(c => c.id === customerSelect.value);
-            const customerName = selectedCustomer ? selectedCustomer.name : customerSelect.value;
             
             // 生成時間戳
             const now = new Date();
@@ -757,10 +828,104 @@ PK,PK
             const minutes = String(now.getMinutes()).padStart(2, '0');
             
             const dateTimeStr = `${year}${month}${day}-${hours}${minutes}`;
-            const formDateId = `${customerName}-${dateTimeStr}`;
+            let formDateId;
+            
+            if (MODE === 'sales') {
+                const customerSelect = document.getElementById('selCustomer');
+                if (!customerSelect.value) {
+                    formDateIdInput.value = '';
+                    updateOrderPreview();
+                    return;
+                }
+                // 找到客戶名稱
+                const selectedCustomer = CUSTOMERS.find(c => c.id === customerSelect.value);
+                const customerName = selectedCustomer ? selectedCustomer.name : customerSelect.value;
+                formDateId = `${customerName}-${dateTimeStr}`;
+            } else {
+                // 非銷售模式：依類別生成前綴
+                const selNonSalesCategory = document.getElementById('selNonSalesCategory');
+                if (!selNonSalesCategory.value) {
+                    formDateIdInput.value = '';
+                    updateOrderPreview();
+                    return;
+                }
+                
+                // 使用實際的中文類別名稱作為前綴
+                const selectedCat = NON_SALES_CATEGORIES.find(c => c.id === selNonSalesCategory.value);
+                const prefix = selectedCat ? selectedCat.name : 'NS';
+                formDateId = `${prefix}-${dateTimeStr}`;
+            }
             
             formDateIdInput.value = formDateId;
             updateOrderPreview();
+        }
+
+        function renderMode() {
+            const groupCustomer = document.getElementById('groupCustomer');
+            const nonSalesFields = document.getElementById('nonSalesFields');
+            const opSignSection = document.getElementById('opSignSection');
+            const poInput = document.getElementById('po');
+            
+            if (MODE === 'sales') {
+                // 銷售模式：顯示客戶選擇，隱藏非銷售欄位
+                groupCustomer.style.display = 'flex';
+                nonSalesFields.style.display = 'none';
+                poInput.readOnly = false;
+                poInput.style.background = '#fff';
+                // 切換回銷售模式時，清空PO欄位（如果目前是"-"）
+                if (poInput.value === '-') {
+                    poInput.value = '';
+                }
+                opSignSection.style.display = 'flex';
+            } else {
+                // 非銷售模式：隱藏客戶選擇，顯示非銷售欄位
+                groupCustomer.style.display = 'none';
+                nonSalesFields.style.display = 'block';
+                poInput.value = '-';
+                poInput.readOnly = true;
+                poInput.style.background = '#f8f9fa';
+                
+                // 填入非銷售類別
+                const selNonSalesCategory = document.getElementById('selNonSalesCategory');
+                selNonSalesCategory.innerHTML = '<option value="">請選擇類別</option>';
+                NON_SALES_CATEGORIES.sort((a, b) => a.order - b.order).forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat.id; // 中文值
+                    option.textContent = cat.name; // 中文顯示
+                    option.dataset.defaultSign = cat.defaultSign;
+                    selNonSalesCategory.appendChild(option);
+                });
+                
+                // 更新操作切換的顯示
+                updateOpSignVisibility();
+            }
+            
+            // 重新生成表單ID (清空現有值以強制重新生成)
+            document.getElementById('formDateId').value = '';
+            generateFormDateId();
+            updateOrderPreview();
+        }
+        
+        function updateOpSignVisibility() {
+            const selNonSalesCategory = document.getElementById('selNonSalesCategory');
+            const opSignSection = document.getElementById('opSignSection');
+            
+            if (MODE === 'non_sales' && selNonSalesCategory.value) {
+                const selectedOption = selNonSalesCategory.options[selNonSalesCategory.selectedIndex];
+                const defaultSign = selectedOption.dataset.defaultSign;
+                
+                if (defaultSign === 'plus') {
+                    opSignSection.style.display = 'none';
+                    opSign = 'add';
+                } else if (defaultSign === 'minus') {
+                    opSignSection.style.display = 'none';
+                    opSign = 'sub';
+                } else {
+                    opSignSection.style.display = 'flex';
+                }
+            } else {
+                opSignSection.style.display = 'flex';
+            }
         }
 
         function updateOrderPreview() {
@@ -768,18 +933,67 @@ PK,PK
             const poInput = document.getElementById('po');
             const formDateIdInput = document.getElementById('formDateId');
             
-            // 更新客戶預覽
-            const previewCustomer = document.getElementById('previewCustomer');
-            if (customerSelect.value) {
-                const selectedCustomer = CUSTOMERS.find(c => c.id === customerSelect.value);
-                previewCustomer.textContent = selectedCustomer ? selectedCustomer.name : customerSelect.value;
-            } else {
-                previewCustomer.textContent = '請選擇客戶';
-            }
+            // 取得預覽行元素
+            const previewRows = document.querySelectorAll('.preview-row');
             
-            // 更新PO編號預覽
-            const previewPO = document.getElementById('previewPO');
-            previewPO.textContent = poInput.value.trim() || '請輸入 PO 編號';
+            if (MODE === 'sales') {
+                // 銷售模式預覽 - 確保正確的標籤，隱藏非銷售專用行
+                if (previewRows.length >= 5) {
+                    previewRows[0].querySelector('.preview-label').textContent = '出貨客戶:';
+                    previewRows[1].querySelector('.preview-label').textContent = 'PO 出貨單號:';
+                    previewRows[2].querySelector('.preview-label').textContent = '出貨單_日期_ID:';
+                    
+                    // 隱藏緊急程度和備註行（非銷售專用）
+                    previewRows[3].style.display = 'none';
+                    previewRows[4].style.display = 'none';
+                }
+                
+                const previewCustomer = document.getElementById('previewCustomer');
+                if (customerSelect.value) {
+                    const selectedCustomer = CUSTOMERS.find(c => c.id === customerSelect.value);
+                    previewCustomer.textContent = selectedCustomer ? selectedCustomer.name : customerSelect.value;
+                } else {
+                    previewCustomer.textContent = '請選擇客戶';
+                }
+                
+                const previewPO = document.getElementById('previewPO');
+                previewPO.textContent = poInput.value.trim() || '請輸入 PO 編號';
+            } else {
+                // 非銷售模式預覽
+                const selNonSalesCategory = document.getElementById('selNonSalesCategory');
+                const selUrgency = document.getElementById('selUrgency');
+                const txtNote = document.getElementById('txtNote');
+                
+                // 更新預覽標籤和內容 - 顯示所有行
+                if (previewRows.length >= 5) {
+                    // 第一行：非銷售類別
+                    previewRows[0].querySelector('.preview-label').textContent = '非銷售類別:';
+                    if (selNonSalesCategory.value) {
+                        const selectedCat = NON_SALES_CATEGORIES.find(c => c.id === selNonSalesCategory.value);
+                        previewRows[0].querySelector('.preview-value').textContent = selectedCat ? selectedCat.id : '請選擇類別';
+                    } else {
+                        previewRows[0].querySelector('.preview-value').textContent = '請選擇類別';
+                    }
+                    
+                    // 第二行：PO 編號（固定顯示 "-"）
+                    previewRows[1].querySelector('.preview-label').textContent = 'PO 出貨單號:';
+                    previewRows[1].querySelector('.preview-value').textContent = '-';
+                    
+                    // 第三行：出貨單_日期_ID
+                    previewRows[2].querySelector('.preview-label').textContent = '出貨單_日期_ID:';
+                    
+                    // 第四行：緊急程度
+                    const urgencyLabels = { '0': '一般', '1': '優先', '2': '急件' };
+                    previewRows[3].querySelector('.preview-label').textContent = '緊急程度:';
+                    previewRows[3].querySelector('.preview-value').textContent = urgencyLabels[selUrgency.value] || '一般';
+                    previewRows[3].style.display = 'flex';
+                    
+                    // 第五行：備註
+                    previewRows[4].querySelector('.preview-label').textContent = '備註:';
+                    previewRows[4].querySelector('.preview-value').textContent = txtNote.value.trim() || '無';
+                    previewRows[4].style.display = 'flex';
+                }
+            }
             
             // 更新表單ID預覽
             const previewFormDateId = document.getElementById('previewFormDateId');
@@ -867,7 +1081,7 @@ PK,PK
                 filtered = filtered.filter(p => p.B === seriesValue);
             }
             
-            filtered.sort((a, b) => a.C.localeCompare(b.C, 'zh-Hant'));
+            // 移除字母排序，維持原始上傳順序
             
             const prodSelect = document.getElementById('selProduct');
             prodSelect.innerHTML = '<option value="">請選擇產品</option>';
@@ -966,84 +1180,169 @@ PK,PK
                 return;
             }
             
-            if (confirm('確定要清空清單嗎？')) {
+            if (confirm('確定要清空清單嗎？只會清除商品清單，不影響其他輸入欄位。')) {
                 cart = [];
                 renderCart();
-                showToast('清單已清空', 'success');
+                showToast('商品清單已清空', 'success');
             }
         }
 
         function submitOrder() {
-            const customerSelect = document.getElementById('selCustomer');
-            const poInput = document.getElementById('po');
-            
-            if (!customerSelect.value) {
-                showToast('請選擇出貨客戶', 'error');
-                return;
-            }
-            
-            if (!poInput.value.trim()) {
-                showToast('請輸入 PO 出貨單號', 'error');
-                return;
-            }
+            const formDateIdInput = document.getElementById('formDateId');
             
             if (cart.length === 0) {
-                showToast('出貨清單是空的', 'error');
+                showToast('清單是空的', 'error');
                 return;
             }
             
-            const formDateIdInput = document.getElementById('formDateId');
-            const selectedCustomer = CUSTOMERS.find(c => c.id === customerSelect.value);
-            const customerName = selectedCustomer ? selectedCustomer.name : customerSelect.value;
+            // 根據模式進行不同的驗證
+            if (MODE === 'sales') {
+                const customerSelect = document.getElementById('selCustomer');
+                const poInput = document.getElementById('po');
+                
+                if (!customerSelect.value) {
+                    showToast('請選擇出貨客戶', 'error');
+                    return;
+                }
+                
+                if (!poInput.value.trim()) {
+                    showToast('請輸入 PO 出貨單號', 'error');
+                    return;
+                }
+            } else {
+                const selNonSalesCategory = document.getElementById('selNonSalesCategory');
+                
+                if (!selNonSalesCategory.value) {
+                    showToast('請選擇非銷售類別', 'error');
+                    return;
+                }
+            }
+            
+            // 計算 delta 總和
+            let totalDelta = 0;
+            const itemsWithDelta = cart.map(item => {
+                let delta;
+                if (MODE === 'sales') {
+                    delta = -item.qty; // 銷售模式固定為負值（出貨）
+                } else {
+                    const selNonSalesCategory = document.getElementById('selNonSalesCategory');
+                    const selectedOption = selNonSalesCategory.options[selNonSalesCategory.selectedIndex];
+                    const defaultSign = selectedOption.dataset.defaultSign;
+                    
+                    if (defaultSign === 'plus') {
+                        delta = +item.qty;
+                    } else if (defaultSign === 'minus') {
+                        delta = -item.qty;
+                    } else {
+                        // defaultSign === 'any'，依照 opSign 決定
+                        delta = opSign === 'add' ? +item.qty : -item.qty;
+                    }
+                }
+                totalDelta += delta;
+                
+                return {
+                    id: `${slug(item.A)}__${slug(item.B)}__${slug(item.C)}`,
+                    category: item.A,
+                    series: item.B,
+                    product: item.C,
+                    delta: delta
+                };
+            });
             
             // 創建確認訊息
-            const totalQty = cart.reduce((sum, item) => sum + item.qty, 0);
-            const confirmMessage = `🚀 確認要提交庫存扣減嗎？
+            let confirmMessage;
+            if (MODE === 'sales') {
+                const customerSelect = document.getElementById('selCustomer');
+                const poInput = document.getElementById('po');
+                const selectedCustomer = CUSTOMERS.find(c => c.id === customerSelect.value);
+                const customerName = selectedCustomer ? selectedCustomer.name : customerSelect.value;
+                
+                confirmMessage = `🚀 確認要提交庫存更新嗎？
 
+模式: 銷售 (Sales)
 📦 出貨客戶: ${customerName}
 📋 PO 出貨單號: ${poInput.value.trim()}
 🆔 出貨單_日期_ID: ${formDateIdInput.value}
 
 📊 商品項目: ${cart.length} 項
-📦 總出貨數量: ${totalQty} 件
+📊 庫存異動總量: ${totalDelta}
 
-⚠️ 此操作將會提交到庫存扣減系統更新庫存數量，確定要繼續嗎？`;
+⚠️ 此操作將會提交到庫存更新系統，確定要繼續嗎？`;
+            } else {
+                const selNonSalesCategory = document.getElementById('selNonSalesCategory');
+                const selUrgency = document.getElementById('selUrgency');
+                const txtNote = document.getElementById('txtNote');
+                const selectedCat = NON_SALES_CATEGORIES.find(c => c.id === selNonSalesCategory.value);
+                
+                confirmMessage = `🚀 確認要提交庫存更新嗎？
+
+模式: 非銷售 (Non-Sales)
+📋 類別: ${selectedCat ? selectedCat.id : '未知'}
+⚡ 緊急程度: ${selUrgency.value}
+📝 備註: ${txtNote.value || '無'}
+🆔 表單_日期_ID: ${formDateIdInput.value}
+
+📊 商品項目: ${cart.length} 項
+📊 庫存異動總量: ${totalDelta}
+
+⚠️ 此操作將會提交到庫存更新系統，確定要繼續嗎？`;
+            }
             
             if (!confirm(confirmMessage)) {
                 return;
             }
             
-            const orderData = {
-                customer_id: customerSelect.value,
-                po_number: poInput.value.trim(),
-                表單_日期_ID: formDateIdInput.value,
-                items: cart.map(item => ({
-                    category: item.A,
-                    series: item.B,
-                    product: item.C,
-                    qty: item.qty,
-                    id: `${slug(item.A)}__${slug(item.B)}__${slug(item.C)}`
+            
+            // 建立統一 payload
+const mode = MODE; // 'sales' | 'non_sales'
+            const poVal = (mode === 'sales' ? (document.getElementById('po').value || '').trim() : '-');
+            const noteVal = (document.getElementById('txtNote')?.value || '').trim(); // 非銷售時必填可在 UI 驗證
+
+            const payload = {
+                action: "inventory_update",
+                mode,
+                // —— 非銷售專屬欄位（銷售也要有 note，但可為空）——
+                ...(mode === 'non_sales' ? {
+                    categoryId: document.getElementById('selNonSalesCategory').value || "",
+                    urgency: parseInt(document.getElementById('selUrgency').value || "0", 10)
+                } : {}),
+                note: noteVal,
+                // —— 訂單資料 —— 
+                order: {
+                    customerId: (mode === 'sales'
+                        ? (document.getElementById('selCustomer').value || "")
+                        : (document.getElementById('selNonSalesCategory').value || "")), // 非銷售用類別ID占位
+                    category: (mode === 'non_sales' ? document.getElementById('selNonSalesCategory').value || "" : ""),
+                    po: poVal,
+                    docId: (document.getElementById('formDateId').value || "").trim()
+                },
+                // —— 明細（請確保含 product 與 delta）——
+                items: cart.map(p => ({
+                    id: p.id || `${slug(p.A)}__${slug(p.B)}__${slug(p.C)}`,
+                    category: p.A,
+                    series: p.B,
+                    product: p.C,
+                    delta: (mode === 'sales' ? -(p.qty||0) : (p.delta || (p.qty||0))) // 使用計算好的 delta
                 })),
+                // —— 合併欄位（給 Make 直接 mapping）——
                 meta: {
-                    source: "warehouse-inventory-deduction",
-                    timestamp_iso: new Date().toISOString(),
-                    counts: {
-                        lines: cart.length,
-                        total_qty: cart.reduce((sum, item) => sum + item.qty, 0)
-                    }
+                    noteCombined: [poVal, noteVal].filter(Boolean).join(" | ")
                 }
             };
+
+            // 送出前請加這行除錯：
+            console.log('[DEBUG payload]', JSON.stringify(payload, null, 2));
             
             fetch(WEBHOOK_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(orderData)
+                body: JSON.stringify(payload)
             })
             .then(response => {
                 if (response.ok) {
-                    showToast('✅ 庫存扣減提交成功！', 'success');
+                    showToast('✅ 庫存更新提交成功！', 'success');
                 } else {
                     throw new Error('Network response was not ok');
                 }
@@ -1055,30 +1354,44 @@ PK,PK
         }
 
         function resetAllData() {
-            if (!confirm('🔄 確定要重置所有資料嗎？這將清空所有欄位和出貨清單！')) {
+            if (!confirm('🔄 確定要重置所有資料嗎？這將恢復到系統初始狀態！')) {
                 return;
             }
+            
+            // 重置模式為銷售
+            MODE = 'sales';
+            document.querySelector('input[name="mode"][value="sales"]').checked = true;
             
             // 清空表單欄位
             document.getElementById('selCustomer').value = '';
             document.getElementById('po').value = '';
             document.getElementById('formDateId').value = '';
             
+            // 清空非銷售欄位
+            document.getElementById('selNonSalesCategory').value = '';
+            document.getElementById('selUrgency').value = '0';
+            document.getElementById('txtNote').value = '';
+            
             // 清空購物車
             cart = [];
             
-            // 重置產品篩選
+            // 重置產品篩選為預設值
             document.getElementById('selCategory').value = '';
             document.getElementById('selSeries').value = '';
             document.getElementById('selProduct').value = '';
             document.getElementById('qty').value = '1';
             
-            // 重新渲染
+            // 重置操作類型為出貨
+            opSign = 'sub';
+            document.querySelector('input[name="opSign"][value="sub"]').checked = true;
+            
+            // 重新渲染所有組件
+            renderMode();  // 這會處理模式相關的顯示/隱藏
             renderCart();
             updateOrderPreview();
             filterProducts();
             
-            showToast('🔄 已重置所有資料', 'success');
+            showToast('🔄 已重置到系統初始狀態', 'success');
         }
 
         // CSV 匯入處理
@@ -1159,6 +1472,7 @@ PK,PK
                 initializeDefaultData();
             }
             renderAll();
+            renderMode();
             
             // 數量控制
             document.getElementById('inc').onclick = () => {
@@ -1188,8 +1502,37 @@ PK,PK
                 }
             };
             
+            // 模式切換事件
+            document.querySelectorAll('input[name="mode"]').forEach(radio => {
+                radio.onchange = function() {
+                    MODE = this.value;
+                    renderMode();
+                };
+            });
+            
+            // 操作類型切換事件
+            document.querySelectorAll('input[name="opSign"]').forEach(radio => {
+                radio.onchange = function() {
+                    opSign = this.value;
+                };
+            });
+            
+            // 非銷售類別變更事件
+            document.getElementById('selNonSalesCategory').onchange = function() {
+                updateOpSignVisibility();
+                generateFormDateId();
+                updateOrderPreview();
+            };
+            
+            // 緊急程度和備註變更事件
+            document.getElementById('selUrgency').onchange = updateOrderPreview;
+            document.getElementById('txtNote').oninput = updateOrderPreview;
+            
             // 客戶選擇事件 - 自動生成表單_日期_ID
-            document.getElementById('selCustomer').onchange = generateFormDateId;
+            document.getElementById('selCustomer').onchange = function() {
+                generateFormDateId();
+                updateOrderPreview();
+            };
             
             // PO編號輸入事件 - 更新預覽
             document.getElementById('po').oninput = updateOrderPreview;
