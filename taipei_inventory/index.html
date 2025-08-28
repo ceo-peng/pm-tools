@@ -28,10 +28,10 @@
 
         .section {
             background: #fff;
-            border: 1px solid #e5e5e5;
+            border: 1px solid #eee;
             border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 24px;
+            padding: 20px;
+            margin-bottom: 20px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         }
 
@@ -63,10 +63,10 @@
         }
 
         .form-select, .form-input {
-            padding: 10px 12px;
-            border: 1px solid #ddd;
+            padding: 8px 10px;
+            border: 1px solid #eee;
             border-radius: 8px;
-            font-size: 14px;
+            font-size: 13px;
             transition: all 0.2s;
             background: #fff;
         }
@@ -180,12 +180,12 @@
         .cart-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
         }
 
         .cart-table th,
         .cart-table td {
-            padding: 12px;
+            padding: 8px;
             text-align: left;
             border-bottom: 1px solid #eee;
         }
@@ -194,33 +194,55 @@
             background: #f8f9fa;
             font-weight: 600;
             color: #555;
+            font-size: 13px;
+        }
+
+        .cart-table td {
+            font-size: 13px;
+        }
+
+        .cart-table td:first-child {
+            font-weight: 600;
+            font-size: 15px;
+            width: 50%;
+        }
+
+        .cart-table td:nth-child(2) {
+            width: 30%;
+        }
+
+        .cart-table td:last-child {
+            width: 20%;
+            text-align: right;
         }
 
         .order-preview {
             background: #f8f9fa;
             border: 1px solid #dee2e6;
             border-radius: 8px;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             overflow: hidden;
         }
 
         .order-preview-header {
             background: linear-gradient(135deg, #f2c14e, #e6b345);
             color: #fff;
-            padding: 12px 20px;
+            padding: 10px 16px;
             font-weight: 600;
+            font-size: 14px;
         }
 
         .order-preview-content {
-            padding: 16px 20px;
+            padding: 12px 16px;
         }
 
         .preview-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 0;
+            padding: 6px 0;
             border-bottom: 1px solid #e9ecef;
+            font-size: 13px;
         }
 
         .preview-row:last-child {
@@ -242,9 +264,10 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 16px 0;
+            padding: 12px 0;
             border-top: 2px solid #f2c14e;
-            margin-top: 16px;
+            margin-top: 12px;
+            font-size: 13px;
         }
 
         .summary-item {
@@ -378,7 +401,7 @@
                             </label>
                         </div>
                     </div>
-                    <button id="btnReset" class="btn btn-danger" style="height: fit-content; padding: 8px 16px; font-size: 14px;">🔄 重置所有資料</button>
+                    <button id="btnReset" class="btn btn-danger" style="height: fit-content; padding: 6px 12px; font-size: 13px;">🔄 重置資料</button>
                 </div>
             </div>
             
@@ -430,6 +453,29 @@
         <!-- 庫存扣減商品清單 -->
         <div class="section">
             <h2 class="section-title">📋 出貨商品挑選 (庫存扣減)</h2>
+            
+            <!-- 套組選擇 -->
+            <div style="background: #fefefe; border: 1px solid #eee; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 12px; color: #333;">🎁 套組選擇</h3>
+                <div style="display: flex; gap: 12px; align-items: end; flex-wrap: wrap;">
+                    <div class="form-group" style="min-width: 200px; margin-bottom: 0;">
+                        <label for="selBundle" class="form-label">選擇套組</label>
+                        <select id="selBundle" class="form-select">
+                            <option value="">請選擇套組</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="min-width: 100px; margin-bottom: 0;">
+                        <label for="bundleQty" class="form-label">套組數量</label>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <button id="bundleDec" class="qty-btn">−</button>
+                            <input type="number" id="bundleQty" class="qty-input" value="1" min="1" style="width: 60px;">
+                            <button id="bundleInc" class="qty-btn">+</button>
+                        </div>
+                    </div>
+                    <button id="btnAddBundle" class="btn btn-primary" style="height: fit-content;">加入套組</button>
+                </div>
+            </div>
+            
             <div class="filter-grid">
                 <div class="form-group">
                     <label for="selCategory" class="form-label">商品品類</label>
@@ -1121,9 +1167,22 @@ PK,PK
             document.getElementById('totalQty').textContent = cart.reduce((sum, item) => sum + item.qty, 0);
         }
 
+        function renderBundles() {
+            const select = document.getElementById('selBundle');
+            select.innerHTML = '<option value="">請選擇套組</option>';
+            
+            BUNDLES.forEach(bundle => {
+                const option = document.createElement('option');
+                option.value = bundle.id;
+                option.textContent = bundle.name;
+                select.appendChild(option);
+            });
+        }
+
         function renderAll() {
             renderCustomers();
             renderFilters();
+            renderBundles();
             renderCart();
         }
 
@@ -1172,6 +1231,57 @@ PK,PK
             
             renderCart();
             qtyInput.value = 1;
+        }
+
+        function addBundleToCart() {
+            const bundleSelect = document.getElementById('selBundle');
+            const bundleQtyInput = document.getElementById('bundleQty');
+            
+            if (!bundleSelect.value) {
+                showToast('請選擇套組', 'error');
+                return;
+            }
+            
+            const selectedBundle = BUNDLES.find(b => b.id === bundleSelect.value);
+            if (!selectedBundle) {
+                showToast('套組不存在', 'error');
+                return;
+            }
+            
+            const bundleQty = Math.max(1, parseInt(bundleQtyInput.value) || 1);
+            let addedCount = 0;
+            
+            selectedBundle.items.forEach(bundleItem => {
+                // 將 productKey 轉換為產品對象
+                const [A, B, C] = bundleItem.productKey.split('__');
+                const product = { A, B, C };
+                const totalQty = bundleItem.qtyPerBundle * bundleQty;
+                
+                // 檢查產品是否存在於 PRODUCTS 中
+                const productExists = PRODUCTS.find(p => p.A === A && p.B === B && p.C === C);
+                if (!productExists) {
+                    showToast(`套組中的產品「${C}」不存在於商品清單中`, 'error');
+                    return;
+                }
+                
+                // 檢查是否已存在於購物車
+                const existingIndex = cart.findIndex(item => 
+                    item.A === A && item.B === B && item.C === C
+                );
+                
+                if (existingIndex >= 0) {
+                    cart[existingIndex].qty += totalQty;
+                } else {
+                    cart.push({ ...product, qty: totalQty });
+                }
+                addedCount++;
+            });
+            
+            if (addedCount > 0) {
+                renderCart();
+                showToast(`已加入套組「${selectedBundle.name}」×${bundleQty}`, 'success');
+                bundleQtyInput.value = 1;
+            }
         }
 
         function clearCart() {
@@ -1474,6 +1584,21 @@ const mode = MODE; // 'sales' | 'non_sales'
             renderAll();
             renderMode();
             
+            // 套組數量控制
+            document.getElementById('bundleInc').onclick = () => {
+                const bundleQtyInput = document.getElementById('bundleQty');
+                bundleQtyInput.value = Math.max(1, parseInt(bundleQtyInput.value) || 1) + 1;
+            };
+            
+            document.getElementById('bundleDec').onclick = () => {
+                const bundleQtyInput = document.getElementById('bundleQty');
+                bundleQtyInput.value = Math.max(1, (parseInt(bundleQtyInput.value) || 1) - 1);
+            };
+            
+            document.getElementById('bundleQty').onchange = function() {
+                this.value = Math.max(1, parseInt(this.value) || 1);
+            };
+            
             // 數量控制
             document.getElementById('inc').onclick = () => {
                 const qtyInput = document.getElementById('qty');
@@ -1539,6 +1664,7 @@ const mode = MODE; // 'sales' | 'non_sales'
             
             // 按鈕事件
             document.getElementById('addBtn').onclick = addToCart;
+            document.getElementById('btnAddBundle').onclick = addBundleToCart;
             document.getElementById('btnClear').onclick = clearCart;
             document.getElementById('btnSubmit').onclick = submitOrder;
             document.getElementById('btnReset').onclick = resetAllData;
