@@ -1,2075 +1,509 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>庫存扣減系統 - Warehouse Inventory Deduction System</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            font-size: 14px;
-            line-height: 1.5;
-            color: #333;
-            background: #fff;
-            min-height: 100vh;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        .section {
-            background: #fff;
-            border: 1px solid #e5e5e5;
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 24px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        }
-
-        .section-title {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 20px;
-            color: #1a1a1a;
-            border-bottom: 2px solid #f2c14e;
-            padding-bottom: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .data-source-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 12px;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-weight: 500;
-        }
-
-        .data-source-badge.remote {
-            background: #28a745;
-            color: white;
-        }
-
-        .data-source-badge.local {
-            background: #ffc107;
-            color: #333;
-        }
-
-        .data-source-badge.defaults {
-            background: #6c757d;
-            color: white;
-        }
-
-        .header-controls {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .btn-refresh {
-            padding: 6px;
-            border: none;
-            border-radius: 6px;
-            background: #007bff;
-            color: white;
-            cursor: pointer;
-            font-size: 14px;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .btn-refresh:hover {
-            background: #0056b3;
-        }
-
-        .accordion {
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        .accordion-header {
-            background: #f8f9fa;
-            padding: 16px 20px;
-            border: none;
-            width: 100%;
-            text-align: left;
-            font-size: 16px;
-            font-weight: 600;
-            color: #495057;
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .accordion-header:hover {
-            background: #e9ecef;
-        }
-
-        .accordion-content {
-            display: none;
-            padding: 20px;
-            background: #fff;
-        }
-
-        .accordion-content.open {
-            display: block;
-        }
-
-        .admin-login-section {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-        }
-
-        .modal-content {
-            background-color: #fff;
-            margin: 15% auto;
-            padding: 20px;
-            border-radius: 8px;
-            width: 300px;
-            text-align: center;
-        }
-
-        .bundle-section {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 20px;
-        }
-
-        .bundle-controls {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        .bundle-select {
-            flex: 1;
-            min-width: 200px;
-        }
-
-        .form-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .form-label {
-            font-weight: 500;
-            margin-bottom: 6px;
-            color: #555;
-        }
-
-        .form-select, .form-input {
-            padding: 10px 12px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: all 0.2s;
-            background: #fff;
-        }
-
-        .form-select:focus, .form-input:focus {
-            outline: none;
-            border-color: #f2c14e;
-            box-shadow: 0 0 0 3px rgba(242, 193, 78, 0.1);
-        }
-
-        .filter-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 16px;
-            margin-bottom: 20px;
-        }
-
-        .qty-section {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-top: 16px;
-        }
-
-        .qty-controls {
-            display: flex;
-            align-items: center;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        .qty-btn {
-            background: #f8f9fa;
-            border: none;
-            padding: 8px 12px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: background 0.2s;
-        }
-
-        .qty-btn:hover {
-            background: #e9ecef;
-        }
-
-        .qty-input {
-            border: none;
-            padding: 8px 12px;
-            width: 60px;
-            text-align: center;
-            font-size: 14px;
-        }
-
-        .qty-input:focus {
-            outline: none;
-        }
-
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #f2c14e, #e6b345);
-            color: #fff;
-            box-shadow: 0 2px 4px rgba(242, 193, 78, 0.3);
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(242, 193, 78, 0.4);
-        }
-
-        .btn-secondary {
-            background: #fff;
-            color: #666;
-            border: 1px solid #ddd;
-        }
-
-        .btn-secondary:hover {
-            background: #f8f9fa;
-            border-color: #ccc;
-        }
-
-        .btn-danger {
-            background: #dc3545;
-            color: #fff;
-        }
-
-        .btn-danger:hover {
-            background: #c82333;
-        }
-
-        .btn-success {
-            background: #28a745;
-            color: #fff;
-        }
-
-        .btn-success:hover {
-            background: #218838;
-        }
-
-        .cart-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        }
-
-        .cart-table th,
-        .cart-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #eee;
-        }
-
-        .cart-table th {
-            background: #f8f9fa;
-            font-weight: 600;
-            color: #555;
-        }
-
-        .order-preview {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            overflow: hidden;
-        }
-
-        .order-preview-header {
-            background: linear-gradient(135deg, #f2c14e, #e6b345);
-            color: #fff;
-            padding: 12px 20px;
-            font-weight: 600;
-        }
-
-        .order-preview-content {
-            padding: 16px 20px;
-        }
-
-        .preview-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid #e9ecef;
-        }
-
-        .preview-row:last-child {
-            border-bottom: none;
-        }
-
-        .preview-label {
-            font-weight: 500;
-            color: #495057;
-            min-width: 120px;
-        }
-
-        .preview-value {
-            color: #212529;
-            font-weight: 500;
-        }
-
-        .cart-summary {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 16px 0;
-            border-top: 2px solid #f2c14e;
-            margin-top: 16px;
-        }
-
-        .summary-item {
-            font-weight: 500;
-        }
-
-        .cart-actions {
-            display: flex;
-            gap: 12px;
-            margin-top: 20px;
-        }
-
-        .import-section {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 40px;
-        }
-
-        .import-title {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 16px;
-            color: #495057;
-        }
-
-        .import-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-
-        .import-textarea {
-            width: 100%;
-            height: 120px;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 13px;
-            resize: vertical;
-        }
-
-        .import-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-        }
-
-        .toast {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            padding: 12px 20px;
-            border-radius: 8px;
-            color: #fff;
-            font-weight: 500;
-            z-index: 1000;
-            transform: translateX(100%);
-            transition: transform 0.3s;
-        }
-
-        .toast.show {
-            transform: translateX(0);
-        }
-
-        .toast.success {
-            background: #28a745;
-        }
-
-        .toast.error {
-            background: #dc3545;
-        }
-
-        @media (max-width: 860px) {
-            .container {
-                padding: 16px;
-            }
-
-            .form-grid,
-            .filter-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .import-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .cart-actions {
-                flex-direction: column;
-            }
-
-            .cart-summary {
-                flex-direction: column;
-                gap: 8px;
-                align-items: flex-start;
-            }
-
-            .import-buttons {
-                justify-content: stretch;
-            }
-
-            .import-buttons .btn {
-                flex: 1;
-                justify-content: center;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <!-- 出貨訂單資訊 -->
-        <div class="section">
-            <h2 class="section-title">📦 出貨訂單資訊</h2>
-            
-            <!-- 模式切換與重置按鈕 -->
-            <div class="form-group" style="margin-bottom: 20px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <label class="form-label">作業模式</label>
-                        <div style="display: flex; gap: 20px; align-items: center; margin-top: 8px;">
-                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                                <input type="radio" name="mode" value="sales" checked id="modeSales">
-                                <span>銷售 (Sales)</span>
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                                <input type="radio" name="mode" value="non_sales" id="modeNonSales">
-                                <span>非銷售 (Non-Sales)</span>
-                            </label>
-                        </div>
-                    </div>
-                    <button id="btnReset" class="btn btn-danger" style="height: fit-content; padding: 8px 16px; font-size: 14px;">🔄 重置所有資料</button>
-                </div>
-            </div>
-            
-            <div class="form-grid">
-                <div class="form-group" id="groupCustomer">
-                    <label for="selCustomer" class="form-label">出貨客戶</label>
-                    <select id="selCustomer" class="form-select">
-                        <option value="">請選擇出貨客戶</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="po" class="form-label">PO 出貨單號</label>
-                    <input type="text" id="po" class="form-input" placeholder="請輸入 PO 出貨單號">
-                </div>
-            </div>
-            
-            <!-- 非銷售專用欄位 -->
-            <div id="nonSalesFields" style="display: none;">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="selNonSalesCategory" class="form-label">非銷售類別</label>
-                        <select id="selNonSalesCategory" class="form-select">
-                            <option value="">請選擇類別</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="selUrgency" class="form-label">緊急程度</label>
-                        <select id="selUrgency" class="form-select">
-                            <option value="0">一般 (0)</option>
-                            <option value="1">緊急 (1)</option>
-                            <option value="2">特急 (2)</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="txtNote" class="form-label">備註</label>
-                    <textarea id="txtNote" class="form-input" style="min-height: 80px;" placeholder="請輸入備註"></textarea>
-                </div>
-            </div>
-            
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="formDateId" class="form-label">出貨單_日期_ID</label>
-                    <input type="text" id="formDateId" class="form-input" readonly placeholder="自動生成">
-                </div>
-            </div>
-        </div>
-
-        <!-- 標題列 -->
-        <div style="position: fixed; top: 0; right: 20px; z-index: 999; padding: 10px 0;">
-            <div class="header-controls">
-                <span id="dataSourceBadge" class="data-source-badge defaults">Defaults</span>
-                <button id="btnRefreshData" class="btn-refresh" title="重新整理資料">🔄</button>
-                <div id="dataErrorNotice" style="display: none; background: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
-                    遠端資料載入失敗，已使用本機資料
-                </div>
-            </div>
-        </div>
-
-        <!-- 庫存扣減商品清單 -->
-        <div class="section">
-            <h2 class="section-title">📋 出貨商品挑選 (庫存扣減)</h2>
-            
-            <!-- 套組選擇區 -->
-            <div class="bundle-section">
-                <h4 style="margin-bottom: 12px; color: #495057;">📦 套組快選</h4>
-                <div class="bundle-controls">
-                    <div class="form-group bundle-select">
-                        <label for="selBundle" class="form-label">套組名稱</label>
-                        <select id="selBundle" class="form-select">
-                            <option value="">請選擇套組</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">套組數量</label>
-                        <div class="qty-controls">
-                            <button class="qty-btn" onclick="updateBundleQty(-1)">−</button>
-                            <input type="number" id="bundleQty" class="qty-input" value="1" min="1">
-                            <button class="qty-btn" onclick="updateBundleQty(1)">+</button>
-                        </div>
-                    </div>
-                    <button id="btnAddBundle" class="btn btn-primary" style="align-self: flex-end;">加入套組</button>
-                </div>
-            </div>
-            
-            <div class="filter-grid">
-                <div class="form-group">
-                    <label for="selCategory" class="form-label">商品品類</label>
-                    <select id="selCategory" class="form-select">
-                        <option value="">全部品類</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="selSeries" class="form-label">商品系列</label>
-                    <select id="selSeries" class="form-select">
-                        <option value="">全部系列</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="selProduct" class="form-label">商品名稱</label>
-                    <select id="selProduct" class="form-select">
-                        <option value="">請選擇出貨商品</option>
-                    </select>
-                </div>
-            </div>
-            <!-- 入/出庫切換 -->
-            <div id="opSignSection" class="qty-section" style="margin-bottom: 16px;">
-                <label class="form-label">操作類型：</label>
-                <div style="display: flex; gap: 20px; align-items: center;">
-                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                        <input type="radio" name="opSign" value="sub" checked id="opSignSub">
-                        <span>出貨 (−)</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                        <input type="radio" name="opSign" value="add" id="opSignAdd">
-                        <span>進貨 (+)</span>
-                    </label>
-                </div>
-            </div>
-            
-            <div class="qty-section">
-                <label class="form-label">數量：</label>
-                <div class="qty-controls">
-                    <button id="dec" class="qty-btn">−</button>
-                    <input type="number" id="qty" class="qty-input" value="1" min="1">
-                    <button id="inc" class="qty-btn">+</button>
-                </div>
-                <button id="addBtn" class="btn btn-primary">加入清單</button>
-            </div>
-        </div>
-
-        <!-- 出貨清單預覽 -->
-        <div class="section">
-            <h2 class="section-title">📦 出貨清單預覽 (庫存扣減確認)</h2>
-            
-            <!-- 出貨訂單資訊預覽 -->
-            <div class="order-preview">
-                <div class="order-preview-header">
-                    <h3>📋 出貨訂單資訊</h3>
-                </div>
-                <div class="order-preview-content">
-                    <div class="preview-row">
-                        <span class="preview-label">出貨客戶:</span>
-                        <span id="previewCustomer" class="preview-value">請選擇客戶</span>
-                    </div>
-                    <div class="preview-row">
-                        <span class="preview-label">PO 出貨單號:</span>
-                        <span id="previewPO" class="preview-value">請輸入 PO 編號</span>
-                    </div>
-                    <div class="preview-row">
-                        <span class="preview-label">出貨單_日期_ID:</span>
-                        <span id="previewFormDateId" class="preview-value">待生成</span>
-                    </div>
-                    <div class="preview-row">
-                        <span class="preview-label">緊急程度:</span>
-                        <span id="previewUrgency" class="preview-value">一般</span>
-                    </div>
-                    <div class="preview-row">
-                        <span class="preview-label">備註:</span>
-                        <span id="previewNote" class="preview-value">無</span>
-                    </div>
-                </div>
-            </div>
-            
-            <table id="cartTable" class="cart-table">
-                <thead>
-                    <tr>
-                        <th>商品名稱</th>
-                        <th>出貨數量</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                </tbody>
-            </table>
-            <div class="cart-summary">
-                <div class="summary-item">總項目：<span id="totalItems">0</span> 項</div>
-                <div class="summary-item">總出貨數量：<span id="totalQty">0</span> 件</div>
-            </div>
-            <div class="cart-actions">
-                <button id="btnClear" class="btn btn-secondary">清空清單</button>
-                <button id="btnSubmit" class="btn btn-success">🚀 提交庫存扣減</button>
-            </div>
-        </div>
-
-        <!-- 匯入資料 (折疊式管理區) -->
-        <div class="import-section">
-            <div class="accordion">
-                <button class="accordion-header" id="accordionToggle">
-                    📥 匯入資料（系統用）
-                    <div class="admin-login-section">
-                        <button id="btnAdminLogin" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">管理登入</button>
-                        <span id="accordionIcon">▼</span>
-                    </div>
-                </button>
-                <div class="accordion-content" id="accordionContent">
-                    <div class="import-grid">
-                        <div class="form-group">
-                            <label for="csvABC" class="form-label">商品 CSV (A,B,C)</label>
-                            <textarea id="csvABC" class="import-textarea" placeholder="品類,系列,產品&#10;電子產品,手機,iPhone 15&#10;電子產品,平板,iPad Pro"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label for="csvCus" class="form-label">客戶 CSV (id,name)</label>
-                            <textarea id="csvCus" class="import-textarea" placeholder="id,name&#10;C001,客戶A&#10;C002,客戶B"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label for="csvBundles" class="form-label">套組 CSV (bundle_id,bundle_name,product_id,qty,active)</label>
-                            <textarea id="csvBundles" class="import-textarea" placeholder="bundle_summer_2025,暑期特惠三件組,仙人掌籽超能量金萃油 15ml,2,1&#10;bundle_summer_2025,暑期特惠三件組,摩洛哥堅果賦活金萃油 28ml,1,1"></textarea>
-                        </div>
-                    </div>
-                    <div class="import-buttons">
-                        <button id="btnParseABC" class="btn btn-secondary">載入商品</button>
-                        <button id="btnParseCus" class="btn btn-secondary">載入客戶</button>
-                        <button id="btnParseBundles" class="btn btn-secondary">載入套組</button>
-                        <button id="btnOverwriteAll" class="btn btn-primary">清除舊資料並覆蓋</button>
-                        <button id="btnClearLocal" class="btn btn-danger">清除本機儲存</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 管理員PIN驗證模態框 -->
-        <div id="adminModal" class="modal">
-            <div class="modal-content">
-                <h4>管理員驗證</h4>
-                <p>請輸入管理員PIN：</p>
-                <input type="password" id="adminPin" placeholder="請輸入8位PIN" maxlength="8" style="width: 100%; padding: 8px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px;">
-                <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center;">
-                    <button id="btnConfirmPin" class="btn btn-primary">確認</button>
-                    <button id="btnCancelPin" class="btn btn-secondary">取消</button>
-                </div>
-            </div>
-        </div>
+import React, { useMemo, useState, useEffect } from "react";
+
+/**
+ * PM Inventory App — Final / Full Version (V19)
+ * - White theme, sleek/compact controls
+ * - Order Header mirrors into Final List; 類別只輸出值（官網/盤點/…）
+ * - 表單-日期-ID: <category>-yyyymmdd-HHmm
+ * - Product unique id = 商品 CSV 第三欄完整品名（含容量+效期，YYYY/MM/DD）
+ * - 產品選擇：套組(卡片) / 單品(三段下拉) / 禮遇(checkbox)
+ * - 庫存更新預覽：三卡（套組/單品/禮遇），確認加入後不清空
+ * - 最終清單：點交量檢核（picked==qty 才可提交）、全部帶入、全部清除
+ * - Admin 匯入（PIN 50963212）：商品/客戶/套組/非銷售/禮遇，載入即覆蓋且保序；預設關閉，需先登入
+ * - RWD: 套組卡片 mobile 2 cols / desktop 3 cols；預覽卡片 mobile 1 col / desktop 3 cols
+ */
+
+/* ---------------- Demo seeds (可被 CSV 完整覆蓋) ---------------- */
+const PRODUCTS_SEED = [
+  { id: "仙人掌籽超能量金萃油 15ml (2027/07/30)", A: "正品(大)", B: "金萃油", C: "仙人掌籽超能量金萃油 15ml (2027/07/30)" },
+  { id: "仙人掌籽超能量金萃油 5ml (2027/05/10)", A: "正品(旅)", B: "金萃油", C: "仙人掌籽超能量金萃油 5ml (2027/05/10)" },
+  { id: "摩洛哥堅果賦活金萃油 28ml (2027/04/08)", A: "正品(大)", B: "金萃油", C: "摩洛哥堅果賦活金萃油 28ml (2027/04/08)" },
+  { id: "柔潤潔顏露 30ml (2026/12/01)", A: "加購/周邊", B: "潔顏", C: "柔潤潔顏露 30ml (2026/12/01)" },
+];
+const BUNDLES_SEED: any[] = [];
+const GIFTS_SEED: any[] = [];
+let PRODUCTS_REF = [...PRODUCTS_SEED];
+let BUNDLES_REF = [...BUNDLES_SEED];
+let GIFTS_REF = [...GIFTS_SEED];
+let CUSTOMERS_REF = [{ id: "官網", name: "官網" }, { id: "MOMO", name: "MOMO" }, { id: "蝦皮", name: "蝦皮" }];
+let NONSALES_REF = [{ id: "MKT", name: "行銷" }, { id: "RET", name: "退庫" }, { id: "INV", name: "盤點" }, { id: "BK", name: "歸倉" }];
+
+const LS = {
+  products: "pm_inv_products_v19",
+  bundles: "pm_inv_bundles_v19",
+  gifts: "pm_inv_gifts_v19",
+  customers: "pm_inv_customers_v19",
+  nonsales: "pm_inv_nonsales_v19",
+};
+/* ---------------- Boot / Persist ---------------- */
+(function boot() {
+  try {
+    const p = localStorage.getItem(LS.products); if (p) PRODUCTS_REF = JSON.parse(p);
+    const b = localStorage.getItem(LS.bundles); if (b) BUNDLES_REF = JSON.parse(b);
+    const g = localStorage.getItem(LS.gifts); if (g) GIFTS_REF = JSON.parse(g);
+    const c = localStorage.getItem(LS.customers); if (c) CUSTOMERS_REF = JSON.parse(c);
+    const n = localStorage.getItem(LS.nonsales); if (n) NONSALES_REF = JSON.parse(n);
+  } catch { /* ignore */ }
+})();
+function persistAll() {
+  localStorage.setItem(LS.products, JSON.stringify(PRODUCTS_REF));
+  localStorage.setItem(LS.bundles, JSON.stringify(BUNDLES_REF));
+  localStorage.setItem(LS.gifts, JSON.stringify(GIFTS_REF));
+  localStorage.setItem(LS.customers, JSON.stringify(CUSTOMERS_REF));
+  localStorage.setItem(LS.nonsales, JSON.stringify(NONSALES_REF));
+}
+function clearAll() { Object.values(LS).forEach(k => localStorage.removeItem(k)); }
+
+/* ---------------- UI helpers ---------------- */
+function classNames(...xs: any[]) { return xs.filter(Boolean).join(" "); }
+function useToast() {
+  const [msg, setMsg] = useState("");
+  useEffect(() => { if (!msg) return; const t = setTimeout(() => setMsg(""), 2200); return () => clearTimeout(t); }, [msg]);
+  const Toast = () => msg ? <div className="fixed top-3 right-3 bg-black text-white text-xs px-3 py-2 rounded z-50">{msg}</div> : null;
+  return { msg, setMsg, Toast };
+}
+function Stepper({ value, min = 0, onChange }: { value: number, min?: number, onChange: (n: number) => void }) {
+  return (
+    <div className="inline-flex items-center rounded border border-gray-300 h-6">
+      <button className="px-1 text-[11px]" onClick={() => onChange(Math.max(min, (value || 0) - 1))}>−</button>
+      <input className="w-8 text-center text-[11px] outline-none" value={value}
+        onChange={e => {
+          const n = parseInt((e.target as HTMLInputElement).value.replace(/[^0-9]/g, ''), 10);
+          onChange(Number.isFinite(n) ? n : 0);
+        }} />
+      <button className="px-1 text-[11px]" onClick={() => onChange((value || 0) + 1)}>+</button>
     </div>
+  );
+}
+function genFormDateId(prefix: string) {
+  const now = new Date(); const pad = (n: number) => String(n).padStart(2, '0');
+  return `${prefix}-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
+}
+function flattenPreviewToMap(bundleGroups: any, singles: any, giftChecks: any) {
+  const acc = new Map<string, number>(); const add = (pid: string, qty: number) => acc.set(pid, (acc.get(pid) || 0) + qty);
+  Object.entries(bundleGroups).forEach(([bid, groups]) => {
+    if (!groups) return; const b = BUNDLES_REF.find(x => x.id === bid); if (!b) return;
+    b.items.forEach((it: any) => add(it.productId, it.qty * (groups as number)));
+  });
+  Object.entries(singles).forEach(([pid, qty]) => { if (qty) add(pid as string, qty as number); });
+  Object.entries(giftChecks).forEach(([gid, checked]) => { if (!checked) return; const g = GIFTS_REF.find(x => x.id === gid); g?.items.forEach((it: any) => add(it.productId, it.qty)); });
+  return acc;
+}
 
-    <div id="toast" class="toast"></div>
+/* ---------------- Admin Import ---------------- */
+function AdminImport({ onChanged }: { onChanged: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [admin, setAdmin] = useState(false);
+  const { setMsg, Toast } = useToast();
 
-    <script>
-        // 常數定義
-        const WEBHOOK_URL = "https://hook.us2.make.com/nbjdxrfypgoosj4qqxnzfmj9o29jq3c2";
-        const STORAGE_KEY = "pm_order_data_v2";
-        
-        // 配置
-        const CONFIG = {
-            remote: {
-                products: 'https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/products.json',
-                customers: 'https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/customers.json',
-                bundlesCsv: 'https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/bundle_items.csv'
-            },
-            adminPin: '50963212'
+  const [csvProd, setCsvProd] = useState("");
+  const [csvCust, setCsvCust] = useState("");
+  const [csvBundle, setCsvBundle] = useState("");
+  const [csvNon, setCsvNon] = useState("");
+  const [csvGift, setCsvGift] = useState("");
+
+  function login() {
+    const v = prompt("請輸入管理 PIN");
+    if (v === "50963212") { setAdmin(true); setOpen(true); setMsg("管理者登入成功"); }
+    else if (v !== null) alert("PIN 錯誤");
+  }
+
+  function parseProducts(csv: string) {
+    const lines = csv.split(/\r?\n/).map(s => s.trim()).filter(Boolean); lines.shift();
+    return lines.map(line => { const [A, B, C] = line.split(",").map(s => s?.trim()); return { id: C, A, B, C }; }).filter(x => x.id && x.C);
+  }
+  function parsePairs(csv: string) {
+    const lines = csv.split(/\r?\n/).map(s => s.trim()).filter(Boolean); lines.shift();
+    return lines.map(l => { const [id, name] = l.split(",").map(s => s?.trim()); return { id, name }; }).filter(x => x.id && x.name);
+  }
+  function parseBundles(csv: string) {
+    const lines = csv.split(/\r?\n/).map(s => s.trim()).filter(Boolean); lines.shift();
+    const list: any = {};
+    lines.forEach(line => {
+      const [bid, bname, pid, qtyRaw, active] = line.split(",").map(s => s?.trim());
+      if (!bid || !bname || !pid) return;
+      if (active === "0") return;
+      const qty = parseInt(qtyRaw || "1", 10) || 1;
+      if (!PRODUCTS_REF.find(p => p.id === pid)) return;
+      (list[bid] ||= { id: bid, name: bname, items: [] }).items.push({ productId: pid, qty });
+    });
+    return Object.values(list);
+  }
+
+  function loadProducts() { PRODUCTS_REF = parseProducts(csvProd); persistAll(); onChanged(); setMsg(`載入商品：${PRODUCTS_REF.length} 筆`); }
+  function loadCustomers() { CUSTOMERS_REF = parsePairs(csvCust); persistAll(); onChanged(); setMsg(`載入客戶：${CUSTOMERS_REF.length} 筆`); }
+  function loadBundles() { BUNDLES_REF = parseBundles(csvBundle); persistAll(); onChanged(); setMsg(`載入套組：${BUNDLES_REF.length} 筆`); }
+  function loadNonSales() { NONSALES_REF = parsePairs(csvNon); persistAll(); onChanged(); setMsg(`載入非銷售：${NONSALES_REF.length} 筆`); }
+  function loadGifts() { GIFTS_REF = parseBundles(csvGift); persistAll(); onChanged(); setMsg(`載入禮遇：${GIFTS_REF.length} 筆`); }
+  function wipeLocal() { clearAll(); setMsg("已清除本機儲存"); }
+
+  return (
+    <section className="mt-6 rounded border border-gray-200 bg-gray-50">
+      <Toast />
+      <div className="px-3 py-2 border-b bg-gray-100 rounded-t flex items-center gap-2">
+        <span className="text-sm font-medium">匯入資料（系統用）</span>
+        <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={() => admin ? setOpen(o => !o) : alert("請先管理登入")}>{open ? "▲" : "▼"}</button>
+        {!admin ? <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={login}>管理登入</button> : <span className="text-xs text-green-700">已登入（管理者）</span>}
+      </div>
+      {open && admin && (
+        <div className="p-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div>
+            <div className="text-xs font-medium mb-1">商品 CSV (A,B,C)</div>
+            <textarea className="w-full h-28 border rounded p-2 text-xs" value={csvProd} onChange={e => setCsvProd((e.target as HTMLTextAreaElement).value)} />
+            <div className="mt-1 flex gap-2"><button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={loadProducts}>載入商品</button></div>
+          </div>
+          <div>
+            <div className="text-xs font-medium mb-1">客戶 CSV (id,name)</div>
+            <textarea className="w-full h-28 border rounded p-2 text-xs" value={csvCust} onChange={e => setCsvCust((e.target as HTMLTextAreaElement).value)} />
+            <div className="mt-1 flex gap-2"><button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={loadCustomers}>載入客戶</button></div>
+          </div>
+          <div>
+            <div className="text-xs font-medium mb-1">套組 CSV (bundle_id,bundle_name,product_id,qty,active)</div>
+            <textarea className="w-full h-28 border rounded p-2 text-xs" value={csvBundle} onChange={e => setCsvBundle((e.target as HTMLTextAreaElement).value)} />
+            <div className="mt-1 flex gap-2"><button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={loadBundles}>載入套組</button></div>
+          </div>
+          <div>
+            <div className="text-xs font-medium mb-1">非銷售 CSV (id,name)</div>
+            <textarea className="w-full h-28 border rounded p-2 text-xs" value={csvNon} onChange={e => setCsvNon((e.target as HTMLTextAreaElement).value)} />
+            <div className="mt-1 flex gap-2"><button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={loadNonSales}>載入非銷售</button></div>
+          </div>
+          <div className="lg:col-span-2">
+            <div className="text-xs font-medium mb-1">禮遇 CSV (bundle_id,bundle_name,product_id,qty,active)</div>
+            <textarea className="w-full h-28 border rounded p-2 text-xs" value={csvGift} onChange={e => setCsvGift((e.target as HTMLTextAreaElement).value)} />
+            <div className="mt-1 flex gap-2">
+              <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={loadGifts}>載入禮遇</button>
+              <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={wipeLocal}>清除本機儲存</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ---------------- Main App ---------------- */
+export default function App() {
+  const { Toast, setMsg } = useToast();
+  const [rev, setRev] = useState(0); const bump = () => setRev(x => x + 1);
+
+  // 訂單資訊
+  const [mode, setMode] = useState<"sales" | "nonSales">("sales");
+  const [salesCat, setSalesCat] = useState(CUSTOMERS_REF[0]?.name || "");
+  const [nonSalesCat, setNonSalesCat] = useState(NONSALES_REF[0]?.name || "");
+  const [po, setPo] = useState(""); const [memo, setMemo] = useState("");
+  const formDateId = useMemo(() => genFormDateId(mode === "sales" ? salesCat : nonSalesCat), [mode, salesCat, nonSalesCat]);
+
+  // 單品下拉
+  const categoriesA = [...new Set(PRODUCTS_REF.map(p => p.A))];
+  const seriesByA = useMemo(() => Object.fromEntries(categoriesA.map(a => [a, [...new Set(PRODUCTS_REF.filter(p => p.A === a).map(p => p.B))]])), [rev]);
+  const productsByAB = useMemo(() => PRODUCTS_REF.reduce((acc: any, p: any) => { const k = `${p.A}__${p.B}`; (acc[k] ||= []).push(p); return acc; }, {}), [rev]);
+  const [selA, setSelA] = useState(categoriesA[0] || "");
+  const [selB, setSelB] = useState((seriesByA[categoriesA[0]] || [])[0] || "");
+  const [selPid, setSelPid] = useState("");
+  const [singleQty, setSingleQty] = useState(1);
+  useEffect(() => { const a0 = categoriesA[0] || ""; const b0 = (seriesByA[a0] || [])[0] || ""; if (!categoriesA.includes(selA)) setSelA(a0); if (!(seriesByA[selA] || []).includes(selB)) setSelB(b0); }, [rev]);
+  useEffect(() => { const arr = productsByAB[`${selA}__${selB}`] || []; setSelPid(arr[0]?.id || ""); }, [selA, selB, rev]);
+
+  // 選擇狀態
+  const [bundleGroups, setBundleGroups] = useState<any>({});
+  const [giftChecks, setGiftChecks] = useState<any>({});
+  const [pendingSingles, setPendingSingles] = useState<any>({});
+  const [openPreview, setOpenPreview] = useState(true);
+
+  // 預覽資料
+  const previewBundles = useMemo(() =>
+    Object.entries(bundleGroups)
+      .filter(([, g]) => g)
+      .map(([bid, groups]) => {
+        const b = BUNDLES_REF.find(x => x.id === bid); if (!b) return null;
+        return {
+          id: bid,
+          title: `${b.name} × ${groups}`,
+          details: b.items.map((it: any) => ({
+            productId: it.productId,
+            name: (PRODUCTS_REF.find(pp => pp.id === it.productId) || {}).C || it.productId,
+            qty: it.qty * (groups as number)
+          }))
         };
-        
-        // 非銷售類別常數 - 使用中文作為唯一值
-        const NON_SALES_CATEGORIES = [
-            { id:'退庫',         name:'退庫', defaultSign:'minus',  order:1 },
-            { id:'盤點',          name:'盤點', defaultSign:'any',   order:2 },
-            { id:'行銷',       name:'行銷', defaultSign:'minus', order:3 },
-            { id:'客退', name:'客退', defaultSign:'plus',  order:4 },
-            { id:'歸倉',           name:'歸倉', defaultSign:'plus',   order:5 },
-            { id:'其他',           name:'其他', defaultSign:'any',   order:6 }
-        ];
-        
-        // 全域變數
-        let MODE = 'sales';
-        let PRODUCTS = [];
-        let CUSTOMERS = [];
-        let BUNDLES = [];
-        let cart = [];
-        let opSign = 'sub';
-        let dataSource = 'defaults';
-        let adminAuthenticated = false;
+      })
+      .filter(Boolean as any)
+    , [bundleGroups, rev]
+  );
 
-        // 預設資料（硬編碼）
-        const PRODUCTS_DEFAULT_CSV = `正品(大),金萃油,仙人掌籽超能量金萃油 15ml (2027-07-30)
-正品(旅),金萃油,仙人掌籽超能量金萃油 5ml (2027-05-10)
-正品(體),金萃油,仙人掌籽超能量金萃油 1.5ml (2025-09-28)
-正品(體),金萃油,仙人掌籽超能量金萃油 1.5ml (2026-05-29)
-正品(大),金萃油,摩洛哥堅果賦活金萃油 28ml (2027-04-08)
-正品(大),金萃油,摩洛哥堅果賦活金萃油 28ml (2027-10-08)
-正品(旅),金萃油,摩洛哥堅果賦活金萃油 5ml (2026-09-30)
-正品(旅),金萃油,摩洛哥堅果賦活金萃油 5ml (2028-07-22)
-正品(體),金萃油,摩洛哥堅果賦活金萃油 1.5ml (2025-09-28)
-正品(體),金萃油,摩洛哥堅果賦活金萃油 1.5ml (2026-05-29)
-正品(大),超級複方油,超級複方油 玫瑰煥顏 28ml (2027-04-10)
-正品(大),超級複方油,超級複方油 玫瑰煥顏 28ml (2027-10-08)
-正品(旅),超級複方油,超級複方油 玫瑰煥顏 5ml (2025-08-08)
-正品(旅),超級複方油,超級複方油 玫瑰煥顏 5ml (2026-09-30)
-正品(體),超級複方油,超級複方油 玫瑰煥顏 1.5ml (2025-09-28)
-正品(體),超級複方油,超級複方油 玫瑰煥顏 1.5ml (2026-05-29)
-正品(大),超級複方油,超級複方油 莓果亮采 28ml (2026-02-20)
-正品(大),超級複方油,超級複方油 莓果亮采 28ml (2027-04-10)
-正品(旅),超級複方油,超級複方油 莓果亮采 5ml (2025-08-08)
-正品(旅),超級複方油,超級複方油 莓果亮采 5ml (2026-09-30)
-正品(體),超級複方油,超級複方油 莓果亮采 1.5ml (2025-09-28)
-正品(體),超級複方油,超級複方油 莓果亮采 1.5ml (2026-05-29)
-正品(大),美體極萃油,美體極萃油 保濕透白 120ml (2028-05-08)
-正品(旅),美體極萃油,美體極萃油 保濕透白 4ml (2028-12-20)
-正品(大),美體極萃油,美體極萃油 賦活修護 120ml (2028-05-08)
-正品(旅),美體極萃油,美體極萃油 賦活修護 4ml (2028-12-20)
-正品(大),超能前導精華露,超能前導精華露 鎖水亮澤 120ml (2028-10-16)
-正品(旅),超能前導精華露,超能前導精華露 鎖水亮澤 5ml (2026-06-13)
-正品(旅),超能前導精華露,超能前導精華露 鎖水亮澤 5ml (2028-04-26)
-正品(體),超能前導精華露,超能前導精華露 鎖水亮澤 2ml (2026-09-28)
-正品(大),超能前導精華露,超能前導精華露 金燦緊實 120ml (2028-10-16)
-正品(旅),超能前導精華露,超能前導精華露 金燦緊實 5ml (2026-06-13)
-正品(旅),超能前導精華露,超能前導精華露 金燦緊實 5ml (2027-10-16)
-正品(體),超能前導精華露,超能前導精華露 金燦緊實 2ml (2026-09-28)
-正品(大),完美極萃面膜,完美極萃面膜 鎖水能量(五入組) (2025-05-26)
-正品(大),完美極萃面膜,完美極萃面膜 鎖水能量(五入組) (2028-08-12)
-正品(旅),完美極萃面膜,完美極萃面膜 鎖水能量(單片) (2028-08-12)
-正品(大),完美極萃面膜,完美極萃面膜 透亮能量(五入組) (2025-05-26)
-正品(大),完美極萃面膜,完美極萃面膜 透亮能量(五入組) (2028-08-12)
-正品(旅),完美極萃面膜,完美極萃面膜 透亮能量(單片) (2028-08-12)
-正品(大),完美極萃面膜,完美極萃面膜 賦活能量(五入組) (2025-05-24)
-正品(大),完美極萃面膜,完美極萃面膜 賦活能量(五入組) (2028-08-12)
-正品(旅),完美極萃面膜,完美極萃面膜 賦活能量(單片) (2028-08-12)
-正品(大),完美極萃面膜,完美極萃面膜 三日驚豔組(三入組) (2028-08-12)
-正品(大),晶鑽極緻潔顏皂,晶鑽仙人掌籽金萃油極緻潔顏皂 120g (2026-10-02)
-正品(旅),晶鑽極緻潔顏皂,晶鑽仙人掌籽金萃油極緻潔顏皂 25g (2027-08-23)
-正品(旅),晶鑽極緻潔顏皂,晶鑽仙人掌籽金萃油極緻潔顏皂 25g (2028-05-30)
-正品(大),晶鑽極緻潔顏皂,晶鑽摩洛哥堅果金萃油極緻潔顏皂 120g (2025-08-29)
-正品(大),晶鑽極緻潔顏皂,晶鑽摩洛哥堅果金萃油極緻潔顏皂 120g (2026-10-02)
-正品(大),晶鑽極緻潔顏皂,晶鑽摩洛哥堅果金萃油極緻潔顏皂 120g (2028-05-30)
-正品(旅),晶鑽極緻潔顏皂,晶鑽摩洛哥堅果金萃油極緻潔顏皂 25g (2025-08-29)
-正品(旅),晶鑽極緻潔顏皂,晶鑽摩洛哥堅果金萃油極緻潔顏皂 25g (2027-08-23)
-正品(旅),晶鑽極緻潔顏皂,晶鑽摩洛哥堅果金萃油極緻潔顏皂 25g (2028-05-30)
-正品(大),晶鑽極緻潔顏皂,晶鑽絕世番紅花極緻潔顏皂 120g (2025-08-29)
-正品(大),晶鑽極緻潔顏皂,晶鑽絕世番紅花極緻潔顏皂 120g (2026-10-02)
-正品(大),晶鑽極緻潔顏皂,晶鑽絕世番紅花極緻潔顏皂 120g (2028-05-30)
-正品(旅),晶鑽極緻潔顏皂,晶鑽絕世番紅花極緻潔顏皂 25g (2025-08-29)
-正品(旅),晶鑽極緻潔顏皂,晶鑽絕世番紅花極緻潔顏皂 25g (2027-08-23)
-正品(旅),晶鑽極緻潔顏皂,晶鑽絕世番紅花極緻潔顏皂 25g (2028-05-30)
-正品(大),晶鑽極緻潔顏皂,晶鑽皇家大馬士革玫瑰極緻潔顏皂 120g (2025-08-29)
-正品(大),晶鑽極緻潔顏皂,晶鑽皇家大馬士革玫瑰極緻潔顏皂 120g (2026-10-02)
-正品(旅),晶鑽極緻潔顏皂,晶鑽皇家大馬士革玫瑰極緻潔顏皂 25g (2025-08-29)
-正品(旅),晶鑽極緻潔顏皂,晶鑽皇家大馬士革玫瑰極緻潔顏皂 25g (2027-08-23)
-正品(旅),晶鑽極緻潔顏皂,晶鑽皇家大馬士革玫瑰極緻潔顏皂 25g (2028-05-30)
-正品(大),晶鑽極緻潔顏皂,晶鑽金燦薑黃蜂蜜極緻潔顏皂 120g (2025-08-29)
-正品(大),晶鑽極緻潔顏皂,晶鑽金燦薑黃蜂蜜極緻潔顏皂 120g (2026-10-02)
-正品(旅),晶鑽極緻潔顏皂,晶鑽金燦薑黃蜂蜜極緻潔顏皂 25g (2027-08-23)
-正品(旅),晶鑽極緻潔顏皂,晶鑽金燦薑黃蜂蜜極緻潔顏皂 25g (2028-05-30)
-正品(大),晶鑽極緻潔顏皂,晶鑽煥采活性炭極緻潔顏皂 120g (2025-08-29)
-正品(旅),晶鑽極緻潔顏皂,晶鑽煥采活性炭極緻潔顏皂 120g (2026-10-02)
-正品(旅),晶鑽極緻潔顏皂,晶鑽煥采活性炭極緻潔顏皂 120g (2028-05-30)
-正品(旅),晶鑽極緻潔顏皂,晶鑽煥采活性炭極緻潔顏皂 25g (2025-08-29)
-正品(旅),晶鑽極緻潔顏皂,晶鑽煥采活性炭極緻潔顏皂 25g (2027-08-23)
-正品(旅),晶鑽極緻潔顏皂,晶鑽煥采活性炭極緻潔顏皂 25g (2028-05-30)
-正品(大),晶鑽極緻潔顏皂,晶鑽晶亮黑種草籽油極緻潔顏皂 120g (2026-10-02)
-正品(大),晶鑽極緻潔顏皂,晶鑽晶亮黑種草籽油極緻潔顏皂 120g (2028-05-30)
-正品(旅),晶鑽極緻潔顏皂,晶鑽晶亮黑種草籽油極緻潔顏皂 25g (2025-08-29)
-正品(旅),晶鑽極緻潔顏皂,晶鑽晶亮黑種草籽油極緻潔顏皂 25g (2028-05-30)
-正品(體),體驗組,鉑翡斯金色減法保養_仙油勻淨體驗組 (2025-09-28)
-正品(體),體驗組,鉑翡斯金色減法保養_摩油潤澤體驗組 (2025-09-28)
-正品(體),體驗組,鉑翡斯金色減法保養_玫瑰煥顏體驗組 (2025-09-28)
-正品(體),體驗組,鉑翡斯金色減法保養_莓果亮采體驗組 (2025-09-28)
-包材,品牌Pizza盒,鉑翡斯 PIZZA盒-中 (28.5*23*9 cm)
-包材,品牌Pizza盒,鉑翡斯 PIZZA盒-小 (20*20*7.5 cm)
-包材,品牌紙箱,鉑翡斯三插舌紙箱-大 (38*38*21 cm)
-包材,品牌製作物,品牌紙袋-白 L (40.5*14*31.5 cm)
-包材,品牌製作物,品牌紙袋-白 M (20.5*11*25 cm)
-包材,品牌製作物,品牌紙袋-白 S (14.5*8.5*19 cm)
-包材,品牌製作物,品牌襯紙 (插畫款)
-包材,品牌製作物,品牌信封袋-紅 (12.5*7.5 cm)
-包材,品牌製作物,OPP：精裝盒 (6.9*44 cm)
-包材,品牌製作物,OPP：前導液 (26.1*16.5 cm)
-包材,品牌製作物,OPP：身體油 (27*16.6 cm)
-包材,品牌製作物,OPP：面膜/金色保養體驗卡共用 (13*42 cm)
-貼紙,品牌貼紙,圓形霧面貼 (1*1 cm)
-貼紙,品牌貼紙,圓形霧面貼 (2*2 cm)
-貼紙,品牌貼紙,金色大皇冠貼紙 (5*5 cm)
-貼紙,品牌貼紙,金色小皇冠貼紙 (2*2 cm)
-貼紙,品牌貼紙,皇冠貼紙-雷射紙
-貼紙,中文標,中文標：仙人掌籽超能量金萃油15ml (5.5*4.5 cm)
-貼紙,中文標,中文標：摩洛哥堅果賦活金萃油 28ml (5.5*4.5 cm)
-貼紙,中文標,中文標：超級複方油 玫瑰煥顏 28ml (5.5*4.5 cm)
-貼紙,中文標,中文標：超級複方油 莓果亮采 28ml (5.5*4.5 cm)
-印刷品,DM,202312版_美體油DM
-印刷品,DM,202407版_全產品DM
-印刷品,DM,油保養使用指南小卡
-周邊,品牌製作物,永恆翡儷經典真皮化妝包
-周邊,品牌製作物,潛遊原棉仙人掌托特包 (38*42 cm)
-周邊,品牌製作物,超能量原棉托特包系列-迷你手提 (16*12 cm)
-周邊,品牌製作物,翡翠心語多功能拉提板
-周邊,品牌製作物,永恆經典真皮珠寶盤系列-品牌綠
-周邊,品牌製作物,永恆經典真皮珠寶盤系列-堅果黃
-周邊,品牌製作物,品牌皮套 (綠) 8*8cm
-周邊,品牌製作物,T型按摩棒皮套組
-周邊,品牌製作物,晶鑽手工皂碟
-周邊,品牌製作物,「摩洛藝境」陶瓷杯墊 系列  顏色: 綠底交織紋
-周邊,品牌製作物,「摩洛藝境」陶瓷杯墊 系列  顏色: 綠底金星芒
-周邊,品牌製作物,「摩洛藝境」陶瓷杯墊 系列  顏色: 紅底交織紋
-周邊,品牌製作物,「摩洛藝境」陶瓷杯墊 系列  顏色: 紅底繁花紋
-周邊,品牌製作物,「摩洛藝境」陶瓷杯墊 系列  顏色: 四色花磚紋
-周邊,品牌製作物,「摩洛藝境」陶瓷杯墊 系列  顏色: 白底紅星芒
-周邊,品牌製作物,「摩洛藝境」陶瓷杯墊 系列  顏色: 白底細花紋
-周邊,品牌製作物,「摩洛藝境」陶瓷杯墊 系列  顏色: 萬花繽紛紋
-周邊,品牌製作物,翡翠鎖光玉石滾輪
-周邊,品牌製作物,100%生絲摩洛哥傳統沐浴手套
-周邊,品牌製作物,晶潤柔膚矽膠刷`;
+  const previewSingles = useMemo(() =>
+    Object.entries(pendingSingles)
+      .filter(([, q]) => q)
+      .map(([pid, qty]) => ({
+        productId: pid as string,
+        name: (PRODUCTS_REF.find(pp => pp.id === pid) || {}).C || (pid as string),
+        qty: qty as number
+      }))
+    , [pendingSingles, rev]
+  );
 
-        const CUSTOMERS_DEFAULT_CSV = `官網,官網
-AE,AE
-MO,MO
-雅虎,雅虎
-蝦皮,蝦皮
-肯驛,肯驛
-PK,PK
-員購,員購
-其他,其他`;
+  const previewGifts = useMemo(() =>
+    Object.entries(giftChecks)
+      .filter(([, c]) => c)
+      .map(([gid]) => {
+        const g = GIFTS_REF.find(x => x.id === gid); if (!g) return null;
+        return {
+          id: gid,
+          title: g.name,
+          details: g.items.map((it: any) => ({
+            productId: it.productId,
+            name: (PRODUCTS_REF.find(pp => pp.id === it.productId) || {}).C || it.productId,
+            qty: it.qty
+          }))
+        };
+      })
+      .filter(Boolean as any)
+    , [giftChecks, rev]
+  );
 
-        // (Global variables already defined above)
+  function clearPreview() { setBundleGroups({}); setPendingSingles({}); setGiftChecks({}); }
+  function confirmPreview() {
+    const map = flattenPreviewToMap(bundleGroups, pendingSingles, giftChecks); if (map.size === 0) return;
+    setRows((prev: any[]) => {
+      const next = [...prev];
+      map.forEach((qty, pid) => {
+        const p = PRODUCTS_REF.find((x: any) => x.id === pid);
+        const idx = next.findIndex(r => r.productId === pid);
+        if (idx >= 0) next[idx] = { ...next[idx], qty: next[idx].qty + qty };
+        else next.push({ id: `${pid}-${Date.now()}-${Math.random()}`, productId: pid, name: p?.C || pid, qty, picked: 0 });
+      });
+      return next;
+    });
+    setMsg("已加入最終清單（預覽保留）");
+  }
 
-        // 工具函數
-        function slug(str) {
-            return (str || "").toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-        }
+  // 最終清單
+  const [rows, setRows] = useState<any[]>([]);
+  const hasMismatch = rows.some(r => (r.picked || 0) !== (r.qty || 0));
+  const plannedTotal = rows.reduce((s, r) => s + (r.qty || 0), 0);
+  const pickedTotal = rows.reduce((s, r) => s + (r.picked || 0), 0);
+  const salesOptions = (CUSTOMERS_REF.length ? CUSTOMERS_REF : [{ id: 'WEB', name: '官網' }]).map(x => x.name);
+  const nonSalesOptions = (NONSALES_REF.length ? NONSALES_REF : []).map(x => x.name);
 
-        function parseCSV(text) {
-            if (!text || !text.trim()) return [];
-            
-            const rows = [];
-            const lines = text.replace(/\r/g, '').split(/\n+/);
-            
-            for (let line of lines) {
-                line = line.trim();
-                if (!line) continue;
-                
-                const row = [];
-                let current = '';
-                let inQuotes = false;
-                
-                for (let i = 0; i < line.length; i++) {
-                    const char = line[i];
-                    const nextChar = line[i + 1];
-                    
-                    if (char === '"') {
-                        if (inQuotes && nextChar === '"') {
-                            current += '"';
-                            i++; // skip next quote
-                        } else {
-                            inQuotes = !inQuotes;
-                        }
-                    } else if (!inQuotes && (char === ',' || char === '，' || char === ';' || char === '\t')) {
-                        row.push(current.trim());
-                        current = '';
-                    } else {
-                        current += char;
-                    }
-                }
-                
-                row.push(current.trim());
-                if (row.length >= 2) {
-                    rows.push(row);
-                }
-            }
-            
-            return rows;
-        }
+  return (
+    <div className="mx-auto max-w-6xl p-4 bg-white text-gray-950 min-h-screen">
+      <Toast />
+      <h1 className="text-lg md:text-xl font-semibold mb-4">PM 庫存更新系統（預覽）</h1>
 
-        // 資料載入函數
-        async function loadDataFromRemote() {
-            try {
-                const [productsRes, customersRes, bundlesRes] = await Promise.allSettled([
-                    fetch(CONFIG.remote.products),
-                    fetch(CONFIG.remote.customers),
-                    fetch(CONFIG.remote.bundlesCsv)
-                ]);
+      {/* 出貨訂單資訊 */}
+      <section className="rounded border border-gray-200 bg-white p-3 shadow-sm mb-4">
+        <h2 className="text-sm font-medium mb-3">出貨訂單資訊</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-2 text-xs items-center">
+          <div className="flex items-center gap-2">
+            <label className="whitespace-nowrap">模式</label>
+            <select className="border rounded h-8 px-2" value={mode} onChange={e => setMode((e.target as HTMLSelectElement).value as any)}>
+              <option value="sales">銷售</option>
+              <option value="nonSales">非銷售</option>
+            </select>
+          </div>
+          {mode === 'sales' ? (
+            <div className="flex items-center gap-2">
+              <label className="whitespace-nowrap">客戶分類</label>
+              <select className="border rounded h-8 px-2" value={salesCat} onChange={e => setSalesCat((e.target as HTMLSelectElement).value)}>
+                {salesOptions.map(n => <option key={n}>{n}</option>)}
+              </select>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <label className="whitespace-nowrap">非銷售分類</label>
+              <select className="border rounded h-8 px-2" value={nonSalesCat} onChange={e => setNonSalesCat((e.target as HTMLSelectElement).value)}>
+                {nonSalesOptions.map(n => <option key={n}>{n}</option>)}
+              </select>
+            </div>
+          )}
+          <input className="border rounded h-8 px-2" placeholder="PO 出貨單號" value={po} onChange={e => setPo((e.target as HTMLInputElement).value)} />
+          <input className="border rounded h-8 px-2" placeholder="備註" value={memo} onChange={e => setMemo((e.target as HTMLInputElement).value)} />
+          <div className="md:col-span-3 lg:col-span-1 text-gray-600">表單-日期-ID：<span className="font-mono">{formDateId}</span></div>
+        </div>
+      </section>
 
-                let success = true;
-                
-                // 載入 products.json
-                if (productsRes.status === 'fulfilled' && productsRes.value.ok) {
-                    PRODUCTS = await productsRes.value.json();
-                } else {
-                    success = false;
-                }
+      {/* 產品選擇 */}
+      <section className="rounded border border-gray-300 bg-gray-50 p-4">
+        <h2 className="text-sm font-medium mb-3">產品選擇</h2>
 
-                // 載入 customers.json
-                if (customersRes.status === 'fulfilled' && customersRes.value.ok) {
-                    CUSTOMERS = await customersRes.value.json();
-                } else {
-                    success = false;
-                }
+        {/* 套組 */}
+        <div className="mb-4">
+          <h3 className="text-xs font-semibold mb-2">套組</h3>
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+            {BUNDLES_REF.map(b => (
+              <div key={b.id} className="rounded border border-gray-200 bg-white p-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-medium truncate">{b.name}</span>
+                  <Stepper value={bundleGroups[b.id] || 0} onChange={v => setBundleGroups((s: any) => ({ ...s, [b.id]: v }))} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
 
-                // 載入 bundle_items.csv
-                if (bundlesRes.status === 'fulfilled' && bundlesRes.value.ok) {
-                    const csvText = await bundlesRes.value.text();
-                    BUNDLES = parseBundleCSV(csvText);
-                } else {
-                    success = false;
-                }
+        {/* 單品 */}
+        <div className="mb-4">
+          <h3 className="text-xs font-semibold mb-2">單品</h3>
+          <div className="grid md:grid-cols-6 gap-2 items-center bg-white p-2 rounded border">
+            <select className="border rounded h-8 px-2 text-xs" value={selA} onChange={e => setSelA((e.target as HTMLSelectElement).value)}>
+              {categoriesA.map(a => <option key={a}>{a}</option>)}
+            </select>
+            <select className="border rounded h-8 px-2 text-xs" value={selB} onChange={e => setSelB((e.target as HTMLSelectElement).value)}>
+              {(seriesByA[selA] || []).map((b: string) => <option key={b}>{b}</option>)}
+            </select>
+            <select className="md:col-span-3 border rounded h-8 px-2 text-xs" value={selPid} onChange={e => setSelPid((e.target as HTMLSelectElement).value)}>
+              {(productsByAB[`${selA}__${selB}`] || []).map((p: any) => <option key={p.id} value={p.id}>{p.C}</option>)}
+            </select>
+            <div className="flex items-center gap-1 justify-self-end">
+              <Stepper value={singleQty} min={1} onChange={setSingleQty} />
+              <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={() => selPid && setPendingSingles((prev: any) => ({ ...prev, [selPid]: (prev[selPid] || 0) + singleQty }))}>加</button>
+            </div>
+          </div>
+        </div>
 
-                if (success) {
-                    dataSource = 'remote';
-                    console.log('[data-source]', {source: 'remote', products: PRODUCTS.length, customers: CUSTOMERS.length, bundles: BUNDLES.length});
-                    return true;
-                }
-            } catch (error) {
-                console.error('Remote data loading failed:', error);
-            }
-            return false;
-        }
+        {/* 禮遇 */}
+        <div>
+          <h3 className="text-xs font-semibold mb-2">禮遇</h3>
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+            {GIFTS_REF.map(g => (
+              <label key={g.id} className="flex items-center gap-2 rounded border border-gray-200 bg-white p-2 cursor-pointer">
+                <input type="checkbox" checked={!!giftChecks[g.id]} onChange={e => setGiftChecks((s: any) => ({ ...s, [g.id]: (e.target as HTMLInputElement).checked }))} />
+                <span className="text-xs leading-snug truncate">{g.name}</span>
+              </label>
+            ))}
+          </div>
+        </div>
 
-        function saveLocal() {
-            try {
-                localStorage.setItem('pm_products_v1', JSON.stringify(PRODUCTS));
-                localStorage.setItem('pm_customers_v1', JSON.stringify(CUSTOMERS));
-                localStorage.setItem('pm_bundles_v1', JSON.stringify(BUNDLES));
-            } catch (e) {
-                console.error('Failed to save to localStorage:', e);
-            }
-        }
+        {/* 預覽（三卡，可開合） */}
+        <div className="mt-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-semibold">庫存更新預覽</h3>
+            <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={() => setOpenPreview(o => !o)}>{openPreview ? "收" : "展"}</button>
+          </div>
+          {openPreview && (
+            <div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-2">
+                <div className="rounded border border-gray-200 bg-white p-3">
+                  <div className="text-xs font-semibold mb-2">套組</div>
+                  {previewBundles.length === 0 ? <div className="text-xs text-gray-400">（無）</div> : (
+                    <ul className="space-y-2 text-xs">
+                      {previewBundles.map((b: any) => (
+                        <li key={b.id} className="border-b border-dashed border-gray-200 pb-1">
+                          <div className="font-medium mb-1">{b.title}</div>
+                          <ul className="ml-3 list-disc text-[11px] text-gray-600">
+                            {b.details.map((d: any, i: number) => <li key={i}>{d.name} × {d.qty}</li>)}
+                          </ul>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className="rounded border border-gray-200 bg-white p-3">
+                  <div className="text-xs font-semibold mb-2">單品</div>
+                  {previewSingles.length === 0 ? <div className="text-xs text-gray-400">（無）</div> : (
+                    <ul className="space-y-2 text-xs">
+                      {previewSingles.map((s: any) => (
+                        <li key={s.productId} className="flex items-center justify-between gap-2">
+                          <div className="text-[11px] leading-snug whitespace-normal break-words">{s.name}</div>
+                          <div className="flex items-center gap-2">
+                            <Stepper value={s.qty} min={0} onChange={v => setPendingSingles((prev: any) => ({ ...prev, [s.productId]: v }))} />
+                            <button className="h-7 w-7 border border-gray-300 rounded text-sm text-gray-600" onClick={() => setPendingSingles((prev: any) => { const n = { ...prev }; delete n[s.productId]; return n; })}>×</button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className="rounded border border-gray-200 bg-white p-3">
+                  <div className="text-xs font-semibold mb-2">禮遇</div>
+                  {previewGifts.length === 0 ? <div className="text-xs text-gray-400">（無）</div> : (
+                    <ul className="space-y-2 text-xs">
+                      {previewGifts.map((g: any) => (
+                        <li key={g.id} className="border-b border-dashed border-gray-200 pb-1">
+                          <div className="font-medium mb-1">{g.title}</div>
+                          <ul className="ml-3 list-disc text-[11px] text-gray-600">
+                            {g.details.map((d: any, i: number) => <li key={i}>{d.name} × {d.qty}</li>)}
+                          </ul>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+              <div className="mt-3 flex justify-end gap-2">
+                <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={clearPreview}>全部清除</button>
+                <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={confirmPreview}>確認加入</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
 
-        function loadLocal() {
-            try {
-                const products = localStorage.getItem('pm_products_v1');
-                const customers = localStorage.getItem('pm_customers_v1');
-                const bundles = localStorage.getItem('pm_bundles_v1');
-                
-                if (products && customers) {
-                    PRODUCTS = JSON.parse(products);
-                    CUSTOMERS = JSON.parse(customers);
-                    BUNDLES = bundles ? JSON.parse(bundles) : [];
-                    dataSource = 'local';
-                    console.log('[data-source]', {source: 'local', products: PRODUCTS.length, customers: CUSTOMERS.length, bundles: BUNDLES.length});
-                    return true;
-                }
-            } catch (e) {
-                console.error('Failed to load from localStorage:', e);
-            }
-            return false;
-        }
+      {/* 最終清單 */}
+      {rows.length > 0 && (
+        <section className="mt-6 rounded border border-gray-200 bg-white shadow-sm p-4">
+          <h2 className="font-medium mb-2 text-sm">出貨清單／庫存扣減確認</h2>
 
-        async function loadDataWithFallback() {
-            // 檢查 URL 查詢參數
-            const urlParams = new URLSearchParams(window.location.search);
-            const dataParam = urlParams.get('data');
-            
-            if (dataParam === 'local') {
-                if (loadLocal()) return;
-            } else if (dataParam === 'remote') {
-                if (await loadDataFromRemote()) return;
-                showDataError();
-            } else {
-                // 預設：遠端優先
-                if (await loadDataFromRemote()) return;
-                if (loadLocal()) {
-                    showDataError();
-                    return;
-                }
-            }
-            
-            // 回退到預設資料
-            initializeDefaultData();
-            dataSource = 'defaults';
-            console.log('[data-source]', {source: 'defaults', products: PRODUCTS.length, customers: CUSTOMERS.length, bundles: BUNDLES.length});
-        }
+          {/* Header：類別只輸出值 */}
+          <div className="mb-3 text-xs text-gray-700 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 bg-gray-50 border border-gray-200 rounded p-2">
+            <div>類別：<span className="font-medium">{mode === 'sales' ? salesCat : nonSalesCat}</span></div>
+            <div>客戶 PO：<span className="font-medium">{po || '—'}</span></div>
+            <div>備註：<span className="font-medium">{memo || '—'}</span></div>
+            <div>表單-日期-ID：<span className="font-mono">{formDateId}</span></div>
+          </div>
 
-        function showDataError() {
-            const notice = document.getElementById('dataErrorNotice');
-            if (notice) {
-                notice.style.display = 'block';
-                setTimeout(() => notice.style.display = 'none', 5000);
-            }
-        }
+          <div className="grid grid-cols-12 text-[12px] text-gray-500 mb-1">
+            <div className="col-span-2">點交量</div>
+            <div className="col-span-7">商品名稱</div>
+            <div className="col-span-2 text-right">預計</div>
+            <div className="col-span-1 text-right">刪</div>
+          </div>
+          <ul className="divide-y divide-gray-200 text-xs">
+            {rows.map(r => {
+              const mismatch = (r.picked || 0) !== (r.qty || 0);
+              return (
+                <li key={r.id} className={classNames("py-1 grid grid-cols-12 items-center", mismatch && "bg-red-50/50")}>
+                  <div className="col-span-2">
+                    <div className="flex items-center gap-1">
+                      <input className={classNames("w-14 h-7 rounded border px-2 text-right tabular-nums", mismatch ? "border-red-400" : "border-gray-300")}
+                        value={r.picked}
+                        onChange={e => {
+                          const n = parseInt((e.target as HTMLInputElement).value.replace(/[^0-9]/g, ''), 10);
+                          setRows(prev => prev.map(x => x.id === r.id ? { ...x, picked: Number.isFinite(n) ? n : 0 } : x));
+                        }} />
+                      <button title="帶入預計" className="h-7 w-7 border border-gray-300 rounded text-xs text-gray-600"
+                        onClick={() => setRows(prev => prev.map(x => x.id === r.id ? { ...x, picked: x.qty } : x))}>=</button>
+                    </div>
+                  </div>
+                  <div className="col-span-7 whitespace-normal break-words">{r.name}</div>
+                  <div className="col-span-2 text-right"><Stepper value={r.qty} min={0} onChange={v => setRows(prev => prev.map(x => x.id === r.id ? { ...x, qty: v } : x))} /></div>
+                  <div className="col-span-1 text-right"><button className="h-7 w-7 border border-gray-300 rounded text-sm text-gray-600" onClick={() => setRows(prev => prev.filter(x => x.id !== r.id))}>×</button></div>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="flex justify-between items-center mt-3 text-sm">
+            <span>項：{rows.length}　計：{plannedTotal}　點：<span className={classNames(pickedTotal !== plannedTotal && 'text-red-600 font-medium')}>{pickedTotal}</span></span>
+            <div className="flex gap-2">
+              <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={() => setRows(prev => prev.map(x => ({ ...x, picked: x.qty })))}>全部帶入</button>
+              <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={() => setRows([])}>全部清除</button>
+              <button className="h-8 px-3 border border-gray-300 rounded text-xs disabled:opacity-50" disabled={hasMismatch}
+                onClick={() => {
+                  const payload = {
+                    mode,
+                    category: mode === 'sales' ? salesCat : nonSalesCat,
+                    po, memo, formDateId,
+                    items: rows.map(r => ({ productId: r.productId, name: r.name, qty: r.qty, picked: r.picked }))
+                  };
+                  console.log("POST payload (mock):", payload);
+                  setMsg("已提交（模擬）");
+                }}>庫存更新提交</button>
+            </div>
+          </div>
+        </section>
+      )}
 
-        function updateDataSourceBadge() {
-            const badge = document.getElementById('dataSourceBadge');
-            if (badge) {
-                badge.className = `data-source-badge ${dataSource}`;
-                badge.textContent = dataSource === 'remote' ? 'Remote' : 
-                                  dataSource === 'local' ? 'Local' : 'Defaults';
-            }
-        }
-
-        function parseBundleCSV(csvText) {
-            const rows = parseCSV(csvText);
-            const bundleMap = new Map();
-            
-            rows.forEach(row => {
-                const [bundleId, bundleName, productId, qty, active] = row;
-                if (!bundleId || !productId) return;
-                
-                const qtyNum = parseInt(qty) || 1;
-                const isActive = active === '1' || active === 'true';
-                
-                if (!bundleMap.has(bundleId)) {
-                    bundleMap.set(bundleId, {
-                        id: bundleId,
-                        name_zh: bundleName || bundleId,
-                        items: [],
-                        active: isActive
-                    });
-                }
-                
-                const bundle = bundleMap.get(bundleId);
-                bundle.items.push({
-                    product_id: productId,
-                    qty_per_bundle: qtyNum
-                });
-            });
-            
-            return Array.from(bundleMap.values()).filter(bundle => bundle.active);
-        }
-
-        function clearLocal() {
-            localStorage.removeItem(STORAGE_KEY);
-            initializeDefaultData();
-            renderAll();
-            showToast('本機儲存已清除，已還原預設資料', 'success');
-        }
-
-        function initializeDefaultData() {
-            const productRows = parseCSV(PRODUCTS_DEFAULT_CSV);
-            PRODUCTS = productRows.map(([A, B, C]) => ({ A: A || '', B: B || '', C: C || '' }));
-            
-            const customerRows = parseCSV(CUSTOMERS_DEFAULT_CSV);
-            CUSTOMERS = customerRows.map(([id, name]) => ({ id: id || '', name: name || '' }));
-        }
-
-        function showToast(message, type = 'success') {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.className = `toast ${type} show`;
-            
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 2000);
-        }
-
-        function generateFormDateId() {
-            const formDateIdInput = document.getElementById('formDateId');
-            
-            // 生成時間戳
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            
-            const dateTimeStr = `${year}${month}${day}-${hours}${minutes}`;
-            let formDateId;
-            
-            if (MODE === 'sales') {
-                const customerSelect = document.getElementById('selCustomer');
-                if (!customerSelect.value) {
-                    formDateIdInput.value = '';
-                    updateOrderPreview();
-                    return;
-                }
-                // 找到客戶名稱
-                const selectedCustomer = CUSTOMERS.find(c => c.id === customerSelect.value);
-                const customerName = selectedCustomer ? selectedCustomer.name : customerSelect.value;
-                formDateId = `${customerName}-${dateTimeStr}`;
-            } else {
-                // 非銷售模式：依類別生成前綴
-                const selNonSalesCategory = document.getElementById('selNonSalesCategory');
-                if (!selNonSalesCategory.value) {
-                    formDateIdInput.value = '';
-                    updateOrderPreview();
-                    return;
-                }
-                
-                // 使用實際的中文類別名稱作為前綴
-                const selectedCat = NON_SALES_CATEGORIES.find(c => c.id === selNonSalesCategory.value);
-                const prefix = selectedCat ? selectedCat.name : 'NS';
-                formDateId = `${prefix}-${dateTimeStr}`;
-            }
-            
-            formDateIdInput.value = formDateId;
-            updateOrderPreview();
-        }
-
-        function renderMode() {
-            const groupCustomer = document.getElementById('groupCustomer');
-            const nonSalesFields = document.getElementById('nonSalesFields');
-            const opSignSection = document.getElementById('opSignSection');
-            const poInput = document.getElementById('po');
-            
-            if (MODE === 'sales') {
-                // 銷售模式：顯示客戶選擇，隱藏非銷售欄位
-                groupCustomer.style.display = 'flex';
-                nonSalesFields.style.display = 'none';
-                poInput.readOnly = false;
-                poInput.style.background = '#fff';
-                // 切換回銷售模式時，清空PO欄位（如果目前是"-"）
-                if (poInput.value === '-') {
-                    poInput.value = '';
-                }
-                opSignSection.style.display = 'flex';
-            } else {
-                // 非銷售模式：隱藏客戶選擇，顯示非銷售欄位
-                groupCustomer.style.display = 'none';
-                nonSalesFields.style.display = 'block';
-                poInput.value = '-';
-                poInput.readOnly = true;
-                poInput.style.background = '#f8f9fa';
-                
-                // 填入非銷售類別
-                const selNonSalesCategory = document.getElementById('selNonSalesCategory');
-                selNonSalesCategory.innerHTML = '<option value="">請選擇類別</option>';
-                NON_SALES_CATEGORIES.sort((a, b) => a.order - b.order).forEach(cat => {
-                    const option = document.createElement('option');
-                    option.value = cat.id; // 中文值
-                    option.textContent = cat.name; // 中文顯示
-                    option.dataset.defaultSign = cat.defaultSign;
-                    selNonSalesCategory.appendChild(option);
-                });
-                
-                // 更新操作切換的顯示
-                updateOpSignVisibility();
-            }
-            
-            // 重新生成表單ID (清空現有值以強制重新生成)
-            document.getElementById('formDateId').value = '';
-            generateFormDateId();
-            updateOrderPreview();
-        }
-        
-        function updateOpSignVisibility() {
-            const selNonSalesCategory = document.getElementById('selNonSalesCategory');
-            const opSignSection = document.getElementById('opSignSection');
-            
-            if (MODE === 'non_sales' && selNonSalesCategory.value) {
-                const selectedOption = selNonSalesCategory.options[selNonSalesCategory.selectedIndex];
-                const defaultSign = selectedOption.dataset.defaultSign;
-                
-                if (defaultSign === 'plus') {
-                    opSignSection.style.display = 'none';
-                    opSign = 'add';
-                } else if (defaultSign === 'minus') {
-                    opSignSection.style.display = 'none';
-                    opSign = 'sub';
-                } else {
-                    opSignSection.style.display = 'flex';
-                }
-            } else {
-                opSignSection.style.display = 'flex';
-            }
-        }
-
-        function updateOrderPreview() {
-            const customerSelect = document.getElementById('selCustomer');
-            const poInput = document.getElementById('po');
-            const formDateIdInput = document.getElementById('formDateId');
-            
-            // 取得預覽行元素
-            const previewRows = document.querySelectorAll('.preview-row');
-            
-            if (MODE === 'sales') {
-                // 銷售模式預覽 - 確保正確的標籤，隱藏非銷售專用行
-                if (previewRows.length >= 5) {
-                    previewRows[0].querySelector('.preview-label').textContent = '出貨客戶:';
-                    previewRows[1].querySelector('.preview-label').textContent = 'PO 出貨單號:';
-                    previewRows[2].querySelector('.preview-label').textContent = '出貨單_日期_ID:';
-                    
-                    // 隱藏緊急程度和備註行（非銷售專用）
-                    previewRows[3].style.display = 'none';
-                    previewRows[4].style.display = 'none';
-                }
-                
-                const previewCustomer = document.getElementById('previewCustomer');
-                if (customerSelect.value) {
-                    const selectedCustomer = CUSTOMERS.find(c => c.id === customerSelect.value);
-                    previewCustomer.textContent = selectedCustomer ? selectedCustomer.name : customerSelect.value;
-                } else {
-                    previewCustomer.textContent = '請選擇客戶';
-                }
-                
-                const previewPO = document.getElementById('previewPO');
-                previewPO.textContent = poInput.value.trim() || '請輸入 PO 編號';
-            } else {
-                // 非銷售模式預覽
-                const selNonSalesCategory = document.getElementById('selNonSalesCategory');
-                const selUrgency = document.getElementById('selUrgency');
-                const txtNote = document.getElementById('txtNote');
-                
-                // 更新預覽標籤和內容 - 顯示所有行
-                if (previewRows.length >= 5) {
-                    // 第一行：非銷售類別
-                    previewRows[0].querySelector('.preview-label').textContent = '非銷售類別:';
-                    if (selNonSalesCategory.value) {
-                        const selectedCat = NON_SALES_CATEGORIES.find(c => c.id === selNonSalesCategory.value);
-                        previewRows[0].querySelector('.preview-value').textContent = selectedCat ? selectedCat.id : '請選擇類別';
-                    } else {
-                        previewRows[0].querySelector('.preview-value').textContent = '請選擇類別';
-                    }
-                    
-                    // 第二行：PO 編號（固定顯示 "-"）
-                    previewRows[1].querySelector('.preview-label').textContent = 'PO 出貨單號:';
-                    previewRows[1].querySelector('.preview-value').textContent = '-';
-                    
-                    // 第三行：出貨單_日期_ID
-                    previewRows[2].querySelector('.preview-label').textContent = '出貨單_日期_ID:';
-                    
-                    // 第四行：緊急程度
-                    const urgencyLabels = { '0': '一般', '1': '優先', '2': '急件' };
-                    previewRows[3].querySelector('.preview-label').textContent = '緊急程度:';
-                    previewRows[3].querySelector('.preview-value').textContent = urgencyLabels[selUrgency.value] || '一般';
-                    previewRows[3].style.display = 'flex';
-                    
-                    // 第五行：備註
-                    previewRows[4].querySelector('.preview-label').textContent = '備註:';
-                    previewRows[4].querySelector('.preview-value').textContent = txtNote.value.trim() || '無';
-                    previewRows[4].style.display = 'flex';
-                }
-            }
-            
-            // 更新表單ID預覽
-            const previewFormDateId = document.getElementById('previewFormDateId');
-            previewFormDateId.textContent = formDateIdInput.value || '待生成';
-        }
-
-        // 渲染函數
-        function renderCustomers() {
-            const select = document.getElementById('selCustomer');
-            select.innerHTML = '<option value="">請選擇客戶</option>';
-            
-            // 保持原始上傳順序，不進行排序
-            CUSTOMERS.forEach(customer => {
-                const option = document.createElement('option');
-                option.value = customer.id;
-                option.textContent = customer.name;
-                select.appendChild(option);
-            });
-        }
-
-        function renderFilters() {
-            // 保持原始上傳順序的去重處理
-            const seenCategories = new Set();
-            const seenSeries = new Set();
-            const categories = [];
-            const series = [];
-            
-            // 按原始順序取得品類和系列
-            PRODUCTS.forEach(p => {
-                if (!seenCategories.has(p.A)) {
-                    seenCategories.add(p.A);
-                    categories.push(p.A);
-                }
-                if (!seenSeries.has(p.B)) {
-                    seenSeries.add(p.B);
-                    series.push(p.B);
-                }
-            });
-            
-            // 產品按原始順序
-            const products = [...PRODUCTS];
-            
-            // 品類下拉
-            const catSelect = document.getElementById('selCategory');
-            catSelect.innerHTML = '<option value="">全部品類</option>';
-            categories.forEach(cat => {
-                const option = document.createElement('option');
-                option.value = cat;
-                option.textContent = cat;
-                catSelect.appendChild(option);
-            });
-            
-            // 系列下拉
-            const serSelect = document.getElementById('selSeries');
-            serSelect.innerHTML = '<option value="">全部系列</option>';
-            series.forEach(ser => {
-                const option = document.createElement('option');
-                option.value = ser;
-                option.textContent = ser;
-                serSelect.appendChild(option);
-            });
-            
-            // 產品下拉
-            const prodSelect = document.getElementById('selProduct');
-            prodSelect.innerHTML = '<option value="">請選擇產品</option>';
-            products.forEach(prod => {
-                const option = document.createElement('option');
-                option.value = JSON.stringify(prod);
-                option.textContent = prod.C;
-                prodSelect.appendChild(option);
-            });
-        }
-
-        function renderBundles() {
-            const bundleSelect = document.getElementById('selBundle');
-            bundleSelect.innerHTML = '<option value="">請選擇套組</option>';
-            
-            BUNDLES.forEach(bundle => {
-                const option = document.createElement('option');
-                option.value = bundle.id;
-                option.textContent = bundle.name_zh;
-                bundleSelect.appendChild(option);
-            });
-        }
-
-        function filterProducts() {
-            const categoryValue = document.getElementById('selCategory').value;
-            const seriesValue = document.getElementById('selSeries').value;
-            
-            let filtered = [...PRODUCTS];
-            
-            if (categoryValue) {
-                filtered = filtered.filter(p => p.A === categoryValue);
-            }
-            
-            if (seriesValue) {
-                filtered = filtered.filter(p => p.B === seriesValue);
-            }
-            
-            // 移除字母排序，維持原始上傳順序
-            
-            const prodSelect = document.getElementById('selProduct');
-            prodSelect.innerHTML = '<option value="">請選擇產品</option>';
-            
-            filtered.forEach(prod => {
-                const option = document.createElement('option');
-                option.value = JSON.stringify(prod);
-                option.textContent = prod.C;
-                prodSelect.appendChild(option);
-            });
-        }
-
-        function renderCart() {
-            const tbody = document.querySelector('#cartTable tbody');
-            tbody.innerHTML = '';
-            
-            cart.forEach((item, index) => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${item.C}</td>
-                    <td>
-                        <div class="qty-controls">
-                            <button class="qty-btn" onclick="updateCartQty(${index}, -1)">−</button>
-                            <input type="number" class="qty-input" value="${item.qty}" min="1" onchange="setCartQty(${index}, this.value)">
-                            <button class="qty-btn" onclick="updateCartQty(${index}, 1)">+</button>
-                        </div>
-                    </td>
-                    <td>
-                        <button class="btn btn-danger" onclick="removeFromCart(${index})">刪除</button>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-            
-            // 更新統計
-            document.getElementById('totalItems').textContent = cart.length;
-            document.getElementById('totalQty').textContent = cart.reduce((sum, item) => sum + item.qty, 0);
-        }
-
-        function renderAll() {
-            renderCustomers();
-            renderFilters();
-            renderBundles();
-            renderCart();
-            updateDataSourceBadge();
-        }
-
-        // 套組相關函數
-        function updateBundleQty(change) {
-            const bundleQtyInput = document.getElementById('bundleQty');
-            const currentQty = parseInt(bundleQtyInput.value) || 1;
-            bundleQtyInput.value = Math.max(1, currentQty + change);
-        }
-
-        function addBundleToCart() {
-            const bundleSelect = document.getElementById('selBundle');
-            const bundleQtyInput = document.getElementById('bundleQty');
-            
-            if (!bundleSelect.value) {
-                showToast('請選擇套組', 'error');
-                return;
-            }
-            
-            const selectedBundle = BUNDLES.find(b => b.id === bundleSelect.value);
-            if (!selectedBundle) {
-                showToast('找不到選擇的套組', 'error');
-                return;
-            }
-            
-            const bundleQty = parseInt(bundleQtyInput.value) || 1;
-            let addedCount = 0;
-            
-            selectedBundle.items.forEach(bundleItem => {
-                const product = PRODUCTS.find(p => p.C === bundleItem.product_id);
-                if (!product) {
-                    showToast(`找不到商品 product_id：${bundleItem.product_id}`, 'error');
-                    return;
-                }
-                
-                const totalQty = bundleItem.qty_per_bundle * bundleQty;
-                
-                // 檢查是否已存在
-                const existingIndex = cart.findIndex(item => 
-                    item.A === product.A && item.B === product.B && item.C === product.C
-                );
-                
-                if (existingIndex >= 0) {
-                    cart[existingIndex].qty += totalQty;
-                } else {
-                    cart.push({ ...product, qty: totalQty });
-                }
-                addedCount++;
-            });
-            
-            if (addedCount > 0) {
-                renderCart();
-                showToast(`已加入套組：${selectedBundle.name_zh} x${bundleQty}`, 'success');
-                bundleQtyInput.value = 1;
-            }
-        }
-
-        // 管理員驗證相關函數
-        function checkAdminAuth() {
-            const sessionAuth = sessionStorage.getItem('admin_auth_time');
-            if (sessionAuth) {
-                const authTime = parseInt(sessionAuth);
-                const now = Date.now();
-                if (now - authTime < 30 * 60 * 1000) { // 30分鐘
-                    adminAuthenticated = true;
-                    return true;
-                }
-            }
-            adminAuthenticated = false;
-            return false;
-        }
-
-        function showAdminModal() {
-            if (checkAdminAuth()) {
-                toggleAccordion();
-                return;
-            }
-            
-            const modal = document.getElementById('adminModal');
-            const pinInput = document.getElementById('adminPin');
-            modal.style.display = 'block';
-            pinInput.value = '';
-            pinInput.focus();
-        }
-
-        function hideAdminModal() {
-            const modal = document.getElementById('adminModal');
-            modal.style.display = 'none';
-        }
-
-        function confirmAdminPin() {
-            const pinInput = document.getElementById('adminPin');
-            const pin = pinInput.value.trim();
-            
-            if (pin === CONFIG.adminPin) {
-                adminAuthenticated = true;
-                sessionStorage.setItem('admin_auth_time', Date.now().toString());
-                hideAdminModal();
-                toggleAccordion();
-                showToast('管理員驗證成功', 'success');
-            } else {
-                showToast('PIN碼錯誤', 'error');
-                pinInput.value = '';
-                pinInput.focus();
-            }
-        }
-
-        function toggleAccordion() {
-            const content = document.getElementById('accordionContent');
-            const icon = document.getElementById('accordionIcon');
-            
-            if (content.classList.contains('open')) {
-                content.classList.remove('open');
-                icon.textContent = '▼';
-            } else {
-                content.classList.add('open');
-                icon.textContent = '▲';
-            }
-        }
-
-        async function refreshData() {
-            const refreshBtn = document.getElementById('btnRefreshData');
-            refreshBtn.disabled = true;
-            refreshBtn.textContent = '⟳';
-            
-            // 清除本機儲存
-            localStorage.removeItem('pm_products_v1');
-            localStorage.removeItem('pm_customers_v1');
-            localStorage.removeItem('pm_bundles_v1');
-            
-            // 重新載入遠端資料
-            await loadDataWithFallback();
-            renderAll();
-            
-            if (dataSource === 'remote') {
-                showToast('已重新整理遠端資料', 'success');
-            } else {
-                showToast('遠端資料載入失敗，已使用備用資料', 'error');
-            }
-            
-            refreshBtn.disabled = false;
-            refreshBtn.textContent = '🔄';
-        }
-
-        // 事件處理
-        function updateCartQty(index, change) {
-            cart[index].qty = Math.max(1, cart[index].qty + change);
-            renderCart();
-        }
-
-        function setCartQty(index, value) {
-            const qty = parseInt(value) || 1;
-            cart[index].qty = Math.max(1, qty);
-            renderCart();
-        }
-
-        function removeFromCart(index) {
-            cart.splice(index, 1);
-            renderCart();
-            showToast('已從清單中移除', 'success');
-        }
-
-        function addToCart() {
-            const productSelect = document.getElementById('selProduct');
-            const qtyInput = document.getElementById('qty');
-            
-            if (!productSelect.value) {
-                showToast('請選擇產品', 'error');
-                return;
-            }
-            
-            const product = JSON.parse(productSelect.value);
-            const qty = Math.max(1, parseInt(qtyInput.value) || 1);
-            
-            // 檢查是否已存在
-            const existingIndex = cart.findIndex(item => 
-                item.A === product.A && item.B === product.B && item.C === product.C
-            );
-            
-            if (existingIndex >= 0) {
-                cart[existingIndex].qty += qty;
-                showToast('數量已累加', 'success');
-            } else {
-                cart.push({ ...product, qty });
-                showToast('已加入清單', 'success');
-            }
-            
-            renderCart();
-            qtyInput.value = 1;
-        }
-
-        function clearCart() {
-            if (cart.length === 0) {
-                showToast('清單已經是空的', 'error');
-                return;
-            }
-            
-            if (confirm('確定要清空清單嗎？只會清除商品清單，不影響其他輸入欄位。')) {
-                cart = [];
-                renderCart();
-                showToast('商品清單已清空', 'success');
-            }
-        }
-
-        function submitOrder() {
-            const formDateIdInput = document.getElementById('formDateId');
-            
-            if (cart.length === 0) {
-                showToast('清單是空的', 'error');
-                return;
-            }
-            
-            // 根據模式進行不同的驗證
-            if (MODE === 'sales') {
-                const customerSelect = document.getElementById('selCustomer');
-                const poInput = document.getElementById('po');
-                
-                if (!customerSelect.value) {
-                    showToast('請選擇出貨客戶', 'error');
-                    return;
-                }
-                
-                if (!poInput.value.trim()) {
-                    showToast('請輸入 PO 出貨單號', 'error');
-                    return;
-                }
-            } else {
-                const selNonSalesCategory = document.getElementById('selNonSalesCategory');
-                
-                if (!selNonSalesCategory.value) {
-                    showToast('請選擇非銷售類別', 'error');
-                    return;
-                }
-            }
-            
-            // 計算 delta 總和
-            let totalDelta = 0;
-            const itemsWithDelta = cart.map(item => {
-                let delta;
-                if (MODE === 'sales') {
-                    delta = -item.qty; // 銷售模式固定為負值（出貨）
-                } else {
-                    const selNonSalesCategory = document.getElementById('selNonSalesCategory');
-                    const selectedOption = selNonSalesCategory.options[selNonSalesCategory.selectedIndex];
-                    const defaultSign = selectedOption.dataset.defaultSign;
-                    
-                    if (defaultSign === 'plus') {
-                        delta = +item.qty;
-                    } else if (defaultSign === 'minus') {
-                        delta = -item.qty;
-                    } else {
-                        // defaultSign === 'any'，依照 opSign 決定
-                        delta = opSign === 'add' ? +item.qty : -item.qty;
-                    }
-                }
-                totalDelta += delta;
-                
-                return {
-                    id: `${slug(item.A)}__${slug(item.B)}__${slug(item.C)}`,
-                    category: item.A,
-                    series: item.B,
-                    product: item.C,
-                    delta: delta
-                };
-            });
-            
-            // 創建確認訊息
-            let confirmMessage;
-            if (MODE === 'sales') {
-                const customerSelect = document.getElementById('selCustomer');
-                const poInput = document.getElementById('po');
-                const selectedCustomer = CUSTOMERS.find(c => c.id === customerSelect.value);
-                const customerName = selectedCustomer ? selectedCustomer.name : customerSelect.value;
-                
-                confirmMessage = `🚀 確認要提交庫存更新嗎？
-
-模式: 銷售 (Sales)
-📦 出貨客戶: ${customerName}
-📋 PO 出貨單號: ${poInput.value.trim()}
-🆔 出貨單_日期_ID: ${formDateIdInput.value}
-
-📊 商品項目: ${cart.length} 項
-📊 庫存異動總量: ${totalDelta}
-
-⚠️ 此操作將會提交到庫存更新系統，確定要繼續嗎？`;
-            } else {
-                const selNonSalesCategory = document.getElementById('selNonSalesCategory');
-                const selUrgency = document.getElementById('selUrgency');
-                const txtNote = document.getElementById('txtNote');
-                const selectedCat = NON_SALES_CATEGORIES.find(c => c.id === selNonSalesCategory.value);
-                
-                confirmMessage = `🚀 確認要提交庫存更新嗎？
-
-模式: 非銷售 (Non-Sales)
-📋 類別: ${selectedCat ? selectedCat.id : '未知'}
-⚡ 緊急程度: ${selUrgency.value}
-📝 備註: ${txtNote.value || '無'}
-🆔 表單_日期_ID: ${formDateIdInput.value}
-
-📊 商品項目: ${cart.length} 項
-📊 庫存異動總量: ${totalDelta}
-
-⚠️ 此操作將會提交到庫存更新系統，確定要繼續嗎？`;
-            }
-            
-            if (!confirm(confirmMessage)) {
-                return;
-            }
-            
-            
-            // 建立統一 payload
-const mode = MODE; // 'sales' | 'non_sales'
-            const poVal = (mode === 'sales' ? (document.getElementById('po').value || '').trim() : '-');
-            const noteVal = (document.getElementById('txtNote')?.value || '').trim(); // 非銷售時必填可在 UI 驗證
-
-            const payload = {
-                action: "inventory_update",
-                mode,
-                // —— 非銷售專屬欄位（銷售也要有 note，但可為空）——
-                ...(mode === 'non_sales' ? {
-                    categoryId: document.getElementById('selNonSalesCategory').value || "",
-                    urgency: parseInt(document.getElementById('selUrgency').value || "0", 10)
-                } : {}),
-                note: noteVal,
-                // —— 訂單資料 —— 
-                order: {
-                    customerId: (mode === 'sales'
-                        ? (document.getElementById('selCustomer').value || "")
-                        : (document.getElementById('selNonSalesCategory').value || "")), // 非銷售用類別ID占位
-                    category: (mode === 'non_sales' ? document.getElementById('selNonSalesCategory').value || "" : ""),
-                    po: poVal,
-                    docId: (document.getElementById('formDateId').value || "").trim()
-                },
-                // —— 明細（請確保含 product 與 delta）——
-                items: cart.map(p => ({
-                    id: p.id || `${slug(p.A)}__${slug(p.B)}__${slug(p.C)}`,
-                    category: p.A,
-                    series: p.B,
-                    product: p.C,
-                    delta: (mode === 'sales' ? -(p.qty||0) : (p.delta || (p.qty||0))) // 使用計算好的 delta
-                })),
-                // —— 合併欄位（給 Make 直接 mapping）——
-                meta: {
-                    noteCombined: [poVal, noteVal].filter(Boolean).join(" | ")
-                }
-            };
-
-            // 送出前請加這行除錯：
-            console.log('[DEBUG payload]', JSON.stringify(payload, null, 2));
-            
-            fetch(WEBHOOK_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            })
-            .then(response => {
-                if (response.ok) {
-                    showToast('✅ 庫存更新提交成功！', 'success');
-                } else {
-                    throw new Error('Network response was not ok');
-                }
-            })
-            .catch(error => {
-                console.error('Submit error:', error);
-                showToast('❌ 提交失敗，請稍後再試', 'error');
-            });
-        }
-
-        function resetAllData() {
-            if (!confirm('🔄 確定要重置所有資料嗎？這將恢復到系統初始狀態！')) {
-                return;
-            }
-            
-            // 重置模式為銷售
-            MODE = 'sales';
-            document.querySelector('input[name="mode"][value="sales"]').checked = true;
-            
-            // 清空表單欄位
-            document.getElementById('selCustomer').value = '';
-            document.getElementById('po').value = '';
-            document.getElementById('formDateId').value = '';
-            
-            // 清空非銷售欄位
-            document.getElementById('selNonSalesCategory').value = '';
-            document.getElementById('selUrgency').value = '0';
-            document.getElementById('txtNote').value = '';
-            
-            // 清空購物車
-            cart = [];
-            
-            // 重置產品篩選為預設值
-            document.getElementById('selCategory').value = '';
-            document.getElementById('selSeries').value = '';
-            document.getElementById('selProduct').value = '';
-            document.getElementById('qty').value = '1';
-            
-            // 重置操作類型為出貨
-            opSign = 'sub';
-            document.querySelector('input[name="opSign"][value="sub"]').checked = true;
-            
-            // 重新渲染所有組件
-            renderMode();  // 這會處理模式相關的顯示/隱藏
-            renderCart();
-            updateOrderPreview();
-            filterProducts();
-            
-            showToast('🔄 已重置到系統初始狀態', 'success');
-        }
-
-        // CSV 匯入處理
-        function importProducts() {
-            const csvText = document.getElementById('csvABC').value.trim();
-            if (!csvText) {
-                showToast('請輸入商品 CSV 資料', 'error');
-                return;
-            }
-            
-            try {
-                const rows = parseCSV(csvText);
-                PRODUCTS = rows.map(([A, B, C]) => ({ A: A || '', B: B || '', C: C || '' }));
-                saveLocal();
-                renderFilters();
-                showToast(`已載入 ${PRODUCTS.length} 個商品`, 'success');
-            } catch (error) {
-                showToast('商品 CSV 格式錯誤', 'error');
-            }
-        }
-
-        function importCustomers() {
-            const csvText = document.getElementById('csvCus').value.trim();
-            if (!csvText) {
-                showToast('請輸入客戶 CSV 資料', 'error');
-                return;
-            }
-            
-            try {
-                const rows = parseCSV(csvText);
-                CUSTOMERS = rows.map(([id, name]) => ({ id: id || '', name: name || '' }));
-                saveLocal();
-                renderCustomers();
-                showToast(`已載入 ${CUSTOMERS.length} 個客戶`, 'success');
-            } catch (error) {
-                showToast('客戶 CSV 格式錯誤', 'error');
-            }
-        }
-
-        function importBundles() {
-            const csvText = document.getElementById('csvBundles').value.trim();
-            if (!csvText) {
-                showToast('請輸入套組 CSV 資料', 'error');
-                return;
-            }
-            
-            try {
-                BUNDLES = parseBundleCSV(csvText);
-                saveLocal();
-                renderBundles();
-                showToast(`已載入 ${BUNDLES.length} 個套組`, 'success');
-            } catch (error) {
-                showToast('套組 CSV 格式錯誤', 'error');
-            }
-        }
-
-        function overwriteAll() {
-            const productsCsv = document.getElementById('csvABC').value.trim();
-            const customersCsv = document.getElementById('csvCus').value.trim();
-            
-            if (!productsCsv && !customersCsv) {
-                showToast('請至少輸入一種資料', 'error');
-                return;
-            }
-            
-            if (productsCsv) {
-                try {
-                    const rows = parseCSV(productsCsv);
-                    PRODUCTS = rows.map(([A, B, C]) => ({ A: A || '', B: B || '', C: C || '' }));
-                } catch (error) {
-                    showToast('商品 CSV 格式錯誤', 'error');
-                    return;
-                }
-            }
-            
-            if (customersCsv) {
-                try {
-                    const rows = parseCSV(customersCsv);
-                    CUSTOMERS = rows.map(([id, name]) => ({ id: id || '', name: name || '' }));
-                } catch (error) {
-                    showToast('客戶 CSV 格式錯誤', 'error');
-                    return;
-                }
-            }
-            
-            saveLocal();
-            renderAll();
-            showToast('資料已覆蓋並儲存', 'success');
-        }
-
-        // 事件綁定
-        document.addEventListener('DOMContentLoaded', async function() {
-            // 初始化資料（使用新的雙來源系統）
-            await loadDataWithFallback();
-            renderAll();
-            renderMode();
-            
-            // 數量控制
-            document.getElementById('inc').onclick = () => {
-                const qtyInput = document.getElementById('qty');
-                qtyInput.value = Math.max(1, parseInt(qtyInput.value) || 1) + 1;
-            };
-            
-            document.getElementById('dec').onclick = () => {
-                const qtyInput = document.getElementById('qty');
-                qtyInput.value = Math.max(1, (parseInt(qtyInput.value) || 1) - 1);
-            };
-            
-            document.getElementById('qty').onchange = function() {
-                this.value = Math.max(1, parseInt(this.value) || 1);
-            };
-            
-            // 篩選聯動
-            document.getElementById('selCategory').onchange = filterProducts;
-            document.getElementById('selSeries').onchange = filterProducts;
-            
-            document.getElementById('selProduct').onchange = function() {
-                if (this.value) {
-                    const product = JSON.parse(this.value);
-                    // 同步篩選器
-                    document.getElementById('selCategory').value = product.A;
-                    document.getElementById('selSeries').value = product.B;
-                }
-            };
-            
-            // 模式切換事件
-            document.querySelectorAll('input[name="mode"]').forEach(radio => {
-                radio.onchange = function() {
-                    MODE = this.value;
-                    renderMode();
-                };
-            });
-            
-            // 操作類型切換事件
-            document.querySelectorAll('input[name="opSign"]').forEach(radio => {
-                radio.onchange = function() {
-                    opSign = this.value;
-                };
-            });
-            
-            // 非銷售類別變更事件
-            document.getElementById('selNonSalesCategory').onchange = function() {
-                updateOpSignVisibility();
-                generateFormDateId();
-                updateOrderPreview();
-            };
-            
-            // 緊急程度和備註變更事件
-            document.getElementById('selUrgency').onchange = updateOrderPreview;
-            document.getElementById('txtNote').oninput = updateOrderPreview;
-            
-            // 客戶選擇事件 - 自動生成表單_日期_ID
-            document.getElementById('selCustomer').onchange = function() {
-                generateFormDateId();
-                updateOrderPreview();
-            };
-            
-            // PO編號輸入事件 - 更新預覽
-            document.getElementById('po').oninput = updateOrderPreview;
-            
-            // 按鈕事件
-            document.getElementById('addBtn').onclick = addToCart;
-            document.getElementById('btnClear').onclick = clearCart;
-            document.getElementById('btnSubmit').onclick = submitOrder;
-            document.getElementById('btnReset').onclick = resetAllData;
-            
-            // 套組按鈕
-            document.getElementById('btnAddBundle').onclick = addBundleToCart;
-            
-            // 資料管理按鈕
-            document.getElementById('btnRefreshData').onclick = refreshData;
-            document.getElementById('btnAdminLogin').onclick = showAdminModal;
-            document.getElementById('btnConfirmPin').onclick = confirmAdminPin;
-            document.getElementById('btnCancelPin').onclick = hideAdminModal;
-            
-            // 匯入按鈕
-            document.getElementById('btnParseABC').onclick = importProducts;
-            document.getElementById('btnParseCus').onclick = importCustomers;
-            document.getElementById('btnParseBundles').onclick = importBundles;
-            document.getElementById('btnOverwriteAll').onclick = overwriteAll;
-            document.getElementById('btnClearLocal').onclick = clearLocal;
-            
-            // 管理員PIN輸入事件
-            document.getElementById('adminPin').onkeypress = function(e) {
-                if (e.key === 'Enter') {
-                    confirmAdminPin();
-                }
-            };
-            
-            // 點擊模態框外部關閉
-            document.getElementById('adminModal').onclick = function(e) {
-                if (e.target === this) {
-                    hideAdminModal();
-                }
-            };
-        });
-    </script>
-</body>
-</html>
+      {/* Admin Import */}
+      <AdminImport onChanged={bump} />
+    </div>
+  );
+}
