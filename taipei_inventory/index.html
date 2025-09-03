@@ -3,69 +3,72 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>PM 庫存更新系統 — Final Standalone (Compact Single-Line)</title>
+<title>PM 庫存更新系統 — Final Standalone (Unified Typography)</title>
 <style>
+  /* ====== Design tokens (match 出貨訂單資訊 hierarchy) ====== */
   :root{
-    --bg:#ffffff; --card:#ffffff; --ink:#0f172a; --muted:#64748b; --line:#e5e7eb;
-    --primary:#2563eb; --primary-ink:#fff; --danger:#ef4444; --ok:#16a34a;
-    --shadow:0 1px 2px rgba(15,23,42,.06), 0 8px 24px rgba(15,23,42,.06);
+    --bg:#ffffff; --ink:#0f172a; --muted:#64748b; --line:#e5e7eb;
+    --card:#ffffff; --sub:#f8fafc; --primary:#2563eb; --danger:#ef4444;
+    --ok:#16a34a; --shadow:0 1px 2px rgba(15,23,42,.06), 0 8px 24px rgba(15,23,42,.06);
     --radius:12px;
+    --fs-body:14px; --fs-h1:22px; --fs-sec:18px; --fs-label:12px; --fs-ghost:12px;
   }
   *{box-sizing:border-box}
   html,body{
     margin:0;padding:0;background:var(--bg);color:var(--ink);
-    font:13.5px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,PingFang TC,Helvetica,Arial;
-    letter-spacing:.2px; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    font:var(--fs-body)/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,PingFang TC,Helvetica,Arial;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; letter-spacing:.2px;
   }
   .wrap{max-width:1120px;margin:24px auto;padding:0 16px}
-  h1{font-size:clamp(20px,2.2vw,28px);margin:0 0 16px;font-weight:800;letter-spacing:.3px}
+  h1{font-size:clamp(20px,2.2vw,var(--fs-h1));margin:0 0 16px;font-weight:800}
 
+  /* ====== Section skeleton (used across all blocks) ====== */
   .section{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);margin:18px 0;box-shadow:var(--shadow)}
-  .section-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);background:#f8fafc}
-  .section-tt{font-weight:900;font-size:clamp(16px,1.8vw,20px);letter-spacing:.25px}
-  .ghost{color:var(--muted);font-size:12px}
+  .section-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--sub)}
+  .section-tt{font-weight:900;font-size:var(--fs-sec)}
+  .ghost{color:var(--muted);font-size:var(--fs-ghost)}
   .pad{padding:16px}
+  .lbl{font-size:var(--fs-label);color:var(--muted);font-weight:700;letter-spacing:.3px}
 
-  .row{display:flex;gap:10px;flex-wrap:wrap}
-  .col{flex:1 1 240px}
-  .field{display:flex;flex-direction:column;gap:6px}
-  .lbl{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:.3px}
-
-  input,select,textarea{
-    border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff;min-height:34px;line-height:1.35
-  }
+  /* Layout helpers */
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .col{flex:1 1 260px}
+  input,select,textarea{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff;min-height:34px}
   select{cursor:pointer}
   textarea{width:100%;min-height:110px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 
+  /* Buttons */
   .btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:7px 10px;cursor:pointer;transition:.15s}
-  .btn:hover{background:#f8fafc}
-  .btn.pri{background:var(--primary);border-color:var(--primary);color:var(--primary-ink)}
-  .btn.danger{background:#fff;border-color:var(--danger);color:var(--danger)}
+  .btn:hover{background:#f3f4f6}
+  .btn.pri{background:var(--primary);border-color:var(--primary);color:#fff}
+  .btn.danger{border-color:var(--danger);color:var(--danger);background:#fff}
   .btn.small{padding:4px 8px;font-size:12px}
   .btn.icon{width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;padding:0}
   .btn.icon.round{border-radius:999px}
 
+  /* Grids */
   .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
   .grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
-  .grid-m2{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .grid-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
   @media (max-width:760px){
     .grid-3{grid-template-columns:1fr}
     .grid-2{grid-template-columns:1fr 1fr}
-    .grid-m2{grid-template-columns:1fr 1fr} /* 套組/禮遇手機兩欄 */
+    .grid-cards{grid-template-columns:1fr 1fr} /* 手機兩欄（套組/禮遇） */
   }
 
+  /* Cards + Text hierarchy */
   .card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px}
-  .title-lg{font-weight:900;font-size:15px;margin:4px 0 12px}
-  .title-sm{font-weight:800;font-size:13px;margin:0 0 6px}
+  .title-sm{font-weight:800;font-size:14px;margin:0 0 8px}
+  .title-xs{font-weight:800;font-size:13px;margin:0 0 6px}
   .muted{color:var(--muted)}
   .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 
-  /* Bundle/Gift cards (product choose) */
-  .bundle-line{display:flex;align-items:flex-start;gap:6px;flex-wrap:wrap}
-  .bundle-name{font-weight:800;font-size:13.2px;white-space:normal;line-height:1.28}
+  /* Bundle/Gift cards (compact, single-line names) */
+  .bundle-line{display:flex;align-items:flex-start;gap:6px}
+  .bundle-name{font-weight:800;font-size:13px;line-height:1.28;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .right{margin-left:auto}
 
-  /* Stepper */
+  /* Stepper (compact, matches section styling) */
   .stepper{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:8px;height:28px;background:#fff}
   .stepper input{width:44px;border:0;text-align:center;font-size:13px;outline:none}
   .stepper .sbtn{width:26px;height:28px;display:inline-flex;align-items:center;justify-content:center;border:0;background:#fff;cursor:pointer;font-size:16px;line-height:1}
@@ -74,45 +77,28 @@
   .stepper.sm .sbtn{width:24px;height:26px;font-size:15px}
   .stepper.sm input{width:40px;font-size:12.5px}
 
-  /* Preview compact titles */
-  .pv-title{font-weight:900;font-size:14.5px;margin:0 0 6px}
-
-  /* ultra-compact secondary lines: 單行、間距更窄 */
-  .sec-line{
-    display:grid; grid-template-columns:auto 1fr; align-items:center;
-    gap:4px; padding:2px 0; border-bottom:1px dashed var(--line);
-  }
+  /* Preview compact secondary lines (single line, tight gap) */
+  .sec-line{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:6px;padding:2px 0;border-bottom:1px dashed var(--line)}
   .sec-line:last-child{border-bottom:0}
-  .sec-qty{ color:var(--muted); font-size:11.5px; line-height:1.2; text-align:left; }
-  .sec-name{
-    font-size:11.8px; line-height:1.25;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; /* 改為單行省略 */
-  }
+  .sec-qty{color:var(--muted);font-size:12px}
+  .sec-name{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-  /* Gift/Bundle label更小（手機） */
-  @media (max-width:760px){
-    .bundle-name{font-size:12.2px}
-  }
-
-  /* Final list: 2-row card，更緊湊 */
+  /* Final list (two-row card, compact) */
   .final-item{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:8px;background:#fff}
   .final-name{font-weight:800;font-size:13px;margin-bottom:6px}
-  .final-controls{
-    display:grid; grid-template-columns:auto auto auto 1fr auto; align-items:center; gap:6px;
-    font-size:12px;
-  }
-  .final-controls .label{color:var(--muted);font-size:12px;margin-right:2px}
+  .final-controls{display:grid;grid-template-columns:auto auto auto 1fr auto;align-items:center;gap:6px;font-size:12px}
+  .final-controls .label{color:var(--muted);margin-right:2px}
   .final-controls .pair{display:flex;align-items:center;gap:4px}
   .final-controls .stepper{transform:scale(.92);transform-origin:left center}
   .final-controls .btn.icon{width:24px;height:24px}
 
-  /* Final header block 更明顯 */
+  /* Final header block (same as order header style) */
   .order-head{
     display:flex;flex-wrap:wrap;gap:12px;padding:8px 10px;border:1px solid var(--line);
-    background:#f1f5f9;border-radius:10px;margin-bottom:8px;font-size:12.5px
+    background:var(--sub);border-radius:10px;margin-bottom:8px;font-size:13px
   }
 
-  .table-head{display:flex;gap:16px;flex-wrap:wrap;font-size:13px}
+  /* Collapse button style */
   .collapse-btn{font-size:12px;color:var(--primary);background:transparent;border:0;cursor:pointer}
 
   /* Modal */
@@ -129,7 +115,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>PM 庫存更新系統（Final Standalone — Compact Single-Line）</h1>
+  <h1>PM 庫存更新系統（Final Standalone — Unified Typography）</h1>
 
   <!-- 出貨訂單資訊 -->
   <section class="section" id="orderSec">
@@ -140,8 +126,8 @@
     <div class="pad">
       <div class="row">
         <div class="col">
-          <div class="title-sm">模式</div>
-          <label class="row" style="gap:10px">
+          <div class="title-xs">模式</div>
+          <label class="row" style="gap:12px">
             <span><input type="radio" name="mode" value="sales" checked> 銷售</span>
             <span><input type="radio" name="mode" value="non_sales"> 非銷售</span>
           </label>
@@ -176,18 +162,18 @@
   </section>
 
   <!-- 產品選擇 -->
-  <section class="section">
+  <section class="section" id="chooseSec">
     <div class="section-hd">
       <div class="section-tt">產品選擇</div>
       <div class="ghost">套組 / 單品 / 禮遇 → 先加入預覽</div>
     </div>
     <div class="pad">
       <!-- 套組 -->
-      <div class="title-lg">套組</div>
-      <div class="grid-m2" id="bundleCards"><!-- populated --></div>
+      <div class="title-sm">套組</div>
+      <div class="grid-cards" id="bundleCards"><!-- populated --></div>
 
       <!-- 單品 -->
-      <div class="title-lg" style="margin-top:14px">單品</div>
+      <div class="title-sm" style="margin-top:14px">單品</div>
       <div class="grid-3">
         <div class="field">
           <label class="lbl">商品類別（A）</label>
@@ -212,8 +198,8 @@
       </div>
 
       <!-- 禮遇 -->
-      <div class="title-lg" style="margin-top:14px">禮遇</div>
-      <div class="grid-m2" id="giftCards"><!-- populated --></div>
+      <div class="title-sm" style="margin-top:14px">禮遇</div>
+      <div class="grid-cards" id="giftCards"><!-- populated --></div>
     </div>
   </section>
 
@@ -227,17 +213,17 @@
       <div class="grid-3">
         <!-- 套組預覽 -->
         <div class="card">
-          <div class="title-sm" style="font-size:14px;font-weight:900">套組</div>
+          <div class="title-xs">套組</div>
           <div id="pvBundles" class="muted">(無)</div>
         </div>
         <!-- 單品預覽 -->
         <div class="card">
-          <div class="title-sm" style="font-size:14px;font-weight:900">單品</div>
+          <div class="title-xs">單品</div>
           <div id="pvSingles" class="muted">(無)</div>
         </div>
         <!-- 禮遇預覽 -->
         <div class="card">
-          <div class="title-sm" style="font-size:14px;font-weight:900">禮遇</div>
+          <div class="title-xs">禮遇</div>
           <div id="pvGifts" class="muted">(無)</div>
         </div>
       </div>
@@ -250,22 +236,22 @@
   </section>
 
   <!-- 最終送出區（預設收起） -->
-  <section class="section" id="finalSec">
+  <section class="section" id="finalSec" style="display:none">
     <div class="section-hd">
       <div class="section-tt">出貨清單／庫存扣減確認</div>
     </div>
     <div class="pad">
       <!-- 第二行：出貨/進貨 selector -->
-      <div class="row" style="gap:10px;margin-bottom:8px">
+      <div class="row" style="gap:12px;margin-bottom:8px">
         <span class="ghost">簽名：</span>
-        <label class="row" style="gap:10px">
+        <label class="row" style="gap:12px">
           <span><input type="radio" name="op" value="out" checked> 出貨（扣）</span>
           <span><input type="radio" name="op" value="in"> 進貨（入）</span>
         </label>
       </div>
 
-      <!-- 明顯的 header 區塊 -->
-      <div class="order-head" id="finalHead">
+      <!-- 明顯 header（與出貨訂單資訊同風格） -->
+      <div class="order-head">
         <div>類別：<span class="mono" id="fhCat">待選</span></div>
         <div>客戶 PO：<span class="mono" id="fhPO">—</span></div>
         <div>備註：<span class="mono" id="fhMemo">—</span></div>
@@ -282,14 +268,14 @@
     </div>
   </section>
 
-  <!-- 系統用：管理登入＋手貼 CSV（預設關閉） -->
+  <!-- 系統用：管理登入＋手貼 CSV（預設關閉，每次必需 PIN） -->
   <section class="section" id="adminSec">
     <div class="section-hd">
       <div class="section-tt">匯入資料（系統用）</div>
       <button class="btn small" id="adminLoginBtn">管理登入 ▾</button>
     </div>
     <div class="pad" id="adminBody" style="display:none">
-      <div class="muted" style="margin:-4px 0 12px">貼上 CSV 後按「載入…」，會清空並覆蓋該資料集並即時重建 UI。</div>
+      <div class="ghost" style="margin:-4px 0 12px">貼上 CSV 後按「載入…」，會清空並覆蓋該資料集並即時重建 UI。</div>
 
       <div class="grid-2">
         <div class="field">
@@ -334,7 +320,7 @@
 <div class="modal" id="confirmModal" aria-hidden="true">
   <div class="modal-card">
     <div class="modal-hd">
-      <div class="title-lg">送出前確認</div>
+      <div class="section-tt" style="font-size:16px">送出前確認</div>
       <button class="btn icon round" id="closeModal">✕</button>
     </div>
     <div class="modal-bd">
@@ -357,7 +343,7 @@
 <div class="toast" id="toast">Saved</div>
 
 <script>
-/* ----------------------- Config ----------------------- */
+/* ================= Config ================= */
 const URLS = {
   products:"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/products.csv",
   customers:"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/customers.csv",
@@ -368,14 +354,18 @@ const URLS = {
 const WEBHOOK = "https://hook.us2.make.com/nbjdxrfypgoosj4qqxnzfmj9o29jq3c2";
 const PIN="50963212";
 
-/* ----------------------- Utilities ----------------------- */
+/* ================= Utilities ================= */
 const $ = (q)=>document.querySelector(q);
 function el(tag,attrs={},...kids){
   const n=document.createElement(tag);
   for(const [k,v] of Object.entries(attrs)){
-    if(k==="class") n.className=v; else if(k==="html") n.innerHTML=v;
-    else if(k==="text") n.textContent=v; else n.setAttribute(k,v);
-  } kids.forEach(k=>n.append(k)); return n;
+    if(k==="class") n.className=v;
+    else if(k==="html") n.innerHTML=v;
+    else if(k==="text") n.textContent=v;
+    else n.setAttribute(k,v);
+  }
+  kids.forEach(k=>n.append(k));
+  return n;
 }
 function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1500); }
 function parseLines(csv){ return csv.split(/\r?\n/).map(s=>s.trim()).filter(Boolean); }
@@ -399,7 +389,7 @@ function parseBundles(csv){
   return Object.values(map);
 }
 
-/* ----------------------- State ----------------------- */
+/* ================= State ================= */
 let PRODUCTS=[], CUSTOMERS=[], NONSALES=[], BUNDLES=[], GIFTS=[];
 let MAP_PROD={}, A_VALUES=[], B_BY_A={}, C_BY_AB={};
 
@@ -412,7 +402,7 @@ const previewSingles = new Map();  // productId -> qty
 const finalPlanned = new Map();    // productId -> planned qty
 const finalPicked  = new Map();    // productId -> picked qty
 
-/* ----------------------- DOM ----------------------- */
+/* ================= DOM ================= */
 const docIdEl=$("#docId");
 const salesSelWrap=$("#salesSelect");
 const nonSalesSelWrap=$("#nonSalesSelect");
@@ -446,7 +436,7 @@ const adminLoginBtn=$("#adminLoginBtn"), adminBody=$("#adminBody"), adminHide=$(
 const csvProducts=$("#csvProducts"), csvCustomers=$("#csvCustomers"), csvBundles=$("#csvBundles"), csvGifts=$("#csvGifts"), csvNonsales=$("#csvNonsales");
 const loadProducts=$("#loadProducts"), loadCustomers=$("#loadCustomers"), loadBundles=$("#loadBundles"), loadGifts=$("#loadGifts"), loadNonsales=$("#loadNonsales");
 
-/* ----------------------- Build helpers ----------------------- */
+/* ================= Derived builders ================= */
 function rebuildDerived(){
   MAP_PROD = Object.fromEntries(PRODUCTS.map(x=>[x.id,x]));
   A_VALUES=[...new Set(PRODUCTS.map(x=>x.A))];
@@ -461,7 +451,7 @@ function rebuildDerived(){
 }
 function buildName(pid){ return (MAP_PROD[pid]?.C)||pid; }
 
-/* ----------------------- UI builders ----------------------- */
+/* ================= UI helpers ================= */
 function makeStepper(initial,onChange){
   const wrap=el("div",{class:"stepper"});
   const minus=el("button",{class:"sbtn",text:"−",ariaLabel:"minus"});
@@ -471,41 +461,49 @@ function makeStepper(initial,onChange){
   minus.onclick=()=>set((parseInt(input.value,10)||0)-1);
   plus.onclick =()=>set((parseInt(input.value,10)||0)+1);
   input.oninput =()=>{ const n=parseInt(input.value.replace(/[^0-9]/g,""),10); set(Number.isFinite(n)?n:0); };
-  return wrap.appendChild(minus), wrap.appendChild(input), wrap.appendChild(plus), wrap;
+  wrap.append(minus,input,plus);
+  return wrap;
 }
 
-/* ----------------------- Load & Rebuild ----------------------- */
+/* ================= Load & Rebuild ================= */
 async function loadAll(){
-  const [p,c,b,g,n] = await Promise.all([
-    fetch(URLS.products).then(r=>r.text()),
-    fetch(URLS.customers).then(r=>r.text()),
-    fetch(URLS.bundles).then(r=>r.text()),
-    fetch(URLS.gifts).then(r=>r.text()),
-    fetch(URLS.nonsales).then(r=>r.text())
-  ]);
-  PRODUCTS=parseProducts(p);
-  CUSTOMERS=parsePairs(c);
-  BUNDLES=parseBundles(b);
-  GIFTS=parseBundles(g);
-  NONSALES=parsePairs(n);
+  try{
+    const [p,c,b,g,n] = await Promise.all([
+      fetch(URLS.products).then(r=>r.text()),
+      fetch(URLS.customers).then(r=>r.text()),
+      fetch(URLS.bundles).then(r=>r.text()),
+      fetch(URLS.gifts).then(r=>r.text()),
+      fetch(URLS.nonsales).then(r=>r.text())
+    ]);
+    PRODUCTS=parseProducts(p);
+    CUSTOMERS=parsePairs(c);
+    BUNDLES=parseBundles(b);
+    GIFTS=parseBundles(g);
+    NONSALES=parsePairs(n);
+  }catch(e){
+    console.error("Fetch error",e);
+    alert("讀取 GitHub CSV 失敗，請檢查網路或檔案位址。");
+  }
 
   rebuildDerived();
   rebuildUI();
   resetWorking();
-  renderPreview(); renderFinal(); updateDocId();
+  renderPreview();
+  renderFinal();
+  updateDocId();
 }
 
 function rebuildUI(){
-  // order dropdowns — use NAME as value
+  // order dropdowns — value 與顯示皆為「名稱本身」
   customerSel.innerHTML=`<option value="">選擇訂單類別</option>`+CUSTOMERS.map(x=>`<option value="${x.name}">${x.name}</option>`).join("");
   nonSalesSel.innerHTML=`<option value="">選擇訂單類別</option>`+NONSALES.map(x=>`<option value="${x.name}">${x.name}</option>`).join("");
 
-  // bundles
+  // bundles (no index numbers, only names + stepper)
   bundleCards.innerHTML="";
   BUNDLES.forEach(b=>{
     const card=el("div",{class:"card"});
     const line=el("div",{class:"bundle-line"});
-    const name=el("div",{class:"bundle-name",text:b.name});
+    const name=el("div",{class:"bundle-name",text:b.name, title:b.name});
     const st=makeStepper(0,(v)=>{
       bundleCounts.set(b.id,Math.max(0,v));
       if(v<=0) bundleCounts.delete(b.id);
@@ -524,15 +522,15 @@ function rebuildUI(){
     const line=el("div",{class:"bundle-line"});
     const cb=el("input",{type:"checkbox"});
     cb.addEventListener("change",()=>{cb.checked?giftChecks.add(g.id):giftChecks.delete(g.id); renderPreview();});
-    const name=el("div",{class:"bundle-name",text:g.name});
+    const name=el("div",{class:"bundle-name",text:g.name, title:g.name});
     line.append(cb,name);
     card.append(line);
     giftCards.append(card);
   });
 
   // singles A/B/C
-  aSel.innerHTML=A_VALUES.map(a=>`<option>${a}</option>`).join("");
-  aSel.selectedIndex=0; fillB(); fillC();
+  const aOpts=A_VALUES.map(a=>`<option>${a}</option>`).join("");
+  aSel.innerHTML=aOpts; aSel.selectedIndex=0; fillB(); fillC();
 }
 
 function resetWorking(){
@@ -540,7 +538,7 @@ function resetWorking(){
   finalPlanned.clear(); finalPicked.clear();
 }
 
-/* ----------------------- Selectors ----------------------- */
+/* ================= Selectors ================= */
 function fillB(){
   const a=aSel.value; const Bs=B_BY_A[a]||[];
   bSel.innerHTML=Bs.map(b=>`<option>${b}</option>`).join(""); bSel.selectedIndex=0; fillC();
@@ -552,10 +550,11 @@ function fillC(){
 }
 function updateDocId(){
   const cat=(mode==="sales"?customerSel.value:nonSalesSel.value)||"待選";
-  docId=`${cat}-${ymdhm()}`; $("#docId").textContent=docId; fhDoc.textContent=docId;
+  docId=`${cat}-${ymdhm()}`;
+  docIdEl.textContent=docId; fhDoc.textContent=docId;
 }
 
-/* ----------------------- Preview ----------------------- */
+/* ================= Preview ================= */
 function renderPreview(){
   // 套組
   pvBundles.innerHTML="";
@@ -564,13 +563,12 @@ function renderPreview(){
   else actB.forEach(b=>{
     const cnt=bundleCounts.get(b.id)||0;
     const box=el("div",{class:"card",style:"padding:8px;margin-bottom:8px"});
-    box.append(el("div",{class:"pv-title",text:`${b.name}  × ${cnt}`}));
+    box.append(el("div",{class:"title-xs",text:`${b.name}  × ${cnt}`}));
     b.items.forEach(it=>{
       const row = el("div",{class:"sec-line"});
-      row.append(
-        el("div",{class:"sec-qty",  text:"× "+(it.qty*cnt)}),
-        (()=>{ const n=el("div",{class:"sec-name",text: buildName(it.productId)}); n.title=buildName(it.productId); return n; })()
-      );
+      const qty=el("div",{class:"sec-qty",text:"× "+(it.qty*cnt)});
+      const nm =el("div",{class:"sec-name",text:buildName(it.productId),title:buildName(it.productId)});
+      row.append(qty,nm,el("span",{text:""}));
       box.append(row);
     });
     pvBundles.append(box);
@@ -583,7 +581,7 @@ function renderPreview(){
     const row=el("div",{class:"sec-line"});
     const st=makeStepper(qty,(v)=>{ if(v<=0){previewSingles.delete(pid); renderPreview(); return;} previewSingles.set(pid,v); });
     st.classList.add("sm");
-    const name=el("div",{class:"sec-name",text:buildName(pid)}); name.title=buildName(pid);
+    const name=el("div",{class:"sec-name",text:buildName(pid),title:buildName(pid)});
     const del=el("button",{class:"btn icon round",text:"✕"}); del.onclick=()=>{previewSingles.delete(pid); renderPreview();};
     row.append(st,name,del);
     pvSingles.append(row);
@@ -595,30 +593,29 @@ function renderPreview(){
   if(actG.length===0) pvGifts.textContent="(無)";
   else actG.forEach(g=>{
     const box=el("div",{class:"card",style:"padding:8px;margin-bottom:8px"});
-    box.append(el("div",{class:"pv-title",text:g.name}));
+    box.append(el("div",{class:"title-xs",text:g.name}));
     g.items.forEach(it=>{
       const row = el("div",{class:"sec-line"});
-      row.append(
-        el("div",{class:"sec-qty",  text:"× "+it.qty}),
-        (()=>{ const n=el("div",{class:"sec-name",text: buildName(it.productId)}); n.title=buildName(it.productId); return n; })()
-      );
+      const qty=el("div",{class:"sec-qty",text:"× "+it.qty});
+      const nm =el("div",{class:"sec-name",text:buildName(it.productId),title:buildName(it.productId)});
+      row.append(qty,nm,el("span",{text:""}));
       box.append(row);
     });
     pvGifts.append(box);
   });
 }
 
-/* ----------------------- Final ----------------------- */
+/* ================= Final ================= */
 function renderFinal(){
   const cat=(mode==="sales"?customerSel.value:nonSalesSel.value)||"待選";
-  fhCat.textContent=cat; fhPO.textContent=poInput.value||"—"; fhMemo.textContent=memoInput.value||"—";
+  $("#fhCat").textContent=cat; $("#fhPO").textContent=poInput.value||"—"; $("#fhMemo").textContent=memoInput.value||"—";
 
   finalList.innerHTML="";
   if(finalPlanned.size===0){ finalList.textContent="(尚未加入項目)"; return; }
 
   [...finalPlanned.entries()].forEach(([pid,planQ])=>{
     const wrap=el("div",{class:"final-item"});
-    const nm=el("div",{class:"final-name",text:buildName(pid)}); nm.title=buildName(pid);
+    const nm=el("div",{class:"final-name",text:buildName(pid),title:buildName(pid)});
     wrap.append(nm);
 
     const ctrl=el("div",{class:"final-controls"});
@@ -642,7 +639,7 @@ function renderFinal(){
 }
 function collapseFinal(open){ finalSec.style.display=open?"block":"none"; }
 
-/* ----------------------- Events ----------------------- */
+/* ================= Events ================= */
 document.querySelectorAll("input[name=mode]").forEach(r=>{
   r.addEventListener("change",()=>{ mode=r.value; salesSelWrap.style.display=(mode==="sales")?"":"none"; nonSalesSelWrap.style.display=(mode==="non_sales")?"":"none"; updateDocId(); renderFinal(); });
 });
@@ -651,11 +648,9 @@ nonSalesSel.addEventListener("change",()=>{updateDocId(); renderFinal();});
 poInput.addEventListener("input",()=>renderFinal());
 memoInput.addEventListener("input",()=>renderFinal());
 
-const aSel=$("#aSel"), bSel=$("#bSel"), cSel=$("#cSel");
 aSel.addEventListener("change",fillB);
 bSel.addEventListener("change",fillC);
 
-const singleQty=$("#singleQty"), addSingleBtn=$("#addSingleBtn");
 singleQty.addEventListener("click",(e)=>{
   const btn=e.target.closest(".sbtn"); if(!btn)return;
   const d=parseInt(btn.dataset.d,10)||0;
@@ -669,8 +664,6 @@ addSingleBtn.addEventListener("click",()=>{
   previewSingles.set(pid,(previewSingles.get(pid)||0)+n); renderPreview();
 });
 
-const pvBundles=$("#pvBundles"), pvSingles=$("#pvSingles"), pvGifts=$("#pvGifts");
-const pvClear=$("#pvClear"), pvConfirm=$("#pvConfirm");
 pvClear.addEventListener("click",()=>{
   bundleCounts.clear(); giftChecks.clear(); previewSingles.clear();
   document.querySelectorAll("#giftCards input[type=checkbox]").forEach(cb=>cb.checked=false);
@@ -689,39 +682,38 @@ pvConfirm.addEventListener("click",()=>{
   updateDocId(); renderFinal(); collapseFinal(true); finalSec.scrollIntoView({behavior:"smooth",block:"start"});
 });
 
-const previewBody=$("#previewBody"), togglePreview=$("#togglePreview");
 togglePreview.addEventListener("click",()=>{
   const open=previewBody.style.display!=="none"; previewBody.style.display=open?"none":""; togglePreview.textContent=open?"展":"收";
 });
 
-const fhCat=$("#fhCat"), fhPO=$("#fhPO"), fhMemo=$("#fhMemo"), fhDoc=$("#fhDoc");
-const finalList=$("#finalList"); const btnFill=$("#btnFill"), btnClearFinal=$("#btnClearFinal"), btnSubmit=$("#btnSubmit");
 btnFill.addEventListener("click",()=>{ [...finalPlanned.entries()].forEach(([pid,q])=>finalPicked.set(pid,q)); renderFinal(); });
 btnClearFinal.addEventListener("click",()=>{ finalPlanned.clear(); finalPicked.clear(); renderFinal(); });
 
-/* 送出與彈窗 */
-const confirmModal=$("#confirmModal"), closeModal=$("#closeModal"), mCancel=$("#mCancel"), mGo=$("#mGo");
-const mCat=$("#mCat"), mPO=$("#mPO"), mMemo=$("#mMemo"), mDoc=$("#mDoc"), mOp=$("#mOp"), mItems=$("#mItems");
+/* 送出與彈窗（僅送你指定 payload） */
 btnSubmit.addEventListener("click",()=>{
   if(finalPicked.size===0){ alert("尚未填寫點交量（Picked）。"); return; }
   const cat=(mode==="sales"?customerSel.value:nonSalesSel.value)||"";
-  mCat.textContent=cat||"—"; mPO.textContent=poInput.value||"—"; mMemo.textContent=memoInput.value||"—"; mDoc.textContent=docId; 
-  mOp.textContent=(document.querySelector("input[name=op]:checked").value==="out")?"出貨（扣）":"進貨（入）";
-  mItems.innerHTML="";
+  $("#mCat").textContent=cat||"—"; $("#mPO").textContent=poInput.value||"—"; $("#mMemo").textContent=memoInput.value||"—"; $("#mDoc").textContent=docId;
+  $("#mOp").textContent=(document.querySelector("input[name=op]:checked").value==="out")?"出貨（扣）":"進貨（入）";
+
   const list=el("div");
+  list.append(el("div",{class:"title-xs",text:"更新項目"}));
   [...finalPicked.entries()].forEach(([pid,pick])=>{
     if(pick<=0) return;
     const plan=finalPlanned.get(pid)||0;
     const line=el("div",{class:"sec-line",style:"grid-template-columns:100px 1fr 100px"});
-    line.append(el("div",{class:"sec-qty",text:"Picked "+pick}),
-               (()=>{ const n=el("div",{class:"sec-name",text:buildName(pid)}); n.title=buildName(pid); return n; })(),
-               el("div",{class:"sec-qty",text:"Planned "+plan}));
+    line.append(
+      el("div",{class:"sec-qty",text:"Picked "+pick}),
+      el("div",{class:"sec-name",text:buildName(pid),title:buildName(pid)}),
+      el("div",{class:"sec-qty",text:"Planned "+plan})
+    );
     list.append(line);
   });
-  mItems.append(list); $("#confirmModal").classList.add("show");
+  $("#mItems").innerHTML=""; $("#mItems").append(list);
+  $("#confirmModal").classList.add("show");
 });
-closeModal.onclick = mCancel.onclick = ()=>$("#confirmModal").classList.remove("show");
-mGo.addEventListener("click", async ()=>{
+$("#closeModal").onclick = $("#mCancel").onclick = ()=>$("#confirmModal").classList.remove("show");
+$("#mGo").addEventListener("click", async ()=>{
   const sign = (document.querySelector("input[name=op]:checked").value==="out")?-1:+1;
   const payload = {
     category: (mode==="sales"?customerSel.value:nonSalesSel.value)||"",
@@ -731,59 +723,67 @@ mGo.addEventListener("click", async ()=>{
     items: [...finalPicked.entries()].filter(([_,p])=>p>0).map(([pid,p])=>({productId:pid, delta:p*sign}))
   };
   try{
-    const res=await fetch("https://hook.us2.make.com/nbjdxrfypgoosj4qqxnzfmj9o29jq3c2",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    const res=await fetch(WEBHOOK,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
     if(!res.ok) throw new Error("HTTP "+res.status);
     toast("已送出成功"); $("#confirmModal").classList.remove("show");
   }catch(e){ console.error(e); alert("送出失敗，請稍後重試。"); }
 });
 
 /* Reset All（重抓 GitHub） */
-$("#resetBtn").addEventListener("click", async ()=>{ await loadAll(); collapseFinal(false); previewBody.style.display=""; togglePreview.textContent="收"; toast("已重抓 GitHub CSV"); });
-
-/* ----------------------- Admin Panel ----------------------- */
-let adminOpen=false; // 每次重載需重登
-const adminLoginBtn=$("#adminLoginBtn"), adminBody=$("#adminBody"), adminHide=$("#adminHide");
-adminLoginBtn.addEventListener("click",()=>{
-  const pin=prompt("請輸入管理員 PIN："); if(pin===PIN){ adminBody.style.display="block"; adminOpen=true; toast("已開啟系統面板"); } else if(pin!==null){ alert("PIN 錯誤"); }
+$("#resetBtn").addEventListener("click", async ()=>{
+  await loadAll();
+  collapseFinal(false);
+  $("#previewBody").style.display=""; $("#togglePreview").textContent="收";
+  toast("已重抓 GitHub CSV");
 });
-adminHide.addEventListener("click",()=>{ adminBody.style.display="none"; adminOpen=false; });
 
-const csvProducts=$("#csvProducts"), csvCustomers=$("#csvCustomers"), csvBundles=$("#csvBundles"), csvGifts=$("#csvGifts"), csvNonsales=$("#csvNonsales");
-const loadProducts=$("#loadProducts"), loadCustomers=$("#loadCustomers"), loadBundles=$("#loadBundles"), loadGifts=$("#loadGifts"), loadNonsales=$("#loadNonsales");
-loadProducts.addEventListener("click",()=>{
+/* ================= Admin Panel (PIN 每次需輸入) ================= */
+let adminOpen=false;
+$("#adminLoginBtn").addEventListener("click",()=>{
+  const pin=prompt("請輸入管理員 PIN：");
+  if(pin===PIN){ $("#adminBody").style.display="block"; adminOpen=true; toast("已開啟系統面板"); }
+  else if(pin!==null){ alert("PIN 錯誤"); }
+});
+$("#adminHide").addEventListener("click",()=>{ $("#adminBody").style.display="none"; adminOpen=false; });
+
+$("#loadProducts").addEventListener("click",()=>{
   try{
-    const list=parseProducts(csvProducts.value||""); if(list.length===0){alert("未解析到商品資料"); return;}
+    const list=parseProducts($("#csvProducts").value||""); if(list.length===0){alert("未解析到商品資料"); return;}
     PRODUCTS=list; rebuildDerived(); rebuildUI(); resetWorking(); renderPreview(); renderFinal(); updateDocId();
     toast(`商品 ${PRODUCTS.length} 筆已覆蓋`);
   }catch(e){console.error(e); alert("載入商品失敗");}
 });
-loadCustomers.addEventListener("click",()=>{
+$("#loadCustomers").addEventListener("click",()=>{
   try{
-    const list=parsePairs(csvCustomers.value||""); if(list.length===0){alert("未解析到客戶資料"); return;}
+    const list=parsePairs($("#csvCustomers").value||""); if(list.length===0){alert("未解析到客戶資料"); return;}
     CUSTOMERS=list; rebuildUI(); renderFinal(); updateDocId(); toast(`客戶 ${CUSTOMERS.length} 筆已覆蓋`);
   }catch(e){console.error(e); alert("載入客戶失敗");}
 });
-loadBundles.addEventListener("click",()=>{
+$("#loadBundles").addEventListener("click",()=>{
   try{
-    const list=parseBundles(csvBundles.value||""); if(list.length===0){alert("未解析到套組資料"); return;}
+    const list=parseBundles($("#csvBundles").value||""); if(list.length===0){alert("未解析到套組資料"); return;}
     BUNDLES=list; rebuildUI(); resetWorking(); renderPreview(); toast(`套組 ${BUNDLES.length} 筆已覆蓋`);
   }catch(e){console.error(e); alert("載入套組失敗");}
 });
-loadGifts.addEventListener("click",()=>{
+$("#loadGifts").addEventListener("click",()=>{
   try{
-    const list=parseBundles(csvGifts.value||""); if(list.length===0){alert("未解析到禮遇資料"); return;}
-    GIFTS=list; rebuildUI(); resetWorking(); renderPreview(); toast(`禮遇 ${GIFTS.length} 筳已覆蓋`);
+    const list=parseBundles($("#csvGifts").value||""); if(list.length===0){alert("未解析到禮遇資料"); return;}
+    GIFTS=list; rebuildUI(); resetWorking(); renderPreview(); toast(`禮遇 ${GIFTS.length} 筆已覆蓋`);
   }catch(e){console.error(e); alert("載入禮遇失敗");}
 });
-loadNonsales.addEventListener("click",()=>{
+$("#loadNonsales").addEventListener("click",()=>{
   try{
-    const list=parsePairs(csvNonsales.value||""); if(list.length===0){alert("未解析到非銷售資料"); return;}
+    const list=parsePairs($("#csvNonsales").value||""); if(list.length===0){alert("未解析到非銷售資料"); return;}
     NONSALES=list; rebuildUI(); renderFinal(); updateDocId(); toast(`非銷售 ${NONSALES.length} 筆已覆蓋`);
   }catch(e){console.error(e); alert("載入非銷售失敗");}
 });
 
-/* ----------------------- Init ----------------------- */
-window.addEventListener("load", async ()=>{ collapseFinal(false); adminBody.style.display="none"; await loadAll(); });
+/* ================= Init ================= */
+window.addEventListener("load", async ()=>{
+  // 每次載入：系統面板預設關閉（需 PIN），自動抓 GitHub CSV
+  $("#adminBody").style.display="none";
+  await loadAll();
+});
 </script>
 </body>
 </html>
