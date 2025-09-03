@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>PM 庫存更新系統 — Write4Version (Most Revised)</title>
+    <title>PM 庫存更新系統 — Write4Version (Updated)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -64,23 +64,26 @@
         return {setMsg,Toast};
       }
 
-      /* -------------------- Stepper (大字按鈕 + 小輸入框) ------------------- */
+      /* -------------------- Stepper (符號按鈕 + 小輸入框) ------------------- */
       function Stepper({value,min=0,onChange}){
         return (
           <div className="inline-flex items-stretch border border-gray-300 rounded h-[34px] overflow-hidden">
             <button
-              className="px-2 text-[13px] leading-[34px] select-none"
+              className="px-2 text-[16px] leading-[34px] select-none"
               onClick={()=>onChange(Math.max(min,(value||0)-1))}
-            >減</button>
+              aria-label="decrement"
+            >−</button>
             <input
               className="w-9 text-center text-[13px] outline-none border-l border-r border-gray-300"
               value={value}
               onChange={(e)=>{const n=parseInt(e.target.value.replace(/[^0-9]/g,''),10); onChange(Number.isFinite(n)?n:0);}}
+              inputMode="numeric"
             />
             <button
-              className="px-2 text-[13px] leading-[34px] select-none"
+              className="px-2 text-[16px] leading-[34px] select-none"
               onClick={()=>onChange((value||0)+1)}
-            >加</button>
+              aria-label="increment"
+            >+</button>
           </div>
         );
       }
@@ -104,8 +107,8 @@
 
         // order info
         const [mode,setMode]=useState("sales"); // 'sales' | 'nonSales'
-        const [salesCat,setSalesCat]=useState("");
-        const [nonSalesCat,setNonSalesCat]=useState("");
+        const [salesCat,setSalesCat]=useState("");     // value="" => 顯示「選擇訂單類別」
+        const [nonSalesCat,setNonSalesCat]=useState(""); // value="" => 顯示「選擇訂單類別」
         const [po,setPo]=useState("");
         const [memo,setMemo]=useState("");
 
@@ -207,7 +210,7 @@
             });
             return next;
           });
-          setMsg("已加入最終清單（預覽保留）");
+          // 不清預覽：保留參考
         }
 
         const opLabel = useMemo(()=> mode==='sales' ? '出貨（扣）' : '進貨（入）', [mode]);
@@ -233,11 +236,17 @@
                   <label><input type="radio" checked={mode==='nonSales'} onChange={()=>setMode('nonSales')}/> 非銷售</label>
                 </div>
                 {mode==='sales' ? (
-                  <select className="border rounded h-8 px-2" value={salesCat} onChange={e=>setSalesCat(e.target.value)}>
+                  <select className="border rounded h-8 px-2"
+                          value={salesCat}
+                          onChange={e=>setSalesCat(e.target.value)}>
+                    <option value="" disabled>選擇訂單類別</option>
                     {(CUSTOMERS||[]).map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
                   </select>
                 ) : (
-                  <select className="border rounded h-8 px-2" value={nonSalesCat} onChange={e=>setNonSalesCat(e.target.value)}>
+                  <select className="border rounded h-8 px-2"
+                          value={nonSalesCat}
+                          onChange={e=>setNonSalesCat(e.target.value)}>
+                    <option value="" disabled>選擇訂單類別</option>
                     {(NONSALES||[]).map(n=><option key={n.id} value={n.name}>{n.name}</option>)}
                   </select>
                 )}
@@ -250,19 +259,22 @@
             <section className="rounded border border-gray-300 bg-gray-50 p-4">
               <h2 className="text-sm font-medium mb-3">產品選擇</h2>
 
-              {/* 套組：手機兩欄、兩行截斷、步進器靠右 */}
+              {/* 套組：手機兩欄；手機時標題獨占第一行，Stepper 置右換行；桌機同列 */}
               <div className="mb-4">
                 <h3 className="text-xs font-semibold mb-2">套組</h3>
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
                   {(BUNDLES||[]).map(b=>(
                     <div key={b.id} className="rounded border border-gray-200 bg-white p-2">
-                      <div className="flex items-center justify-between gap-2">
+                      {/* mobile: flex-col; md 以上：flex-row */}
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-2">
                         <span
-                          className="text-[13px] leading-snug"
+                          className="text-[13px] leading-snug md:flex-1"
                           style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}
                           title={b.name}
                         >{b.name}</span>
-                        <Stepper value={bundleGroups[b.id]||0} onChange={v=>setBundleGroups(s=>({...s,[b.id]:v}))}/>
+                        <div className="md:self-auto self-end md:mt-0 mt-1 flex justify-end">
+                          <Stepper value={bundleGroups[b.id]||0} onChange={v=>setBundleGroups(s=>({...s,[b.id]:v}))}/>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -270,7 +282,7 @@
                 </div>
               </div>
 
-              {/* 單品 */}
+              {/* 單品（維持既有，右側 Stepper） */}
               <div className="mb-4">
                 <h3 className="text-xs font-semibold mb-2">單品</h3>
                 <div className="grid md:grid-cols-6 gap-2 items-center bg-white p-2 rounded border">
@@ -476,7 +488,6 @@
                               };
                               console.log("POST payload (mock):", payload);
                               setShowConfirm(false);
-                              // TODO: 接 API
                               alert("已提交（模擬），請查看 console。");
                             }}>確認送出</button>
                   </div>
