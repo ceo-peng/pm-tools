@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>PM 庫存更新系統 — Final Standalone</title>
+<title>PM 庫存更新系統 — Final Standalone (Compact Single-Line)</title>
 <style>
   :root{
     --bg:#ffffff; --card:#ffffff; --ink:#0f172a; --muted:#64748b; --line:#e5e7eb;
@@ -14,7 +14,7 @@
   *{box-sizing:border-box}
   html,body{
     margin:0;padding:0;background:var(--bg);color:var(--ink);
-    font:14px/1.52 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,PingFang TC,Helvetica,Arial;
+    font:13.5px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,PingFang TC,Helvetica,Arial;
     letter-spacing:.2px; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
   }
   .wrap{max-width:1120px;margin:24px auto;padding:0 16px}
@@ -22,27 +22,27 @@
 
   .section{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);margin:18px 0;box-shadow:var(--shadow)}
   .section-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);background:#f8fafc}
-  .section-tt{font-weight:800;font-size:clamp(16px,1.8vw,20px);letter-spacing:.25px}
+  .section-tt{font-weight:900;font-size:clamp(16px,1.8vw,20px);letter-spacing:.25px}
   .ghost{color:var(--muted);font-size:12px}
   .pad{padding:16px}
 
-  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
   .col{flex:1 1 240px}
   .field{display:flex;flex-direction:column;gap:6px}
-  .lbl{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.3px}
+  .lbl{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:.3px}
 
   input,select,textarea{
-    border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff;min-height:36px;line-height:1.4
+    border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff;min-height:34px;line-height:1.35
   }
   select{cursor:pointer}
-  textarea{width:100%;min-height:120px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  textarea{width:100%;min-height:110px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 
-  .btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 12px;cursor:pointer;transition:.15s}
+  .btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:7px 10px;cursor:pointer;transition:.15s}
   .btn:hover{background:#f8fafc}
   .btn.pri{background:var(--primary);border-color:var(--primary);color:var(--primary-ink)}
   .btn.danger{background:#fff;border-color:var(--danger);color:var(--danger)}
   .btn.small{padding:4px 8px;font-size:12px}
-  .btn.icon{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;padding:0}
+  .btn.icon{width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;padding:0}
   .btn.icon.round{border-radius:999px}
 
   .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
@@ -54,55 +54,63 @@
     .grid-m2{grid-template-columns:1fr 1fr} /* 套組/禮遇手機兩欄 */
   }
 
-  .card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:12px}
-  .title-lg{font-weight:800;font-size:16px;margin:4px 0 10px}
-  .title-sm{font-weight:700;font-size:13px;margin:0 0 6px}
+  .card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px}
+  .title-lg{font-weight:900;font-size:15px;margin:4px 0 12px}
+  .title-sm{font-weight:800;font-size:13px;margin:0 0 6px}
   .muted{color:var(--muted)}
   .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 
   /* Bundle/Gift cards (product choose) */
-  .bundle-line{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap}
-  .bundle-name{font-weight:700;font-size:14px;white-space:normal;line-height:1.35} /* 全顯示，可換行 */
+  .bundle-line{display:flex;align-items:flex-start;gap:6px;flex-wrap:wrap}
+  .bundle-name{font-weight:800;font-size:13.2px;white-space:normal;line-height:1.28}
   .right{margin-left:auto}
 
   /* Stepper */
-  .stepper{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:8px;height:32px;background:#fff}
-  .stepper input{width:48px;border:0;text-align:center;font-size:14px;outline:none}
-  .stepper .sbtn{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:0;background:#fff;cursor:pointer;font-size:16px}
+  .stepper{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:8px;height:28px;background:#fff}
+  .stepper input{width:44px;border:0;text-align:center;font-size:13px;outline:none}
+  .stepper .sbtn{width:26px;height:28px;display:inline-flex;align-items:center;justify-content:center;border:0;background:#fff;cursor:pointer;font-size:16px;line-height:1}
   .stepper .sbtn:hover{background:#f3f4f6}
-  .stepper.sm{height:28px}
-  .stepper.sm .sbtn{width:26px;height:28px;font-size:15px}
-  .stepper.sm input{width:42px;font-size:13px}
+  .stepper.sm{height:26px}
+  .stepper.sm .sbtn{width:24px;height:26px;font-size:15px}
+  .stepper.sm input{width:40px;font-size:12.5px}
 
   /* Preview compact titles */
-  .pv-title{font-weight:800;font-size:15px;margin:0 0 6px}
+  .pv-title{font-weight:900;font-size:14.5px;margin:0 0 6px}
 
-  /* NEW: ultra-compact secondary lines for bundle/gift inner items */
-  .sec-line { 
-    display:grid; 
-    grid-template-columns: 50px 1fr;
-    align-items:center; 
-    gap:6px; 
-    border-bottom:1px dashed var(--line);
-    padding:4px 0;
+  /* ultra-compact secondary lines: 單行、間距更窄 */
+  .sec-line{
+    display:grid; grid-template-columns:auto 1fr; align-items:center;
+    gap:4px; padding:2px 0; border-bottom:1px dashed var(--line);
   }
-  .sec-line:last-child { border-bottom:0; }
-  .sec-qty { color:var(--muted); font-size:12px; line-height:1.25; text-align:left; }
-  .sec-name { font-size:12px; line-height:1.3; white-space:normal; overflow:visible; text-overflow:clip; }
+  .sec-line:last-child{border-bottom:0}
+  .sec-qty{ color:var(--muted); font-size:11.5px; line-height:1.2; text-align:left; }
+  .sec-name{
+    font-size:11.8px; line-height:1.25;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; /* 改為單行省略 */
+  }
 
+  /* Gift/Bundle label更小（手機） */
   @media (max-width:760px){
-    .sec-line { gap:4px; padding:3px 0; grid-template-columns: 44px 1fr; }
-    .sec-qty  { font-size:11.5px; }
-    .sec-name { font-size:11.5px; line-height:1.28; }
-    .pv-title { margin-bottom:4px; }
+    .bundle-name{font-size:12.2px}
   }
 
-  /* Final list: 2-row card */
+  /* Final list: 2-row card，更緊湊 */
   .final-item{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:8px;background:#fff}
-  .final-name{font-weight:700;font-size:14px;margin-bottom:6px}
-  .final-controls{display:flex;align-items:center;gap:8px;font-size:12px}
-  .final-controls .stepper{transform:scale(.95);transform-origin:left center}
-  .final-controls .btn.icon{width:26px;height:26px}
+  .final-name{font-weight:800;font-size:13px;margin-bottom:6px}
+  .final-controls{
+    display:grid; grid-template-columns:auto auto auto 1fr auto; align-items:center; gap:6px;
+    font-size:12px;
+  }
+  .final-controls .label{color:var(--muted);font-size:12px;margin-right:2px}
+  .final-controls .pair{display:flex;align-items:center;gap:4px}
+  .final-controls .stepper{transform:scale(.92);transform-origin:left center}
+  .final-controls .btn.icon{width:24px;height:24px}
+
+  /* Final header block 更明顯 */
+  .order-head{
+    display:flex;flex-wrap:wrap;gap:12px;padding:8px 10px;border:1px solid var(--line);
+    background:#f1f5f9;border-radius:10px;margin-bottom:8px;font-size:12.5px
+  }
 
   .table-head{display:flex;gap:16px;flex-wrap:wrap;font-size:13px}
   .collapse-btn{font-size:12px;color:var(--primary);background:transparent;border:0;cursor:pointer}
@@ -121,7 +129,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>PM 庫存更新系統（Final Standalone）</h1>
+  <h1>PM 庫存更新系統（Final Standalone — Compact Single-Line）</h1>
 
   <!-- 出貨訂單資訊 -->
   <section class="section" id="orderSec">
@@ -179,7 +187,7 @@
       <div class="grid-m2" id="bundleCards"><!-- populated --></div>
 
       <!-- 單品 -->
-      <div class="title-lg" style="margin-top:16px">單品</div>
+      <div class="title-lg" style="margin-top:14px">單品</div>
       <div class="grid-3">
         <div class="field">
           <label class="lbl">商品類別（A）</label>
@@ -204,7 +212,7 @@
       </div>
 
       <!-- 禮遇 -->
-      <div class="title-lg" style="margin-top:16px">禮遇</div>
+      <div class="title-lg" style="margin-top:14px">禮遇</div>
       <div class="grid-m2" id="giftCards"><!-- populated --></div>
     </div>
   </section>
@@ -219,22 +227,22 @@
       <div class="grid-3">
         <!-- 套組預覽 -->
         <div class="card">
-          <div class="title-sm" style="font-size:14px;font-weight:800">套組</div>
+          <div class="title-sm" style="font-size:14px;font-weight:900">套組</div>
           <div id="pvBundles" class="muted">(無)</div>
         </div>
         <!-- 單品預覽 -->
         <div class="card">
-          <div class="title-sm" style="font-size:14px;font-weight:800">單品</div>
+          <div class="title-sm" style="font-size:14px;font-weight:900">單品</div>
           <div id="pvSingles" class="muted">(無)</div>
         </div>
         <!-- 禮遇預覽 -->
         <div class="card">
-          <div class="title-sm" style="font-size:14px;font-weight:800">禮遇</div>
+          <div class="title-sm" style="font-size:14px;font-weight:900">禮遇</div>
           <div id="pvGifts" class="muted">(無)</div>
         </div>
       </div>
 
-      <div class="row" style="margin-top:12px;justify-content:flex-end">
+      <div class="row" style="margin-top:10px;justify-content:flex-end">
         <button class="btn danger" id="pvClear">全部清除</button>
         <button class="btn pri" id="pvConfirm">確認加入</button>
       </div>
@@ -245,24 +253,28 @@
   <section class="section" id="finalSec">
     <div class="section-hd">
       <div class="section-tt">出貨清單／庫存扣減確認</div>
-      <div class="row" style="gap:10px">
+    </div>
+    <div class="pad">
+      <!-- 第二行：出貨/進貨 selector -->
+      <div class="row" style="gap:10px;margin-bottom:8px">
         <span class="ghost">簽名：</span>
         <label class="row" style="gap:10px">
           <span><input type="radio" name="op" value="out" checked> 出貨（扣）</span>
           <span><input type="radio" name="op" value="in"> 進貨（入）</span>
         </label>
       </div>
-    </div>
-    <div class="pad">
-      <div class="table-head" style="margin-bottom:8px" id="finalHead">
+
+      <!-- 明顯的 header 區塊 -->
+      <div class="order-head" id="finalHead">
         <div>類別：<span class="mono" id="fhCat">待選</span></div>
         <div>客戶 PO：<span class="mono" id="fhPO">—</span></div>
         <div>備註：<span class="mono" id="fhMemo">—</span></div>
         <div>表單-日期-ID：<span class="mono" id="fhDoc">—</span></div>
       </div>
+
       <div id="finalList" class="muted">(尚未加入項目)</div>
 
-      <div class="row" style="margin-top:12px;justify-content:flex-end">
+      <div class="row" style="margin-top:10px;justify-content:flex-end">
         <button class="btn" id="btnFill">全部帶入</button>
         <button class="btn danger" id="btnClearFinal">全部清除</button>
         <button class="btn pri" id="btnSubmit">庫存更新提交</button>
@@ -326,7 +338,7 @@
       <button class="btn icon round" id="closeModal">✕</button>
     </div>
     <div class="modal-bd">
-      <div class="table-head" style="margin-bottom:8px">
+      <div class="order-head" style="margin-top:0">
         <div>類別：<span class="mono" id="mCat">—</span></div>
         <div>客戶 PO：<span class="mono" id="mPO">—</span></div>
         <div>備註：<span class="mono" id="mMemo">—</span></div>
@@ -334,7 +346,7 @@
         <div>簽名：<span class="mono" id="mOp">—</span></div>
       </div>
       <div id="mItems"></div>
-      <div class="row" style="margin-top:12px;justify-content:flex-end">
+      <div class="row" style="margin-top:10px;justify-content:flex-end">
         <button class="btn" id="mCancel">取消</button>
         <button class="btn pri" id="mGo">確定送出</button>
       </div>
@@ -484,7 +496,7 @@ async function loadAll(){
 }
 
 function rebuildUI(){
-  // order dropdowns — use NAME as value (category wants string like "官網"/"盤點")
+  // order dropdowns — use NAME as value
   customerSel.innerHTML=`<option value="">選擇訂單類別</option>`+CUSTOMERS.map(x=>`<option value="${x.name}">${x.name}</option>`).join("");
   nonSalesSel.innerHTML=`<option value="">選擇訂單類別</option>`+NONSALES.map(x=>`<option value="${x.name}">${x.name}</option>`).join("");
 
@@ -493,7 +505,7 @@ function rebuildUI(){
   BUNDLES.forEach(b=>{
     const card=el("div",{class:"card"});
     const line=el("div",{class:"bundle-line"});
-    const name=el("div",{class:"bundle-name",text:b.name}); // 全顯示，可換行
+    const name=el("div",{class:"bundle-name",text:b.name});
     const st=makeStepper(0,(v)=>{
       bundleCounts.set(b.id,Math.max(0,v));
       if(v<=0) bundleCounts.delete(b.id);
@@ -512,7 +524,7 @@ function rebuildUI(){
     const line=el("div",{class:"bundle-line"});
     const cb=el("input",{type:"checkbox"});
     cb.addEventListener("change",()=>{cb.checked?giftChecks.add(g.id):giftChecks.delete(g.id); renderPreview();});
-    const name=el("div",{class:"bundle-name",text:g.name}); name.style.fontWeight="800";
+    const name=el("div",{class:"bundle-name",text:g.name});
     line.append(cb,name);
     card.append(line);
     giftCards.append(card);
@@ -557,7 +569,7 @@ function renderPreview(){
       const row = el("div",{class:"sec-line"});
       row.append(
         el("div",{class:"sec-qty",  text:"× "+(it.qty*cnt)}),
-        el("div",{class:"sec-name", text: buildName(it.productId)})
+        (()=>{ const n=el("div",{class:"sec-name",text: buildName(it.productId)}); n.title=buildName(it.productId); return n; })()
       );
       box.append(row);
     });
@@ -568,11 +580,12 @@ function renderPreview(){
   pvSingles.innerHTML="";
   if(previewSingles.size===0) pvSingles.textContent="(無)";
   else [...previewSingles.entries()].forEach(([pid,qty])=>{
-    const row=el("div",{class:"sec-line"}); // 用同樣緊湊行
+    const row=el("div",{class:"sec-line"});
     const st=makeStepper(qty,(v)=>{ if(v<=0){previewSingles.delete(pid); renderPreview(); return;} previewSingles.set(pid,v); });
     st.classList.add("sm");
+    const name=el("div",{class:"sec-name",text:buildName(pid)}); name.title=buildName(pid);
     const del=el("button",{class:"btn icon round",text:"✕"}); del.onclick=()=>{previewSingles.delete(pid); renderPreview();};
-    row.append(st, el("div",{class:"sec-name",text:buildName(pid)}), del);
+    row.append(st,name,del);
     pvSingles.append(row);
   });
 
@@ -587,7 +600,7 @@ function renderPreview(){
       const row = el("div",{class:"sec-line"});
       row.append(
         el("div",{class:"sec-qty",  text:"× "+it.qty}),
-        el("div",{class:"sec-name", text: buildName(it.productId)})
+        (()=>{ const n=el("div",{class:"sec-name",text: buildName(it.productId)}); n.title=buildName(it.productId); return n; })()
       );
       box.append(row);
     });
@@ -605,21 +618,25 @@ function renderFinal(){
 
   [...finalPlanned.entries()].forEach(([pid,planQ])=>{
     const wrap=el("div",{class:"final-item"});
-    wrap.append(el("div",{class:"final-name",text:buildName(pid)}));
+    const nm=el("div",{class:"final-name",text:buildName(pid)}); nm.title=buildName(pid);
+    wrap.append(nm);
 
     const ctrl=el("div",{class:"final-controls"});
+    const pickedPair=el("div",{class:"pair"}, el("span",{class:"label",text:"點交"}));
     const stPicked=makeStepper(finalPicked.get(pid)||0,(v)=>{ if(v<=0) finalPicked.delete(pid); else finalPicked.set(pid,v); });
-    stPicked.classList.add("sm");
+    stPicked.classList.add("sm"); pickedPair.append(stPicked);
 
+    const plannedPair=el("div",{class:"pair"}, el("span",{class:"label",text:"預計"}));
     const stPlan=makeStepper(planQ,(v)=>{
       if(v<=0){ finalPlanned.delete(pid); finalPicked.delete(pid); renderFinal(); return; }
       finalPlanned.set(pid,v);
     });
-    stPlan.classList.add("sm");
+    stPlan.classList.add("sm"); plannedPair.append(stPlan);
 
+    const spacer=el("div"); // 推開刪除鍵
     const del=el("button",{class:"btn icon round",text:"✕"}); del.onclick=()=>{ finalPlanned.delete(pid); finalPicked.delete(pid); renderFinal(); };
 
-    ctrl.append(el("span",{class:"muted",text:"點交"}),stPicked, el("span",{class:"muted",text:"預計"}),stPlan, el("span",{class:"right"}), del);
+    ctrl.append(pickedPair, plannedPair, spacer, del);
     wrap.append(ctrl); finalList.append(wrap);
   });
 }
@@ -634,9 +651,11 @@ nonSalesSel.addEventListener("change",()=>{updateDocId(); renderFinal();});
 poInput.addEventListener("input",()=>renderFinal());
 memoInput.addEventListener("input",()=>renderFinal());
 
+const aSel=$("#aSel"), bSel=$("#bSel"), cSel=$("#cSel");
 aSel.addEventListener("change",fillB);
 bSel.addEventListener("change",fillC);
 
+const singleQty=$("#singleQty"), addSingleBtn=$("#addSingleBtn");
 singleQty.addEventListener("click",(e)=>{
   const btn=e.target.closest(".sbtn"); if(!btn)return;
   const d=parseInt(btn.dataset.d,10)||0;
@@ -644,19 +663,19 @@ singleQty.addEventListener("click",(e)=>{
   const n=Math.max(1,(parseInt(inp.value,10)||1)+d);
   inp.value=n;
 });
-
 addSingleBtn.addEventListener("click",()=>{
   const pid=cSel.value; if(!pid) return;
   const n=parseInt(singleQty.querySelector("input").value,10)||1;
   previewSingles.set(pid,(previewSingles.get(pid)||0)+n); renderPreview();
 });
 
+const pvBundles=$("#pvBundles"), pvSingles=$("#pvSingles"), pvGifts=$("#pvGifts");
+const pvClear=$("#pvClear"), pvConfirm=$("#pvConfirm");
 pvClear.addEventListener("click",()=>{
   bundleCounts.clear(); giftChecks.clear(); previewSingles.clear();
   document.querySelectorAll("#giftCards input[type=checkbox]").forEach(cb=>cb.checked=false);
   renderPreview();
 });
-
 pvConfirm.addEventListener("click",()=>{
   finalPlanned.clear(); finalPicked.clear();
   for(const b of BUNDLES){
@@ -670,14 +689,19 @@ pvConfirm.addEventListener("click",()=>{
   updateDocId(); renderFinal(); collapseFinal(true); finalSec.scrollIntoView({behavior:"smooth",block:"start"});
 });
 
+const previewBody=$("#previewBody"), togglePreview=$("#togglePreview");
 togglePreview.addEventListener("click",()=>{
   const open=previewBody.style.display!=="none"; previewBody.style.display=open?"none":""; togglePreview.textContent=open?"展":"收";
 });
 
+const fhCat=$("#fhCat"), fhPO=$("#fhPO"), fhMemo=$("#fhMemo"), fhDoc=$("#fhDoc");
+const finalList=$("#finalList"); const btnFill=$("#btnFill"), btnClearFinal=$("#btnClearFinal"), btnSubmit=$("#btnSubmit");
 btnFill.addEventListener("click",()=>{ [...finalPlanned.entries()].forEach(([pid,q])=>finalPicked.set(pid,q)); renderFinal(); });
 btnClearFinal.addEventListener("click",()=>{ finalPlanned.clear(); finalPicked.clear(); renderFinal(); });
 
 /* 送出與彈窗 */
+const confirmModal=$("#confirmModal"), closeModal=$("#closeModal"), mCancel=$("#mCancel"), mGo=$("#mGo");
+const mCat=$("#mCat"), mPO=$("#mPO"), mMemo=$("#mMemo"), mDoc=$("#mDoc"), mOp=$("#mOp"), mItems=$("#mItems");
 btnSubmit.addEventListener("click",()=>{
   if(finalPicked.size===0){ alert("尚未填寫點交量（Picked）。"); return; }
   const cat=(mode==="sales"?customerSel.value:nonSalesSel.value)||"";
@@ -690,7 +714,7 @@ btnSubmit.addEventListener("click",()=>{
     const plan=finalPlanned.get(pid)||0;
     const line=el("div",{class:"sec-line",style:"grid-template-columns:100px 1fr 100px"});
     line.append(el("div",{class:"sec-qty",text:"Picked "+pick}),
-               el("div",{class:"sec-name",text:buildName(pid)}),
+               (()=>{ const n=el("div",{class:"sec-name",text:buildName(pid)}); n.title=buildName(pid); return n; })(),
                el("div",{class:"sec-qty",text:"Planned "+plan}));
     list.append(line);
   });
@@ -718,11 +742,14 @@ $("#resetBtn").addEventListener("click", async ()=>{ await loadAll(); collapseFi
 
 /* ----------------------- Admin Panel ----------------------- */
 let adminOpen=false; // 每次重載需重登
+const adminLoginBtn=$("#adminLoginBtn"), adminBody=$("#adminBody"), adminHide=$("#adminHide");
 adminLoginBtn.addEventListener("click",()=>{
   const pin=prompt("請輸入管理員 PIN："); if(pin===PIN){ adminBody.style.display="block"; adminOpen=true; toast("已開啟系統面板"); } else if(pin!==null){ alert("PIN 錯誤"); }
 });
 adminHide.addEventListener("click",()=>{ adminBody.style.display="none"; adminOpen=false; });
 
+const csvProducts=$("#csvProducts"), csvCustomers=$("#csvCustomers"), csvBundles=$("#csvBundles"), csvGifts=$("#csvGifts"), csvNonsales=$("#csvNonsales");
+const loadProducts=$("#loadProducts"), loadCustomers=$("#loadCustomers"), loadBundles=$("#loadBundles"), loadGifts=$("#loadGifts"), loadNonsales=$("#loadNonsales");
 loadProducts.addEventListener("click",()=>{
   try{
     const list=parseProducts(csvProducts.value||""); if(list.length===0){alert("未解析到商品資料"); return;}
