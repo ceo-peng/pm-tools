@@ -3,568 +3,403 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>PM 庫存更新系統（Write4Version – Final）</title>
+<title>PM 庫存更新系統 — Final + Admin CSV</title>
 <style>
   :root{
-    --bg:#ffffff; --fg:#111827; --muted:#6b7280; --line:#e5e7eb;
-    --brand:#0ea5e9; --brand-600:#0284c7; --card:#f9fafb; --danger:#ef4444;
+    --bg:#ffffff; --card:#ffffff; --ink:#0f172a; --muted:#64748b; --line:#e5e7eb;
+    --primary:#2563eb; --primary-ink:#fff; --danger:#ef4444; --ok:#16a34a;
+    --chip:#f8fafc; --chip-ink:#0f172a;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
-  .container{max-width:1120px;margin:24px auto;padding:0 16px}
-  h1{font-size:22px;margin:0 0 16px}
-  .block{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 2px 6px rgba(0,0,0,.03);margin:16px 0}
-  .block-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);background:#fafafa}
-  .block-hd .ttl{font-weight:700;font-size:16px;letter-spacing:.02em}
-  .block-bd{padding:16px}
-  .muted{color:var(--muted)}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,PingFang TC,Helvetica,Arial}
+  .wrap{max-width:1120px;margin:24px auto;padding:0 16px}
+  h1{font-size:clamp(20px,2.4vw,28px);margin:0 0 16px}
+  .section{background:var(--card);border:1px solid var(--line);border-radius:12px;margin:16px 0}
+  .section-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);background:#f8fafc}
+  .section-tt{font-weight:700;font-size:clamp(16px,1.8vw,20px)}
+  .ghost{color:var(--muted);font-size:12px}
+  .pad{padding:16px}
   .row{display:flex;gap:12px;flex-wrap:wrap}
-  .field{display:flex;flex-direction:column;gap:6px;min-width:220px;flex:1}
-  label{font-size:12px;color:var(--muted)}
-  input[type=text],select,textarea{
-    width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;
-    outline:none;transition:.15s;border-color:var(--line);
-  }
-  input[type=text]:focus,select:focus,textarea:focus{border-color:var(--brand)}
-  textarea{min-height:72px;resize:vertical}
-  .radio-row{display:flex;gap:18px;align-items:center}
-  .hint{font-size:12px;color:var(--muted)}
-  .grid{display:grid;gap:12px}
-  .grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
-  @media (max-width:1024px){.grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}}
-  @media (max-width:640px){.grid-3,.grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}}
-  .card{border:1px solid var(--line);border-radius:12px;background:#fff;padding:12px}
-  .item-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
-  .name{font-weight:600;font-size:14px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  .stepper{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:10px;height:36px;overflow:hidden}
-  .stepper button{width:36px;height:36px;border:0;background:#fff;font-size:18px;cursor:pointer}
-  .stepper input{width:46px;border:0;border-left:1px solid var(--line);border-right:1px solid var(--line);text-align:center;font-weight:600}
-  .right{margin-left:auto}
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:#fff;cursor:pointer}
-  .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+  .col{flex:1 1 240px}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  .card{border:1px solid var(--line);border-radius:10px;background:var(--card);padding:12px}
+  .title-lg{font-weight:700;font-size:16px;margin:0 0 8px}
+  .title-sm{font-weight:600;font-size:13px;margin:0 0 6px}
+  .muted{color:var(--muted)}
+  .chip{display:inline-block;background:var(--chip);color:var(--chip-ink);border:1px solid var(--line);border-radius:999px;padding:2px 8px;font-size:12px}
+  .btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 12px;cursor:pointer}
+  .btn:hover{background:#f8fafc}
+  .btn.pri{background:var(--primary);border-color:var(--primary);color:var(--primary-ink)}
   .btn.danger{background:#fff;border-color:var(--danger);color:var(--danger)}
-  .btn.ghost{background:#fff}
-  .btn.small{padding:6px 10px;font-size:12px;border-radius:8px}
-  .divider{height:1px;background:var(--line);margin:12px 0}
-  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
-  .pill{display:inline-flex;align-items:center;height:28px;padding:0 8px;border-radius:999px;border:1px solid var(--line);gap:8px;background:#fff}
-  .table{width:100%;border-collapse:separate;border-spacing:0 12px}
-  .tr{display:grid;grid-template-columns:140px 1fr 150px 50px;gap:12px;align-items:center}
-  .tr .title{font-weight:600}
-  @media (max-width:680px){
-    .tr{grid-template-columns:1fr;align-items:stretch}
+  .btn.small{padding:4px 8px;font-size:12px}
+  .btn.icon{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;padding:0}
+  .btn.icon.round{border-radius:999px}
+  .row-line{display:grid;grid-template-columns:80px 1fr auto 36px;align-items:center;gap:8px;border-bottom:1px dashed var(--line);padding:8px 0}
+  .row-line:last-child{border-bottom:0}
+  .row-final{display:grid;grid-template-columns:140px 1fr 140px 36px;gap:8px;align-items:center;border-bottom:1px solid var(--line);padding:8px 0}
+  .row-final:last-child{border-bottom:0}
+  .flex{display:flex;align-items:center;gap:8px}
+  .right{margin-left:auto}
+  input,select,textarea{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fff;min-height:36px}
+  textarea{width:100%;min-height:120px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .lbl{font-size:12px;color:var(--muted)}
+  .stepper{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:8px;height:32px;overflow:hidden;background:#fff}
+  .stepper input{width:48px;border:0;text-align:center;font-size:14px;outline:none}
+  .stepper .sbtn{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:0;background:#fff;cursor:pointer}
+  .stepper .sbtn:hover{background:#f3f4f6}
+  .two-line{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+  .table-head{display:flex;gap:16px;flex-wrap:wrap;font-size:13px}
+  .collapse-btn{font-size:12px;color:var(--primary);background:transparent;border:0;cursor:pointer}
+  /* RWD */
+  @media (max-width: 760px){
+    .grid-3{grid-template-columns:1fr}
+    .grid-2{grid-template-columns:1fr 1fr}
+    .row-final{grid-template-columns:110px 1fr 120px 36px}
   }
-  .tag{padding:2px 8px;border-radius:999px;font-size:12px;background:#eef6ff;color:#0b6fb6}
-  .preview-list .row-item{border:1px dashed var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fff}
-  .sticky-actions{position:sticky;bottom:0;background:rgba(255,255,255,.9);backdrop-filter:saturate(180%) blur(6px);border-top:1px solid var(--line);padding:12px;display:flex;gap:10px;justify-content:flex-end}
   /* Modal */
-  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.35);z-index:40}
-  .modal.open{display:flex}
-  .modal-card{width:min(840px,92vw);max-height:88vh;overflow:auto;background:#fff;border-radius:12px;border:1px solid var(--line)}
-  .modal-hd{padding:12px 16px;border-bottom:1px solid var(--line);font-weight:700}
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.5);z-index:50}
+  .modal.show{display:flex}
+  .modal-card{background:#fff;border-radius:12px;max-width:960px;width:92vw;max-height:88vh;overflow:auto}
+  .modal-hd{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
   .modal-bd{padding:16px}
+  /* Toast */
+  .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#111827;color:#fff;border-radius:999px;padding:8px 14px;font-size:12px;opacity:0;pointer-events:none;transition:.25s;z-index:60}
+  .toast.show{opacity:1}
 </style>
 </head>
 <body>
-<div class="container">
-  <h1>PM 庫存更新系統（Write4Version – Final）</h1>
+<div class="wrap">
+  <h1>PM 庫存更新系統（Final Standalone）</h1>
 
   <!-- 出貨訂單資訊 -->
-  <section class="block" id="orderBlock">
-    <div class="block-hd">
-      <div class="ttl">出貨訂單資訊</div>
-      <div class="hint">表單-日期-ID：<span id="docId" class="mono">—</span></div>
+  <section class="section" id="orderSec">
+    <div class="section-hd">
+      <div class="section-tt">出貨訂單資訊</div>
+      <div class="ghost">表單-日期-ID：<span id="docId" class="mono">—</span></div>
     </div>
-    <div class="block-bd">
-      <div class="radio-row" style="margin-bottom:8px">
-        <label><input type="radio" name="mode" value="sales" checked> 銷售</label>
-        <label><input type="radio" name="mode" value="non_sales"> 非銷售</label>
-      </div>
+    <div class="pad">
       <div class="row">
-        <div class="field" id="customerWrap">
-          <label>類別（請選擇）</label>
-          <select id="customerSelect">
-            <option value="">— 選擇訂單類別 —</option>
-          </select>
+        <div class="col">
+          <div class="title-sm">模式</div>
+          <label class="flex"><input type="radio" name="mode" value="sales" checked> 銷售</label>
+          <label class="flex"><input type="radio" name="mode" value="non_sales"> 非銷售</label>
         </div>
-        <div class="field" id="nonSalesWrap" style="display:none">
-          <label>類別（請選擇）</label>
-          <select id="nonSalesSelect">
-            <option value="">— 選擇訂單類別 —</option>
-          </select>
+        <div class="col">
+          <div class="field" id="salesSelect">
+            <label class="lbl">客戶分類</label>
+            <select id="customerSel">
+              <option value="">選擇訂單類別</option>
+            </select>
+          </div>
+          <div class="field" id="nonSalesSelect" style="display:none">
+            <label class="lbl">非銷售分類</label>
+            <select id="nonSalesSel">
+              <option value="">選擇訂單類別</option>
+            </select>
+          </div>
+        </div>
+        <div class="col field">
+          <label class="lbl">客戶 PO 出貨單號</label>
+          <input id="poInput" placeholder="—" />
+        </div>
+        <div class="col field">
+          <label class="lbl">備註</label>
+          <input id="memoInput" placeholder="—" />
         </div>
       </div>
-      <div class="row" style="margin-top:8px">
-        <div class="field"><label>客戶 PO 出貨單號</label><input id="poInput" type="text" placeholder="—" /></div>
-        <div class="field"><label>備註</label><input id="memoInput" type="text" placeholder="—" /></div>
-      </div>
-      <div class="row" style="margin-top:8px;justify-content:flex-end">
-        <button class="btn small" id="resetBtn">Reset All（重新載入資料）</button>
+      <div class="row" style="margin-top:12px">
+        <button class="btn small" id="resetBtn">Reset All（重抓 GitHub CSV）</button>
       </div>
     </div>
   </section>
 
   <!-- 產品選擇 -->
-  <section class="block">
-    <div class="block-hd">
-      <div class="ttl">產品選擇</div>
-      <div class="hint">套組 / 單品 / 禮遇 → 先加入預覽</div>
+  <section class="section">
+    <div class="section-hd">
+      <div class="section-tt">產品選擇</div>
+      <div class="ghost">套組 / 單品 / 禮遇 → 先加入預覽</div>
     </div>
-    <div class="block-bd">
-
+    <div class="pad">
       <!-- 套組 -->
-      <div style="font-weight:700;margin:2px 0 8px">套組</div>
-      <div id="bundleGrid" class="grid grid-3"></div>
+      <div class="title-lg">套組</div>
+      <div class="grid-3" id="bundleCards"><!-- populated --></div>
 
       <!-- 單品 -->
-      <div class="divider"></div>
-      <div style="font-weight:700;margin:2px 0 8px">單品</div>
-      <div class="row">
+      <div class="title-lg" style="margin-top:16px">單品</div>
+      <div class="grid-3">
         <div class="field">
-          <label>商品類別（A）</label>
-          <select id="catA"></select>
+          <label class="lbl">商品類別（A）</label>
+          <select id="aSel"></select>
         </div>
         <div class="field">
-          <label>系列名稱（B）</label>
-          <select id="catB"></select>
+          <label class="lbl">系列名稱（B）</label>
+          <select id="bSel"></select>
         </div>
-        <div class="field" style="flex:2">
-          <label>產品名稱（C／唯一 ID）</label>
-          <select id="catC"></select>
+        <div class="field">
+          <label class="lbl">產品名稱（C / 唯一 ID）</label>
+          <select id="cSel"></select>
         </div>
-        <div class="field" style="max-width:180px">
-          <label>數量</label>
-          <div class="stepper">
-            <button id="sDec">−</button>
-            <input id="sQty" value="1" inputmode="numeric">
-            <button id="sInc">+</button>
-          </div>
+      </div>
+      <div class="row" style="margin-top:8px;align-items:center">
+        <div class="stepper" id="singleQty">
+          <button class="sbtn" data-d="-1">−</button>
+          <input type="text" value="1" />
+          <button class="sbtn" data-d="1">＋</button>
         </div>
-        <div class="field" style="max-width:140px;align-self:flex-end">
-          <button id="addSingle" class="btn primary" title="加入單品">加入</button>
-        </div>
+        <button class="btn pri" id="addSingleBtn">加到預覽</button>
       </div>
 
       <!-- 禮遇 -->
-      <div class="divider"></div>
-      <div style="font-weight:700;margin:2px 0 8px">禮遇</div>
-      <div id="giftGrid" class="grid grid-3"></div>
-
+      <div class="title-lg" style="margin-top:16px">禮遇</div>
+      <div class="grid-3" id="giftCards"><!-- populated --></div>
     </div>
   </section>
 
-  <!-- 預覽（單欄直列） -->
-  <section class="block" id="previewBlock">
-    <div class="block-hd">
-      <div class="ttl">庫存更新預覽</div>
-      <button id="togglePreview" class="btn small">收</button>
+  <!-- 預覽（三區塊） -->
+  <section class="section" id="previewSec">
+    <div class="section-hd">
+      <div class="section-tt">庫存更新預覽</div>
+      <button class="collapse-btn" id="togglePreview">收</button>
     </div>
-    <div class="block-bd" id="previewBody">
-      <div class="preview-list">
-        <div class="hint" id="emptyPreview">（無）</div>
-        <div id="previewList"></div>
-      </div>
-      <div class="row" style="justify-content:flex-end;margin-top:8px">
-        <button class="btn danger" id="clearPreview">全部清除</button>
-        <button class="btn primary" id="commitPreview">確認加入</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- 出貨清單／庫存扣減確認 -->
-  <section class="block">
-    <div class="block-hd">
-      <div class="ttl">出貨清單／庫存扣減確認</div>
-      <div class="pill">
-        <span class="muted">簽名：</span>
-        <label><input type="radio" name="op" value="out" checked> 出貨（扣）</label>
-        <label style="margin-left:8px"><input type="radio" name="op" value="in"> 進貨（入）</label>
-      </div>
-    </div>
-    <div class="block-bd">
-
-      <!-- header summary -->
-      <div id="summary" class="card" style="margin-bottom:12px">
-        <div class="row">
-          <div><span class="muted">類別：</span><span id="sumCat">—</span></div>
-          <div><span class="muted">客戶 PO：</span><span id="sumPO">—</span></div>
-          <div><span class="muted">備註：</span><span id="sumMemo">—</span></div>
-          <div><span class="muted">表單-日期-ID：</span><span id="sumDoc" class="mono">—</span></div>
+    <div class="pad" id="previewBody">
+      <div class="grid-3">
+        <!-- 套組預覽 -->
+        <div class="card">
+          <div class="title-sm">套組</div>
+          <div id="pvBundles" class="muted">(無)</div>
+        </div>
+        <!-- 單品預覽 -->
+        <div class="card">
+          <div class="title-sm">單品</div>
+          <div id="pvSingles" class="muted">(無)</div>
+        </div>
+        <!-- 禮遇預覽 -->
+        <div class="card">
+          <div class="title-sm">禮遇</div>
+          <div id="pvGifts" class="muted">(無)</div>
         </div>
       </div>
 
-      <div id="finalTable">
-        <div class="muted" id="finalEmpty">（尚未加入項目）</div>
-        <div id="finalRows"></div>
-      </div>
-
-      <div class="sticky-actions">
-        <button class="btn small" id="fillPicked">全部帶入</button>
-        <button class="btn small danger" id="clearFinal">全部清除</button>
-        <button class="btn small primary" id="submitAll">庫存更新提交</button>
+      <div class="row" style="margin-top:12px;justify-content:flex-end">
+        <button class="btn danger" id="pvClear">全部清除</button>
+        <button class="btn pri" id="pvConfirm">確認加入</button>
       </div>
     </div>
   </section>
 
+  <!-- 最終送出區（預設收起） -->
+  <section class="section" id="finalSec">
+    <div class="section-hd">
+      <div class="section-tt">出貨清單／庫存扣減確認</div>
+      <div class="flex">
+        <span class="ghost">簽名：</span>
+        <label class="flex"><input type="radio" name="op" value="out" checked> 出貨（扣）</label>
+        <label class="flex"><input type="radio" name="op" value="in"> 進貨（入）</label>
+      </div>
+    </div>
+    <div class="pad">
+      <div class="table-head" style="margin-bottom:8px" id="finalHead">
+        <div>類別：<span class="mono" id="fhCat">待選</span></div>
+        <div>客戶 PO：<span class="mono" id="fhPO">—</span></div>
+        <div>備註：<span class="mono" id="fhMemo">—</span></div>
+        <div>表單-日期-ID：<span class="mono" id="fhDoc">—</span></div>
+      </div>
+      <div id="finalList" class="muted">(尚未加入項目)</div>
+
+      <div class="row" style="margin-top:12px;justify-content:flex-end">
+        <button class="btn" id="btnFill">全部帶入</button>
+        <button class="btn danger" id="btnClearFinal">全部清除</button>
+        <button class="btn pri" id="btnSubmit">庫存更新提交</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 系統用：管理登入＋手貼 CSV（預設關閉） -->
+  <section class="section" id="adminSec">
+    <div class="section-hd">
+      <div class="section-tt">匯入資料（系統用）</div>
+      <button class="btn small" id="adminLoginBtn">管理登入 ▾</button>
+    </div>
+    <div class="pad" id="adminBody" style="display:none">
+      <div class="muted" style="margin:-4px 0 12px">貼上 CSV 內容後按「載入…」，會清空並覆蓋對應資料，並即時重建 UI。</div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label class="lbl">商品 CSV（A,B,C）</label>
+          <textarea id="csvProducts" placeholder="正品(大),金萃油,仙人掌籽超能量金萃油 15ml (2027/07/30)"></textarea>
+          <button class="btn small" id="loadProducts">載入商品</button>
+        </div>
+
+        <div class="field">
+          <label class="lbl">客戶 CSV（id,name）</label>
+          <textarea id="csvCustomers" placeholder="C001,官網"></textarea>
+          <button class="btn small" id="loadCustomers">載入客戶</button>
+        </div>
+
+        <div class="field">
+          <label class="lbl">套組 CSV（bundle_id,bundle_name,product_id,qty,active）</label>
+          <textarea id="csvBundles" placeholder="bundleX,夏日組,仙人掌籽超能量金萃油 15ml (2027/07/30),2,1"></textarea>
+          <button class="btn small" id="loadBundles">載入套組</button>
+        </div>
+
+        <div class="field">
+          <label class="lbl">禮遇 CSV（bundle_id,bundle_name,product_id,qty,active）</label>
+          <textarea id="csvGifts" placeholder="giftA,消費禮,完美極萃面膜 鎖水能量(單片) (2028/08/12),1,1"></textarea>
+          <button class="btn small" id="loadGifts">載入禮遇</button>
+        </div>
+
+        <div class="field">
+          <label class="lbl">非銷售 CSV（id,name）</label>
+          <textarea id="csvNonsales" placeholder="INV,盤點"></textarea>
+          <button class="btn small" id="loadNonsales">載入非銷售</button>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:12px">
+        <button class="btn danger" id="adminHide">隱藏面板</button>
+      </div>
+    </div>
+  </section>
 </div>
 
-<!-- Modal -->
+<!-- 送出前彈窗 -->
 <div class="modal" id="confirmModal" aria-hidden="true">
   <div class="modal-card">
-    <div class="modal-hd">送出前確認</div>
+    <div class="modal-hd">
+      <div class="title-lg">送出前確認</div>
+      <button class="btn icon round" id="closeModal">✕</button>
+    </div>
     <div class="modal-bd">
-      <div class="card" style="margin-bottom:10px">
-        <div class="row">
-          <div><span class="muted">類別：</span><span id="mCat">—</span></div>
-          <div><span class="muted">客戶 PO：</span><span id="mPO">—</span></div>
-          <div><span class="muted">備註：</span><span id="mMemo">—</span></div>
-          <div><span class="muted">表單-日期-ID：</span><span id="mDoc" class="mono">—</span></div>
-          <div><span class="muted">簽名：</span><span id="mOp">出貨（扣）</span></div>
-        </div>
+      <div class="table-head" style="margin-bottom:8px">
+        <div>類別：<span class="mono" id="mCat">—</span></div>
+        <div>客戶 PO：<span class="mono" id="mPO">—</span></div>
+        <div>備註：<span class="mono" id="mMemo">—</span></div>
+        <div>表單-日期-ID：<span class="mono" id="mDoc">—</span></div>
+        <div>簽名：<span class="mono" id="mOp">—</span></div>
       </div>
-      <div id="mList"></div>
-      <div class="row" style="justify-content:flex-end;margin-top:12px">
+      <div id="mItems"></div>
+      <div class="row" style="margin-top:12px;justify-content:flex-end">
         <button class="btn" id="mCancel">取消</button>
-        <button class="btn primary" id="mOk">確定送出</button>
+        <button class="btn pri" id="mGo">確定送出</button>
       </div>
     </div>
   </div>
 </div>
 
+<div class="toast" id="toast">Saved</div>
+
 <script>
-/* ========= Config (hard-coded CSV sources) ========= */
 const URLS = {
-  products: "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/products.csv",
-  customers: "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/customers.csv",
-  bundles: "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/bundle_items.csv",
-  gifts:     "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/gifts.csv",
-  nonsales:  "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/non_sales_application.csv",
-  webhook:   "https://hook.us2.make.com/nbjdxrfypgoosj4qqxnzfmj9o29jq3c2"
+  products:"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/products.csv",
+  customers:"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/customers.csv",
+  bundles:"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/bundle_items.csv",
+  gifts:"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/gifts.csv",
+  nonsales:"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/non_sales_application.csv"
 };
+const WEBHOOK = "https://hook.us2.make.com/nbjdxrfypgoosj4qqxnzfmj9o29jq3c2";
 
-/* ========= State ========= */
-let PRODUCTS=[];          // [{A,B,C,id=C}]
-let CUSTOMERS=[];         // [{id,name}]
-let NONSALES=[];          // [{id,name}]
-let BUNDLES=[];           // [{id,name,items:[{productId,qty}]}]
-let GIFTS=[];             // same as bundles
-
-// selection
-const bundleCount = {};   // bundleId -> qty
-const giftChecked = {};   // giftId -> true/false
-let singleSel = {A:"",B:"",C:"",qty:1};
-
-// preview aggregated lines (before commit to final)
-let previewLines = [];    // [{productId, name, qty}]
-
-// final table items (planned & picked)
-let finalItems = {};      // productId -> {name, planned, picked}
-
-/* ========= Utils ========= */
-const $ = sel => document.querySelector(sel);
-const el = (tag,attrs={},children=[])=>{
+/* ----------------------- Utilities ----------------------- */
+const $ = (q)=>document.querySelector(q);
+function el(tag,attrs={},...kids){
   const n=document.createElement(tag);
-  Object.entries(attrs).forEach(([k,v])=>{
-    if(k==="class") n.className=v;
-    else if(k==="text") n.textContent=v;
-    else if(k==="html") n.innerHTML=v;
-    else n.setAttribute(k,v);
-  });
-  children.forEach(c=>n.appendChild(c));
-  return n;
-};
-
-const parseLines = (csv)=> csv.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-const parseProducts = (csv)=> parseLines(csv).map(line=>{
-  const [A,B,C]=line.split(",").map(s=>s.trim());
-  return (C?{A,B,C,id:C}:null);
-}).filter(Boolean);
-
-const parsePairs = (csv)=> parseLines(csv).map(line=>{
-  const [id,name]=line.split(",").map(s=>s.trim());
-  return (id&&name)?{id,name}:null;
-}).filter(Boolean);
-
-const parseBundles = (csv)=> {
-  const lines=parseLines(csv); const m={};
-  lines.forEach(line=>{
-    const [bid,bname,pid,qtyRaw,active]=line.split(",").map(s=>s.trim());
-    if(!bid||!bname||!pid) return;
-    if(active==="0") return;
-    const qty=parseInt(qtyRaw||"1",10)||1;
-    (m[bid] ||= {id:bid,name:bname,items:[]}).items.push({productId:pid,qty});
-  });
-  return Object.values(m);
-};
-
-const nowId = (prefix)=>{
-  const d=new Date(),pad=n=>String(n).padStart(2,"0");
-  return `${prefix}-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;
-};
-
-/* ========= Renderers ========= */
-function renderDocId(){
-  const mode = document.querySelector('input[name="mode"]:checked').value;
-  const cat = mode==="sales" ? $("#customerSelect").value || "待選" : $("#nonSalesSelect").value || "未選";
-  $("#docId").textContent = nowId(cat);
-  // summary mirror
-  $("#sumCat").textContent = cat || "—";
-  $("#sumPO").textContent = $("#poInput").value || "—";
-  $("#sumMemo").textContent = $("#memoInput").value || "—";
-  $("#sumDoc").textContent = $("#docId").textContent;
-}
-
-function renderBundleGrid(){
-  const host=$("#bundleGrid"); host.innerHTML="";
-  BUNDLES.forEach((b,i)=>{
-    const card=el("div",{class:"card"});
-    const top=el("div",{class:"item-row"},[
-      el("div",{class:"name",text:`${i+1}. ${b.name}`})
-    ]);
-    const st=el("div",{class:"stepper right"},[
-      el("button",{text:"−"}),
-      el("input",{value: bundleCount[b.id]||0,inputmode:"numeric"}),
-      el("button",{text:"+"})
-    ]);
-    top.appendChild(st); card.appendChild(top); host.appendChild(card);
-    const inp=st.querySelector("input");
-    st.children[0].onclick=()=>{ const v=Math.max(0,(+inp.value||0)-1); inp.value=v; bundleCount[b.id]=v; };
-    st.children[2].onclick=()=>{ const v=(+inp.value||0)+1; inp.value=v; bundleCount[b.id]=v; };
-    inp.oninput=()=>{ const n=parseInt(inp.value.replace(/[^0-9]/g,''),10); inp.value=Number.isFinite(n)?n:0; bundleCount[b.id]=+inp.value; };
-  });
-}
-
-function renderGiftGrid(){
-  const host=$("#giftGrid"); host.innerHTML="";
-  GIFTS.forEach((g,i)=>{
-    const card=el("label",{class:"card item-row"});
-    const left=el("div",{class:"name",text:`${i+1}. ${g.name}`});
-    const ck=el("input",{type:"checkbox"});
-    ck.checked=!!giftChecked[g.id];
-    ck.onchange=()=>giftChecked[g.id]=ck.checked;
-    card.appendChild(left); card.appendChild(ck); host.appendChild(card);
-  });
-}
-
-function buildSingleSelectors(){
-  // A
-  const aSel=$("#catA"), bSel=$("#catB"), cSel=$("#catC");
-  const A=[...new Set(PRODUCTS.map(p=>p.A))].filter(Boolean);
-  aSel.innerHTML=A.map(a=>`<option value="${a}">${a}</option>`).join("");
-  singleSel.A=A[0]||"";
-  onAchange();
-
-  aSel.onchange=()=>{ singleSel.A=aSel.value; onAchange(); };
-  bSel.onchange=()=>{ singleSel.B=bSel.value; onBchange(); };
-  cSel.onchange=()=>{ singleSel.C=cSel.value; };
-}
-
-function onAchange(){
-  const bSel=$("#catB"), cSel=$("#catC");
-  const listB=[...new Set(PRODUCTS.filter(p=>p.A===singleSel.A).map(p=>p.B))].filter(Boolean);
-  bSel.innerHTML=listB.map(b=>`<option value="${b}">${b}</option>`).join("");
-  singleSel.B=listB[0]||"";
-  onBchange();
-}
-
-function onBchange(){
-  const cSel=$("#catC");
-  const listC=PRODUCTS.filter(p=>p.A===singleSel.A && p.B===singleSel.B).map(p=>p.C);
-  cSel.innerHTML=listC.map(c=>`<option value="${c}">${c}</option>`).join("");
-  singleSel.C=listC[0]||"";
-}
-
-function renderPreview(){
-  const list=$("#previewList"); list.innerHTML="";
-  $("#emptyPreview").style.display = previewLines.length? "none":"block";
-  previewLines.forEach(it=>{
-    const row=el("div",{class:"row-item"},[
-      el("div",{class:"name",text:`${it.name}`}),
-      el("div",{class:"muted",text:`× ${it.qty}`})
-    ]);
-    list.appendChild(row);
-  });
-}
-
-function renderFinal(){
-  const host=$("#finalRows"); host.innerHTML="";
-  const keys=Object.keys(finalItems);
-  $("#finalEmpty").style.display = keys.length? "none":"block";
-  keys.forEach(id=>{
-    const it=finalItems[id];
-    const row=el("div",{class:"tr"});
-    // picked
-    const stPicked=el("div",{class:"stepper"},[
-      el("button",{text:"−"}),
-      el("input",{value: it.picked||0,inputmode:"numeric"}),
-      el("button",{text:"+"})
-    ]);
-    row.appendChild(stPicked);
-    // name
-    row.appendChild(el("div",{class:"title",text:it.name}));
-    // planned
-    const stPlan=el("div",{class:"stepper"},[
-      el("button",{text:"−"}),
-      el("input",{value: it.planned||0,inputmode:"numeric"}),
-      el("button",{text:"+"})
-    ]);
-    row.appendChild(stPlan);
-    // delete
-    const del=el("button",{class:"btn small danger",text:"✕"});
-    row.appendChild(del);
-
-    const pI=stPicked.querySelector("input"), plI=stPlan.querySelector("input");
-    stPicked.children[0].onclick=()=>{ const v=Math.max(0,(+pI.value||0)-1); pI.value=v; it.picked=v; };
-    stPicked.children[2].onclick=()=>{ const v=(+pI.value||0)+1; pI.value=v; it.picked=v; };
-    pI.oninput=()=>{ const n=parseInt(pI.value.replace(/[^0-9]/g,''),10); pI.value=Number.isFinite(n)?n:0; it.picked=+pI.value; };
-
-    stPlan.children[0].onclick=()=>{ const v=Math.max(0,(+plI.value||0)-1); plI.value=v; it.planned=v; };
-    stPlan.children[2].onclick=()=>{ const v=(+plI.value||0)+1; plI.value=v; it.planned=v; };
-    plI.oninput=()=>{ const n=parseInt(plI.value.replace(/[^0-9]/g,''),10); plI.value=Number.isFinite(n)?n:0; it.planned=+plI.value; };
-
-    del.onclick=()=>{ delete finalItems[id]; renderFinal(); };
-    host.appendChild(row);
-  });
-}
-
-/* ========= Behaviors ========= */
-function rebuildDocIdOnChange(){
-  ["mode","customerSelect","nonSalesSelect","poInput","memoInput"].forEach(id=>{
-    (id==="mode" ? document.querySelectorAll('input[name="mode"]') : [$("#"+id)]).forEach(n=>{
-      n.addEventListener("change",renderDocId);
-      n.addEventListener("input",renderDocId);
-    });
-  });
-}
-
-function updateModeVisibility(){
-  const mode = document.querySelector('input[name="mode"]:checked').value;
-  $("#customerWrap").style.display = (mode==="sales") ? "" : "none";
-  $("#nonSalesWrap").style.display = (mode==="non_sales") ? "" : "none";
-  renderDocId();
-}
-
-function collectFromSelectionsIntoPreview(){
-  previewLines.length=0;
-
-  // bundles
-  BUNDLES.forEach(b=>{
-    const cnt = bundleCount[b.id]||0;
-    if(!cnt) return;
-    // expand items
-    b.items.forEach(it=>{
-      const prod = PRODUCTS.find(p=>p.id===it.productId);
-      if(!prod) return;
-      pushPreview(prod.id, prod.id, it.qty*cnt);
-    });
-  });
-
-  // single
-  // (no-op here; single is added by button)
-
-  // gifts
-  GIFTS.forEach(g=>{
-    if(!giftChecked[g.id]) return;
-    g.items.forEach(it=>{
-      const prod = PRODUCTS.find(p=>p.id===it.productId);
-      if(!prod) return;
-      pushPreview(prod.id, prod.id, it.qty);
-    });
-  });
-
-  renderPreview();
-}
-
-function pushPreview(id,name,qty){
-  const ex=previewLines.find(x=>x.productId===id);
-  if(ex) ex.qty += qty;
-  else previewLines.push({productId:id,name:id,qty});
-}
-
-function commitPreviewToFinal(){
-  previewLines.forEach(it=>{
-    if(!finalItems[it.productId]) finalItems[it.productId]={name:it.name,planned:0,picked:0};
-    finalItems[it.productId].planned += it.qty;
-  });
-  // clear preview (but keep selections for reference，如你所述)
-  previewLines.length=0;
-  renderPreview();
-  renderFinal();
-}
-
-function addSingle(){
-  const qty = Math.max(0, parseInt($("#sQty").value,10)||0);
-  if(!singleSel.C || !qty) return;
-  pushPreview(singleSel.C, singleSel.C, qty);
-  renderPreview();
-}
-
-/* ========= Modal & Submit ========= */
-const modal = $("#confirmModal");
-function openModal(){
-  // prepare list from finalItems & op
-  const op = document.querySelector('input[name="op"]:checked').value; // out/in
-  const sign = op==="out" ? -1 : +1;
-
-  $("#mCat").textContent = $("#sumCat").textContent;
-  $("#mPO").textContent = $("#sumPO").textContent;
-  $("#mMemo").textContent = $("#sumMemo").textContent;
-  $("#mDoc").textContent = $("#sumDoc").textContent;
-  $("#mOp").textContent  = op==="out" ? "出貨（扣）" : "進貨（入）";
-
-  const host=$("#mList"); host.innerHTML="";
-  const keys=Object.keys(finalItems);
-  if(!keys.length){ host.innerHTML='<div class="hint">（沒有要送出的項目）</div>'; }
-  keys.forEach(id=>{
-    const it=finalItems[id];
-    const delta=(it.picked||0)*sign;
-    const row=el("div",{class:"row",style:"justify-content:space-between;border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:8px"},[
-      el("div",{class:"name",text:it.name}),
-      el("div",{class:"mono",text:`Δ ${delta}`})
-    ]);
-    host.appendChild(row);
-  });
-
-  modal.classList.add("open");
-}
-function closeModal(){ modal.classList.remove("open"); }
-
-async function doSubmit(){
-  const op = document.querySelector('input[name="op"]:checked').value;
-  const sign = op==="out" ? -1 : +1;
-
-  const mode = document.querySelector('input[name="mode"]:checked').value;
-  const category = (mode==="sales" ? $("#customerSelect").value : $("#nonSalesSelect").value) || "";
-
-  const payload = {
-    category,
-    po: $("#poInput").value || "",
-    memo: $("#memoInput").value || "",
-    formDateId: $("#docId").textContent || "",
-    items: Object.keys(finalItems).map(id=>{
-      const it=finalItems[id];
-      return { productId:id, delta:(it.picked||0)*sign };
-    }).filter(x=>x.delta!==0)
-  };
-
-  try{
-    await fetch(URLS.webhook,{
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify(payload)
-    });
-    alert("已送出！");
-    closeModal();
-  }catch(e){
-    alert("送出失敗，請稍後再試。");
-    console.error(e);
+  for(const [k,v] of Object.entries(attrs)){
+    if(k==="class") n.className=v; else if(k==="html") n.innerHTML=v;
+    else if(k==="text") n.textContent=v; else n.setAttribute(k,v);
   }
+  kids.forEach(k=>n.append(k));
+  return n;
+}
+function toast(msg){
+  const t=$("#toast"); t.textContent=msg; t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),1500);
+}
+function parseLines(csv){return csv.split(/\r?\n/).map(s=>s.trim()).filter(Boolean)}
+function parseProducts(csv){
+  const lines=parseLines(csv), out=[];
+  for(const line of lines){
+    const [A,B,C]=line.split(",").map(s=>s?.trim()||"");
+    if(C) out.push({A,B,C,id:C});
+  }
+  return out;
+}
+function parsePairs(csv){
+  const lines=parseLines(csv), out=[];
+  for(const line of lines){
+    const [id,name]=line.split(",").map(s=>s?.trim()||"");
+    if(id && name) out.push({id,name});
+  }
+  return out;
+}
+function parseBundles(csv){
+  const lines=parseLines(csv), map={};
+  for(const line of lines){
+    const sp=line.split(",").map(s=>s?.trim()||"");
+    if(sp.length<4) continue;
+    const [bid,bname,pid,qtyRaw,active]=sp;
+    if(!bid||!bname||!pid) continue;
+    if(active==="0") continue;
+    const qty=parseInt(qtyRaw||"1",10)||1;
+    (map[bid] ||= {id:bid,name:bname,items:[]}).items.push({productId:pid,qty});
+  }
+  return Object.values(map);
+}
+function ymdhm(now=new Date()){
+  const pad=n=>String(n).padStart(2,"0");
+  return now.getFullYear()+pad(now.getMonth()+1)+pad(now.getDate())+"-"+pad(now.getHours())+pad(now.getMinutes());
 }
 
-/* ========= Data Loading ========= */
+/* ----------------------- State ----------------------- */
+let PRODUCTS=[], CUSTOMERS=[], NONSALES=[], BUNDLES=[], GIFTS=[], MAP_PROD={}, A_VALUES=[], B_BY_A={}, C_BY_AB={};
+
+let mode="sales"; let docId="—";
+
+const bundleCounts = new Map();
+const giftChecks = new Set();
+const previewSingles = new Map();
+
+const finalPlanned = new Map();
+const finalPicked  = new Map();
+
+/* ----------------------- DOM ----------------------- */
+const docIdEl = $("#docId");
+const salesSelWrap = $("#salesSelect");
+const nonSalesSelWrap = $("#nonSalesSelect");
+const customerSel = $("#customerSel");
+const nonSalesSel = $("#nonSalesSel");
+const poInput = $("#poInput");
+const memoInput = $("#memoInput");
+
+const bundleCards = $("#bundleCards");
+const giftCards = $("#giftCards");
+
+const aSel=$("#aSel"), bSel=$("#bSel"), cSel=$("#cSel");
+const singleQty = $("#singleQty");
+const addSingleBtn=$("#addSingleBtn");
+
+const pvBundles=$("#pvBundles"), pvSingles=$("#pvSingles"), pvGifts=$("#pvGifts");
+const pvClear=$("#pvClear"), pvConfirm=$("#pvConfirm");
+const previewBody=$("#previewBody");
+const togglePreview=$("#togglePreview");
+
+const finalSec=$("#finalSec");
+const fhCat=$("#fhCat"), fhPO=$("#fhPO"), fhMemo=$("#fhMemo"), fhDoc=$("#fhDoc");
+const finalList=$("#finalList");
+const btnFill=$("#btnFill"), btnClearFinal=$("#btnClearFinal"), btnSubmit=$("#btnSubmit");
+
+const confirmModal=$("#confirmModal"), closeModal=$("#closeModal"), mCancel=$("#mCancel"), mGo=$("#mGo");
+const mCat=$("#mCat"), mPO=$("#mPO"), mMemo=$("#mMemo"), mDoc=$("#mDoc"), mOp=$("#mOp"), mItems=$("#mItems");
+
+/* Admin */
+const adminLoginBtn=$("#adminLoginBtn"), adminBody=$("#adminBody"), adminHide=$("#adminHide");
+const csvProducts=$("#csvProducts"), csvCustomers=$("#csvCustomers"), csvBundles=$("#csvBundles"), csvGifts=$("#csvGifts"), csvNonsales=$("#csvNonsales");
+const loadProducts=$("#loadProducts"), loadCustomers=$("#loadCustomers"), loadBundles=$("#loadBundles"), loadGifts=$("#loadGifts"), loadNonsales=$("#loadNonsales");
+
+/* ----------------------- Load & Build ----------------------- */
 async function loadAll(){
-  const [p,c,b,g,n]=await Promise.all([
+  const [p,c,b,g,n] = await Promise.all([
     fetch(URLS.products).then(r=>r.text()),
     fetch(URLS.customers).then(r=>r.text()),
     fetch(URLS.bundles).then(r=>r.text()),
@@ -576,82 +411,264 @@ async function loadAll(){
   BUNDLES=parseBundles(b);
   GIFTS=parseBundles(g);
   NONSALES=parsePairs(n);
-
-  // fill customer & non-sales dropdowns
-  $("#customerSelect").innerHTML = `<option value="">— 選擇訂單類別 —</option>` + CUSTOMERS.map(x=>`<option value="${x.name}">${x.name}</option>`).join("");
-  $("#nonSalesSelect").innerHTML = `<option value="">— 選擇訂單類別 —</option>` + NONSALES.map(x=>`<option value="${x.name}">${x.name}</option>`).join("");
-
-  renderBundleGrid();
-  renderGiftGrid();
-  buildSingleSelectors();
-  collectFromSelectionsIntoPreview();
-  renderDocId();
+  rebuildDerived();
+  rebuildUI();
+  resetWorking();
+  renderPreview(); renderFinal(); updateDocId();
 }
+function rebuildDerived(){
+  MAP_PROD = Object.fromEntries(PRODUCTS.map(x=>[x.id,x]));
+  A_VALUES=[...new Set(PRODUCTS.map(x=>x.A))];
+  B_BY_A={}; C_BY_AB={};
+  for(const a of A_VALUES){
+    const Bs=[...new Set(PRODUCTS.filter(x=>x.A===a).map(x=>x.B))];
+    B_BY_A[a]=Bs;
+    for(const b of Bs){
+      C_BY_AB[`${a}|${b}`]=PRODUCTS.filter(x=>x.A===a && x.B===b).map(x=>x.id);
+    }
+  }
+}
+function rebuildUI(){
+  // order selectors
+  customerSel.innerHTML=`<option value="">選擇訂單類別</option>`+CUSTOMERS.map(x=>`<option value="${x.id}">${x.name}</option>`).join("");
+  nonSalesSel.innerHTML=`<option value="">選擇訂單類別</option>`+NONSALES.map(x=>`<option value="${x.id}">${x.name}</option>`).join("");
 
-/* ========= Event wiring ========= */
-document.addEventListener("DOMContentLoaded", async ()=>{
-  await loadAll();
-
-  // Mode toggle
-  document.querySelectorAll('input[name="mode"]').forEach(r=>r.addEventListener("change", updateModeVisibility));
-  updateModeVisibility();
-  rebuildDocIdOnChange();
-
-  // singles stepper
-  $("#sDec").onclick=()=>{ const v=Math.max(1,(+$("#sQty").value||1)-1); $("#sQty").value=v; };
-  $("#sInc").onclick=()=>{ const v=(+$("#sQty").value||1)+1; $("#sQty").value=v; };
-  $("#addSingle").onclick=addSingle;
-
-  // preview
-  $("#togglePreview").onclick=()=>{
-    const bd=$("#previewBody");
-    const isOpen = bd.style.display!=="none";
-    bd.style.display=isOpen?"none":"block";
-    $("#togglePreview").textContent = isOpen ? "展開" : "收";
-  };
-  $("#clearPreview").onclick=()=>{ previewLines.length=0; renderPreview(); };
-  $("#commitPreview").onclick=()=>{
-    commitPreviewToFinal();
-    // mirror summary
-    renderDocId();
-  };
-
-  // final actions
-  $("#fillPicked").onclick=()=>{
-    Object.values(finalItems).forEach(it=>it.picked = it.planned);
-    renderFinal();
-  };
-  $("#clearFinal").onclick=()=>{ finalItems={}; renderFinal(); };
-  $("#submitAll").onclick=()=>{
-    // open modal for confirm
-    openModal();
-  };
-
-  // modal
-  $("#mCancel").onclick=closeModal;
-  $("#mOk").onclick=doSubmit;
-
-  // reset all
-  $("#resetBtn").onclick=async ()=>{
-    // wipe states
-    Object.keys(bundleCount).forEach(k=>delete bundleCount[k]);
-    Object.keys(giftChecked).forEach(k=>delete giftChecked[k]);
-    previewLines.length=0; finalItems={};
-    $("#poInput").value=""; $("#memoInput").value="";
-    document.querySelector('input[name="mode"][value="sales"]').checked=true;
-    await loadAll();
-    renderFinal();
-  };
-
-  // reflect summary on inputs change
-  ["poInput","memoInput","customerSelect","nonSalesSelect"].forEach(id=>{
-    $("#"+id).addEventListener("input",renderDocId);
-    $("#"+id).addEventListener("change",renderDocId);
+  // bundles
+  bundleCards.innerHTML="";
+  BUNDLES.forEach(b=>{
+    const card=el("div",{class:"card"});
+    const top=el("div",{class:"flex"});
+    const name=el("div",{class:"two-line",text:b.name}); // 無編號
+    const st=makeStepper(0,(v)=>{
+      bundleCounts.set(b.id,Math.max(0,v));
+      if(v<=0) bundleCounts.delete(b.id);
+      renderPreview();
+    });
+    top.append(name,el("span",{class:"right"}),st);
+    card.append(top);
+    bundleCards.append(card);
   });
 
-  // keep preview synced with selections
-  setInterval(collectFromSelectionsIntoPreview, 400);
+  // gifts
+  giftCards.innerHTML="";
+  GIFTS.forEach(g=>{
+    const card=el("div",{class:"card"});
+    const line=el("div",{class:"flex"});
+    const cb=el("input",{type:"checkbox"});
+    cb.addEventListener("change",()=>{cb.checked?giftChecks.add(g.id):giftChecks.delete(g.id); renderPreview();});
+    const name=el("div",{class:"two-line",text:g.name}); // 無編號
+    line.append(cb,name); card.append(line); giftCards.append(card);
+  });
+
+  // singles A/B/C
+  aSel.innerHTML=A_VALUES.map(a=>`<option>${a}</option>`).join("");
+  aSel.selectedIndex=0; fillB(); fillC();
+}
+function resetWorking(){
+  bundleCounts.clear(); giftChecks.clear(); previewSingles.clear();
+  finalPlanned.clear(); finalPicked.clear();
+}
+function buildName(pid){ return (MAP_PROD[pid]?.C)||pid; }
+
+/* ----------------------- Selectors ----------------------- */
+function fillB(){
+  const a=aSel.value; const Bs=B_BY_A[a]||[];
+  bSel.innerHTML=Bs.map(b=>`<option>${b}</option>`).join(""); bSel.selectedIndex=0; fillC();
+}
+function fillC(){
+  const a=aSel.value, b=bSel.value;
+  const arr=(C_BY_AB[`${a}|${b}`]||[]).map(id=>({id,name:MAP_PROD[id].C}));
+  cSel.innerHTML=arr.map(x=>`<option value="${x.id}">${x.name}</option>`).join("");
+}
+function updateDocId(){
+  const cat=(mode==="sales"?customerSel.value:nonSalesSel.value)||"待選";
+  docId=`${cat}-${ymdhm()}`; $("#docId").textContent=docId; fhDoc.textContent=docId;
+}
+
+/* ----------------------- Steppers ----------------------- */
+function makeStepper(initial,onChange){
+  const wrap=el("div",{class:"stepper"});
+  const minus=el("button",{class:"sbtn",text:"−"});
+  const input=el("input",{type:"text",value:String(initial)});
+  const plus=el("button",{class:"sbtn",text:"＋"});
+  function set(v){ const n=Math.max(0,Number.isFinite(v)?v:0); input.value=String(n); onChange&&onChange(n); }
+  minus.onclick=()=>set((parseInt(input.value,10)||0)-1);
+  plus.onclick =()=>set((parseInt(input.value,10)||0)+1);
+  input.oninput =()=>{ const n=parseInt(input.value.replace(/[^0-9]/g,""),10); set(Number.isFinite(n)?n:0); };
+  wrap.append(minus,input,plus); return wrap;
+}
+singleQty.addEventListener("click",(e)=>{ const btn=e.target.closest(".sbtn"); if(!btn)return; const d=parseInt(btn.dataset.d,10)||0; const inp=singleQty.querySelector("input"); const n=Math.max(1,(parseInt(inp.value,10)||1)+d); inp.value=n; });
+
+/* ----------------------- Preview ----------------------- */
+function renderPreview(){
+  // 套組
+  pvBundles.innerHTML="";
+  const actB=BUNDLES.filter(b=>bundleCounts.get(b.id)>0);
+  if(actB.length===0) pvBundles.textContent="(無)";
+  else actB.forEach(b=>{
+    const cnt=bundleCounts.get(b.id)||0;
+    const box=el("div",{class:"card",style:"padding:8px;margin-bottom:8px"});
+    box.append(el("div",{class:"title-sm",text:`${b.name}  × ${cnt}`}));
+    b.items.forEach(it=>{
+      const row=el("div",{class:"row-line"});
+      row.append(el("div",{class:"muted",text:`× ${it.qty*cnt}`}), el("div",{class:"two-line",text:buildName(it.productId)}));
+      box.append(row);
+    });
+    pvBundles.append(box);
+  });
+
+  // 單品
+  pvSingles.innerHTML="";
+  if(previewSingles.size===0) pvSingles.textContent="(無)";
+  else [...previewSingles.entries()].forEach(([pid,qty])=>{
+    const row=el("div",{class:"row-line"});
+    const st=makeStepper(qty,(v)=>{ if(v<=0) previewSingles.delete(pid); else previewSingles.set(pid,v); renderPreview(); });
+    const del=el("button",{class:"btn icon round",text:"✕"}); del.onclick=()=>{previewSingles.delete(pid); renderPreview();}
+    row.append(st, el("div",{class:"two-line",text:buildName(pid)}), el("div",{class:"chip",text:"× "+qty}), del);
+    pvSingles.append(row);
+  });
+
+  // 禮遇
+  pvGifts.innerHTML="";
+  const actG=GIFTS.filter(g=>giftChecks.has(g.id));
+  if(actG.length===0) pvGifts.textContent="(無)";
+  else actG.forEach(g=>{
+    const box=el("div",{class:"card",style:"padding:8px;margin-bottom:8px"});
+    box.append(el("div",{class:"title-sm",text:g.name}));
+    g.items.forEach(it=>{
+      const row=el("div",{class:"row-line"});
+      row.append(el("div",{class:"muted",text:`× ${it.qty}`}), el("div",{class:"two-line",text:buildName(it.productId)}));
+      box.append(row);
+    });
+    pvGifts.append(box);
+  });
+}
+
+/* ----------------------- Final ----------------------- */
+function renderFinal(){
+  const cat=(mode==="sales"?customerSel.value:nonSalesSel.value)||"待選";
+  fhCat.textContent=cat; fhPO.textContent=poInput.value||"—"; fhMemo.textContent=memoInput.value||"—";
+
+  finalList.innerHTML="";
+  if(finalPlanned.size===0){ finalList.textContent="(尚未加入項目)"; return; }
+
+  [...finalPlanned.entries()].forEach(([pid,planQ])=>{
+    const row=el("div",{class:"row-final"});
+    const stPicked=makeStepper(finalPicked.get(pid)||0,(v)=>{ if(v<=0) finalPicked.delete(pid); else finalPicked.set(pid,v); });
+    const name=el("div",{class:"two-line",text:buildName(pid)});
+    const stPlan=makeStepper(planQ,(v)=>{ if(v<=0){ finalPlanned.delete(pid); finalPicked.delete(pid); renderFinal(); return; } finalPlanned.set(pid,v); });
+    const del=el("button",{class:"btn icon round",text:"✕"}); del.onclick=()=>{ finalPlanned.delete(pid); finalPicked.delete(pid); renderFinal(); };
+    row.append(stPicked,name,stPlan,del); finalList.append(row);
+  });
+}
+function collapseFinal(open){ finalSec.style.display=open?"block":"none"; }
+
+/* ----------------------- Events ----------------------- */
+document.querySelectorAll("input[name=mode]").forEach(r=>{
+  r.addEventListener("change",()=>{ mode=r.value; salesSelWrap.style.display=(mode==="sales")?"":"none"; nonSalesSelWrap.style.display=(mode==="non_sales")?"":"none"; updateDocId(); renderFinal(); });
 });
+customerSel.addEventListener("change",()=>{updateDocId(); renderFinal();});
+nonSalesSel.addEventListener("change",()=>{updateDocId(); renderFinal();});
+poInput.addEventListener("input",()=>renderFinal());
+memoInput.addEventListener("input",()=>renderFinal());
+
+aSel.addEventListener("change",fillB);
+bSel.addEventListener("change",fillC);
+addSingleBtn.addEventListener("click",()=>{
+  const pid=cSel.value; if(!pid) return;
+  const n=parseInt(singleQty.querySelector("input").value,10)||1;
+  previewSingles.set(pid,(previewSingles.get(pid)||0)+n); renderPreview();
+});
+
+pvClear.addEventListener("click",()=>{ bundleCounts.clear(); giftChecks.clear(); previewSingles.clear(); document.querySelectorAll("#giftCards input[type=checkbox]").forEach(cb=>cb.checked=false); renderPreview(); });
+pvConfirm.addEventListener("click",()=>{
+  finalPlanned.clear(); finalPicked.clear();
+  for(const b of BUNDLES){ const cnt=bundleCounts.get(b.id)||0; if(cnt<=0) continue;
+    for(const it of b.items){ finalPlanned.set(it.productId,(finalPlanned.get(it.productId)||0)+it.qty*cnt); } }
+  for(const [pid,q] of previewSingles.entries()){ finalPlanned.set(pid,(finalPlanned.get(pid)||0)+q); }
+  for(const g of GIFTS){ if(!giftChecks.has(g.id)) continue;
+    for(const it of g.items){ finalPlanned.set(it.productId,(finalPlanned.get(it.productId)||0)+it.qty); } }
+  updateDocId(); renderFinal(); collapseFinal(true); finalSec.scrollIntoView({behavior:"smooth",block:"start"});
+});
+
+togglePreview.addEventListener("click",()=>{ const open=previewBody.style.display!=="none"; previewBody.style.display=open?"none":""; togglePreview.textContent=open?"展":"收"; });
+
+btnFill.addEventListener("click",()=>{ [...finalPlanned.entries()].forEach(([pid,q])=>finalPicked.set(pid,q)); renderFinal(); });
+btnClearFinal.addEventListener("click",()=>{ finalPlanned.clear(); finalPicked.clear(); renderFinal(); });
+
+/* 提交與彈窗 */
+btnSubmit.addEventListener("click",()=>{
+  if(finalPicked.size===0){ alert("尚未填寫點交量（Picked）。"); return; }
+  const cat=(mode==="sales"?customerSel.value:nonSalesSel.value)||"";
+  mCat.textContent=cat||"—"; mPO.textContent=poInput.value||"—"; mMemo.textContent=memoInput.value||"—"; mDoc.textContent=docId; mOp.textContent=(document.querySelector("input[name=op]:checked").value==="out")?"出貨（扣）":"進貨（入）";
+  mItems.innerHTML="";
+  const list=el("div");
+  [...finalPicked.entries()].forEach(([pid,pick])=>{ if(pick<=0) return; const line=el("div",{class:"row-line"}); const plan=finalPlanned.get(pid)||0; line.append(el("div",{class:"chip",text:"Picked "+pick}), el("div",{text:buildName(pid)}), el("div",{class:"chip",text:"Planned "+plan})); list.append(line); });
+  mItems.append(list); $("#confirmModal").classList.add("show");
+});
+closeModal.onclick = mCancel.onclick = ()=>$("#confirmModal").classList.remove("show");
+mGo.addEventListener("click", async ()=>{
+  const sign = (document.querySelector("input[name=op]:checked").value==="out")?-1:+1;
+  const payload = {
+    category: (mode==="sales"?customerSel.value:nonSalesSel.value)||"",
+    po: poInput.value || "",
+    memo: memoInput.value || "",
+    formDateId: docId,
+    items: [...finalPicked.entries()].filter(([_,p])=>p>0).map(([pid,p])=>({productId:pid, delta:p*sign}))
+  };
+  try{
+    const res=await fetch(WEBHOOK,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    toast("已送出成功"); $("#confirmModal").classList.remove("show");
+  }catch(e){ console.error(e); alert("送出失敗，請稍後重試。"); }
+});
+
+/* Reset All（重抓 GitHub） */
+$("#resetBtn").addEventListener("click", async ()=>{ await loadAll(); collapseFinal(false); previewBody.style.display=""; togglePreview.textContent="收"; toast("已重抓 GitHub CSV"); });
+
+/* ----------------------- Admin Panel ----------------------- */
+const PIN="50963212";
+let adminOpen=false; // 不持久化；每次重載都需重登
+
+adminLoginBtn.addEventListener("click",()=>{
+  const pin=prompt("請輸入管理員 PIN："); if(pin===PIN){ adminBody.style.display="block"; adminOpen=true; toast("已開啟系統面板"); } else if(pin!==null){ alert("PIN 錯誤"); }
+});
+adminHide.addEventListener("click",()=>{ adminBody.style.display="none"; adminOpen=false; });
+
+loadProducts.addEventListener("click",()=>{
+  try{
+    const newP=parseProducts(csvProducts.value||""); if(newP.length===0) {alert("未解析到商品資料"); return;}
+    PRODUCTS=newP; rebuildDerived(); rebuildUI(); resetWorking(); renderPreview(); renderFinal(); updateDocId();
+    toast(`商品 ${PRODUCTS.length} 筆已覆蓋`);
+  }catch(e){console.error(e); alert("載入商品失敗");}
+});
+loadCustomers.addEventListener("click",()=>{
+  try{
+    const list=parsePairs(csvCustomers.value||""); if(list.length===0){alert("未解析到客戶資料"); return;}
+    CUSTOMERS=list; rebuildUI(); renderFinal(); updateDocId(); toast(`客戶 ${CUSTOMERS.length} 筆已覆蓋`);
+  }catch(e){console.error(e); alert("載入客戶失敗");}
+});
+loadBundles.addEventListener("click",()=>{
+  try{
+    const list=parseBundles(csvBundles.value||""); if(list.length===0){alert("未解析到套組資料"); return;}
+    BUNDLES=list; rebuildUI(); resetWorking(); renderPreview(); toast(`套組 ${BUNDLES.length} 筆已覆蓋`);
+  }catch(e){console.error(e); alert("載入套組失敗");}
+});
+loadGifts.addEventListener("click",()=>{
+  try{
+    const list=parseBundles(csvGifts.value||""); if(list.length===0){alert("未解析到禮遇資料"); return;}
+    GIFTS=list; rebuildUI(); resetWorking(); renderPreview(); toast(`禮遇 ${GIFTS.length} 筆已覆蓋`);
+  }catch(e){console.error(e); alert("載入禮遇失敗");}
+});
+loadNonsales.addEventListener("click",()=>{
+  try{
+    const list=parsePairs(csvNonsales.value||""); if(list.length===0){alert("未解析到非銷售資料"); return;}
+    NONSALES=list; rebuildUI(); renderFinal(); updateDocId(); toast(`非銷售 ${NONSALES.length} 筆已覆蓋`);
+  }catch(e){console.error(e); alert("載入非銷售失敗");}
+});
+
+/* ----------------------- Init ----------------------- */
+window.addEventListener("load", async ()=>{ collapseFinal(false); adminBody.style.display="none"; await loadAll(); });
 </script>
 </body>
 </html>
