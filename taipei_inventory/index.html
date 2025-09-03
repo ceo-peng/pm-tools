@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>PM 庫存更新系統 — Write4Version (Op Switch in List Header)</title>
+    <title>PM 庫存更新系統 — Write4Version (Signed Delta + Modal Header)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -15,7 +15,7 @@
     <script type="text/babel">
       const {useState,useEffect,useMemo} = React;
 
-      /* -------------------- GitHub RAW URLs (hard-coded) -------------------- */
+      /* -------------------- Hard-coded GitHub RAW URLs -------------------- */
       const URLS = {
         products :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/products.csv",
         customers:"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/customers.csv",
@@ -64,6 +64,25 @@
         return {setMsg,Toast};
       }
 
+      /* -------- Minimal POST helper (timeout + basic error handling) -------- */
+      async function postJSON(url, data, { timeoutMs = 15000 } = {}) {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), timeoutMs);
+        try {
+          const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+            signal: ctrl.signal
+          });
+          clearTimeout(t);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return await res.json().catch(() => ({})); // Make.com often returns empty; that's fine
+        } finally {
+          clearTimeout(t);
+        }
+      }
+
       /* -------------------- Stepper (符號按鈕 + 小輸入框) ------------------- */
       function Stepper({value,min=0,onChange}){
         return (
@@ -105,7 +124,7 @@
         const [GIFTS,setGIFTS]=useState([]);
         const [NONSALES,setNONSALES]=useState([]);
 
-        // 操作類型（移到清單 header 的選擇）
+        // 操作類型（在最終清單 header 切換）
         const [mode,setMode]=useState("sales"); // 'sales' | 'nonSales'
 
         // order info（類別值）
@@ -212,21 +231,17 @@
             });
             return next;
           });
-          // 不清預覽：保留參考
+          // 保留預覽作為參考
         }
 
-        const opLabel = useMemo(()=> mode==='sales' ? '出貨（扣）' : '進貨（入）', [mode]);
         const formDateId = useMemo(()=> genDocId(mode==='sales'?(salesCat||''): (nonSalesCat||'')),[mode,salesCat,nonSalesCat]);
-        const hasMismatch = rows.some(r=>(r.picked||0)!==(r.qty||0));
-        const plannedTotal = rows.reduce((s,r)=>s+(r.qty||0),0);
-        const pickedTotal  = rows.reduce((s,r)=>s+(r.picked||0),0);
 
         return (
           <div className="mx-auto max-w-6xl p-4 pb-24">
             <Toast/>
             <h1 className="text-lg md:text-xl font-semibold mb-4">PM 庫存更新系統（Write4Version）</h1>
 
-            {/* 出貨訂單資訊（移除原本的操作類型切換） */}
+            {/* 出貨訂單資訊 */}
             <section className="rounded border border-gray-200 bg-white shadow-sm mb-4">
               <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
                 <div className="font-medium text-sm">出貨訂單資訊</div>
@@ -253,7 +268,7 @@
               </div>
             </section>
 
-            {/* 產品選擇（保持不變） */}
+            {/* 產品選擇 */}
             <ProductPicker
               PRODUCTS={PRODUCTS}
               BUNDLES={BUNDLES}
@@ -265,6 +280,7 @@
               giftChecks={giftChecks}
               setGiftChecks={setGiftChecks}
               />
+
             {/* 預覽 */}
             <Preview
               previewBundles={previewBundles}
@@ -274,49 +290,22 @@
               setOpenPreview={setOpenPreview}
               clearPreview={clearPreview}
               confirmPreview={confirmPreview}
-              PRODUCTS={PRODUCTS}
             />
 
             {/* 出貨清單／庫存扣減確認 */}
             {rows.length>0 && (
-              <section className="mt-6 rounded border border-gray-200 bg-white shadow-sm p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="font-medium text-sm">出貨清單／庫存扣減確認</h2>
-
-                  {/* ✅ 操作類型切換（移到這裡） */}
-                  <div className="flex items-center gap-3 text-xs">
-                    <label className="flex items-center gap-1">
-                      <input type="radio" name="op" checked={mode==='sales'} onChange={()=>setMode('sales')}/>
-                      出貨（扣）
-                    </label>
-                    <label className="flex items-center gap-1">
-                      <input type="radio" name="op" checked={mode==='nonSales'} onChange={()=>setMode('nonSales')}/>
-                      進貨（入）
-                    </label>
-                  </div>
-                </div>
-
-                {/* header 卡：值加粗 */}
-                <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
-                    <div><div className="text-[11px] text-gray-500">類別</div><div className="text-sm font-semibold">{mode==='sales'?(salesCat||'—'):(nonSalesCat||'—')}</div></div>
-                    <div><div className="text-[11px] text-gray-500">客戶 PO</div><div className="text-sm font-semibold">{po||'—'}</div></div>
-                    <div><div className="text-[11px] text-gray-500">備註</div><div className="text-sm font-semibold">{memo||'—'}</div></div>
-                    <div><div className="text-[11px] text-gray-500">表單-日期-ID</div><div className="text-sm font-semibold font-mono">{formDateId}</div></div>
-                  </div>
-                </div>
-
-                {/* rows */}
-                <RowsList rows={rows} setRows={setRows} />
-
-                <div className="flex justify-between items-center mt-3 text-sm">
-                  <span>項：{rows.length}　預計：{rows.reduce((s,r)=>s+r.qty,0)}　點交：<Totals rows={rows}/></span>
-                </div>
-              </section>
+              <FinalList
+                rows={rows}
+                setRows={setRows}
+                mode={mode}
+                setMode={setMode}
+                salesCat={salesCat}
+                nonSalesCat={nonSalesCat}
+                po={po}
+                memo={memo}
+                formDateId={formDateId}
+              />
             )}
-
-            {/* sticky action bar & confirm modal */}
-            <Actions rows={rows} setRows={setRows} mode={mode} salesCat={salesCat} nonSalesCat={nonSalesCat} po={po} memo={memo} formDateId={formDateId} />
           </div>
         );
       }
@@ -347,7 +336,7 @@
           <section className="rounded border border-gray-300 bg-gray-50 p-4">
             <h2 className="text-sm font-medium mb-3">產品選擇</h2>
 
-            {/* 套組：手機兩欄；手機時標題獨占第一行，Stepper 置右換行；桌機同列 */}
+            {/* 套組：手機兩欄；標題兩行截斷，Stepper 靠右 */}
             <div className="mb-4">
               <h3 className="text-xs font-semibold mb-2">套組</h3>
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
@@ -411,7 +400,11 @@
           <section className="mt-4">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-semibold">庫存更新預覽</h3>
-              <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>setOpenPreview(o=>!o)}>{openPreview?"收":"展"}</button>
+              <div className="flex items-center gap-2">
+                <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={clearPreview}>全部清除</button>
+                <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={confirmPreview}>確認加入</button>
+                <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>setOpenPreview(o=>!o)}>{openPreview?"收":"展"}</button>
+              </div>
             </div>
             {openPreview && (
               <div className="mt-2">
@@ -459,10 +452,6 @@
                     )}
                   </Card>
                 </div>
-                <div className="mt-3 flex justify-end gap-2">
-                  <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={clearPreview}>全部清除</button>
-                  <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={confirmPreview}>確認加入</button>
-                </div>
               </div>
             )}
           </section>
@@ -477,16 +466,90 @@
       );}
       function Empty(){ return <div className="text-xs text-gray-400">（無）</div>; }
 
-      function RowsList({rows,setRows}){
+      /* -------------------------- Final List (with signed deltas) -------------------------- */
+      function FinalList({rows,setRows,mode,setMode,salesCat,nonSalesCat,po,memo,formDateId}){
+        const sign = mode === 'sales' ? -1 : 1;
+        const signed = n => sign * (n || 0);
+        const totalDelta = rows.reduce((s,r)=> s + signed(r.picked), 0);
+
+        const hasMismatch = rows.some(r=>(r.picked||0)!==(r.qty||0));
+
+        return (
+          <section className="mt-6 rounded border border-gray-200 bg-white shadow-sm p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-medium text-sm">出貨清單／庫存扣減確認</h2>
+              <div className="flex items-center gap-3 text-xs">
+                <label className="flex items-center gap-1">
+                  <input type="radio" name="op" checked={mode==='sales'} onChange={()=>setMode('sales')}/>
+                  出貨（扣）
+                </label>
+                <label className="flex items-center gap-1">
+                  <input type="radio" name="op" checked={mode==='nonSales'} onChange={()=>setMode('nonSales')}/>
+                  進貨（入）
+                </label>
+                <span className={`ml-2 px-2 py-0.5 rounded-full text-[11px] border ${sign<0?'text-red-600 border-red-200 bg-red-50':'text-green-600 border-green-200 bg-green-50'}`}>
+                  {sign<0?'出貨（扣）':'進貨（入）'}
+                </span>
+              </div>
+            </div>
+
+            {/* header 卡：值加粗 */}
+            <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
+                <div><div className="text-[11px] text-gray-500">類別</div><div className="text-sm font-semibold">{mode==='sales'?(salesCat||'—'):(nonSalesCat||'—')}</div></div>
+                <div><div className="text-[11px] text-gray-500">客戶 PO</div><div className="text-sm font-semibold">{po||'—'}</div></div>
+                <div><div className="text-[11px] text-gray-500">備註</div><div className="text-sm font-semibold">{memo||'—'}</div></div>
+                <div><div className="text-[11px] text-gray-500">表單-日期-ID</div><div className="text-sm font-semibold font-mono">{formDateId}</div></div>
+                <div className="text-right">
+                  <div className="text-[11px] text-gray-500">總變動</div>
+                  <TotalDelta rows={rows} mode={mode}/>
+                </div>
+              </div>
+            </div>
+
+            <RowsList rows={rows} setRows={setRows} mode={mode} />
+
+            <Actions
+              rows={rows}
+              setRows={setRows}
+              mode={mode}
+              salesCat={salesCat}
+              nonSalesCat={nonSalesCat}
+              po={po}
+              memo={memo}
+              formDateId={formDateId}
+              hasMismatch={hasMismatch}
+            />
+          </section>
+        );
+      }
+
+      function TotalDelta({rows,mode}){
+        const sign = mode === 'sales' ? -1 : 1;
+        const total = rows.reduce((s,r)=> s + sign*(r.picked||0), 0);
+        return <div className={`text-sm font-semibold ${total<0?'text-red-600':'text-green-600'}`}>{total>0?'+':''}{total}</div>;
+      }
+
+      function RowsList({rows,setRows,mode}){
+        const sign = mode === 'sales' ? -1 : 1;
+        const signed = n => sign * (n || 0);
+
         return (
           <ul className="space-y-2">
             {rows.map(r=>{
               const mismatch=(r.picked||0)!==(r.qty||0);
+              const delta = signed(r.picked);
               return (
                 <li key={r.id} className={`rounded-md border ${mismatch?'border-red-300 bg-red-50/40':'border-gray-200 bg-white'}`}>
                   <div className="p-2 sm:p-2.5 grid grid-cols-1 md:grid-cols-12 md:items-center md:gap-2">
                     <div className="md:col-span-7">
                       <div className="text-[15px] leading-5 md:text-[13px] break-words">{r.name}</div>
+                      {/* signed delta chip on mobile / below title */}
+                      <div className="md:hidden mt-1 text-[12px] font-medium text-right">
+                        <span className={delta<0?"text-red-600":"text-green-600"}>
+                          Δ變動：{delta>0?'+':''}{delta}
+                        </span>
+                      </div>
                     </div>
                     {/* desktop controls */}
                     <div className="hidden md:flex md:col-span-2 items-center gap-1">
@@ -511,6 +574,12 @@
                       <Stepper value={r.qty} min={0} onChange={v=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,qty:v}:x))}/>
                       <button className="h-9 px-3 border border-gray-300 rounded text-sm text-gray-600" onClick={()=>setRows(prev=>prev.filter(x=>x.id!==r.id))}>刪</button>
                     </div>
+                    {/* desktop delta chip on far right */}
+                    <div className="hidden md:flex md:col-span-12 justify-end mt-1">
+                      <span className={`text-[12px] font-medium ${delta<0?'text-red-600':'text-green-600'}`}>
+                        Δ變動：{delta>0?'+':''}{delta}
+                      </span>
+                    </div>
                   </div>
                 </li>
               );
@@ -519,66 +588,111 @@
         );
       }
 
-      function Totals({rows}){ const v=rows.reduce((s,r)=>s+(r.picked||0),0); const eq=v===rows.reduce((s,r)=>s+r.qty,0); return <span className={eq?'':'text-red-600 font-medium'}>{v}</span> }
+      function Actions({rows,setRows,mode,salesCat,nonSalesCat,po,memo,formDateId,hasMismatch}){
+        const sign = mode === 'sales' ? -1 : 1;
+        const signed = n => sign * (n || 0);
+        const totalDelta = rows.reduce((s,r)=> s + signed(r.picked), 0);
 
-      function Actions({rows,setRows,mode,salesCat,nonSalesCat,po,memo,formDateId}){
-        const hasMismatch = rows.some(r=>(r.picked||0)!==(r.qty||0));
-        const opLabel = mode==='sales' ? '出貨（扣）' : '進貨（入）';
-        const plannedTotal = rows.reduce((s,r)=>s+(r.qty||0),0);
-        const pickedTotal  = rows.reduce((s,r)=>s+(r.picked||0),0);
         const [showConfirm,setShowConfirm]=useState(false);
+        const [submitting,setSubmitting]=useState(false);
 
         return (
           <>
+            {/* sticky actions */}
             {rows.length>0 && (
               <div className="md:static fixed bottom-0 left-0 right-0 md:bg-transparent bg-white/95 md:shadow-none shadow-[0_-4px_12px_rgba(0,0,0,0.06)] md:p-0 p-2">
-                <div className="flex justify-end gap-2 max-w-6xl mx-auto">
-                  <button className="h-9 px-3 border border-gray-300 rounded text-xs" onClick={()=>setRows(prev=>prev.map(x=>({...x,picked:x.qty})))}>全部帶入</button>
-                  <button className="h-9 px-3 border border-gray-300 rounded text-xs" onClick={()=>setRows([])}>全部清除</button>
-                  <button className="h-9 px-3 border border-gray-300 rounded text-xs disabled:opacity-50"
-                          disabled={rows.length===0}
-                          onClick={()=>setShowConfirm(true)}>庫存更新提交</button>
+                <div className="flex items-center justify-between max-w-6xl mx-auto">
+                  <div className="text-xs">
+                    總變動：
+                    <span className={`${totalDelta<0?'text-red-600':'text-green-600'} font-semibold`}>
+                      {totalDelta>0?'+':''}{totalDelta}
+                    </span>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button className="h-9 px-3 border border-gray-300 rounded text-xs" onClick={()=>setRows(prev=>prev.map(x=>({...x,picked:x.qty})))}>全部帶入</button>
+                    <button className="h-9 px-3 border border-gray-300 rounded text-xs" onClick={()=>setRows([])}>全部清除</button>
+                    <button className="h-9 px-3 border border-gray-300 rounded text-xs disabled:opacity-50"
+                            disabled={rows.length===0}
+                            onClick={()=>setShowConfirm(true)}>庫存更新提交</button>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* 確認對話框 */}
+            {/* 確認對話框（含PO資訊 header） */}
             {showConfirm && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
-                  <div className="px-4 py-3 border-b">
+                <div className="w-full max-w-lg rounded-xl bg-white shadow-xl overflow-hidden">
+                  <div className="px-4 py-3 border-b bg-gray-50">
                     <div className="text-sm font-semibold">送出前確認</div>
-                    <div className="mt-1 text-xs text-gray-600">操作類型：{opLabel}</div>
-                  </div>
-                  <div className="p-4 max-h-[60vh] overflow-auto">
-                    <div className="text-xs mb-2">
-                      項：{rows.length}　預計：{plannedTotal}　點交：
-                      <span className={hasMismatch?'text-red-600 font-semibold':''}>{pickedTotal}</span>
+                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
+                      <div><span className="text-gray-500">類別：</span><span className="font-medium">{mode==='sales'?(salesCat||'—'):(nonSalesCat||'—')}</span></div>
+                      <div><span className="text-gray-500">客戶 PO：</span><span className="font-medium">{po||'—'}</span></div>
+                      <div><span className="text-gray-500">備註：</span><span className="font-medium">{memo||'—'}</span></div>
+                      <div><span className="text-gray-500">表單-日期-ID：</span><span className="font-medium font-mono">{formDateId}</span></div>
                     </div>
-                    {hasMismatch && <div className="mb-2 text-xs text-red-600">點交量與預計不一致，請先調整至一致才能送出。</div>}
+                    <div className="mt-2 text-xs">
+                      總變動：
+                      <span className={`${totalDelta<0?'text-red-600':'text-green-600'} font-semibold`}>
+                        {totalDelta>0?'+':''}{totalDelta}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-4 max-h-[60vh] overflow-auto">
+                    {hasMismatch && (
+                      <div className="mb-3 text-xs text-red-600">點交量與預計不一致，請先調整至一致才能送出。</div>
+                    )}
                     <ul className="space-y-2 text-xs">
-                      {rows.map(r=>(
-                        <li key={r.id} className="rounded border border-gray-200 p-2">
-                          <div className="font-medium">{r.name}</div>
-                          <div className="mt-1 text-[11px] text-gray-600">預計：{r.qty}　|　點交：{r.picked}</div>
-                        </li>
-                      ))}
+                      {rows.map(r=>{
+                        const delta = signed(r.picked);
+                        return (
+                          <li key={r.id} className="rounded border border-gray-200 p-2">
+                            <div className="font-medium">{r.name}</div>
+                            <div className="mt-1 text-[11px] text-gray-600">
+                              預計：{r.qty}　|　點交：{r.picked}　|　
+                              <span className={delta<0?'text-red-600':'text-green-600'}>
+                                Δ {delta>0?'+':''}{delta}
+                              </span>
+                            </div>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
-                  <div className="px-4 py-3 border-t flex justify-end gap-2">
-                    <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>setShowConfirm(false)}>取消</button>
+
+                  <div className="px-4 py-3 border-t bg-white flex justify-end gap-2">
+                    <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>setShowConfirm(false)} disabled={submitting}>取消</button>
                     <button className="h-8 px-3 border border-gray-300 rounded text-xs disabled:opacity-50"
-                            disabled={hasMismatch}
-                            onClick={()=>{
-                              const payload={
-                                op:opLabel, category: mode==='sales'?salesCat:nonSalesCat,
-                                po, memo, formDateId,
-                                items: rows.map(r=>({productId:r.productId,name:r.name,qty:r.qty,picked:r.picked}))
+                            disabled={hasMismatch || submitting}
+                            onClick={async ()=>{
+                              // Build MINIMAL payload per your spec
+                              const payload = {
+                                category: mode === 'sales' ? (salesCat || '') : (nonSalesCat || ''),
+                                po: po || '',
+                                memo: memo || '',
+                                formDateId,
+                                items: rows.map(r => ({
+                                  productId: r.productId,                      // unique full name (含效期)
+                                  delta: (mode==='sales'?-1:1) * (r.picked||0) // signed change: 出貨負、進貨正
+                                }))
                               };
-                              console.log("POST payload (mock):", payload);
-                              setShowConfirm(false);
-                              alert("已提交（模擬），請查看 console。");
-                            }}>確認送出</button>
+
+                              try {
+                                setSubmitting(true);
+                                await postJSON("https://hook.us2.make.com/nbjdxrfypgoosj4qqxnzfmj9o29jq3c2", payload);
+                                alert("已送出至 Webhook（成功）");
+                                setShowConfirm(false);
+                                // 如要清空，可解除註解： setRows([]);
+                              } catch (err) {
+                                console.error("POST failed:", err);
+                                alert("送出失敗，請稍後重試或檢查網路/Hook 設定");
+                              } finally {
+                                setSubmitting(false);
+                              }
+                            }}>
+                      {submitting ? "送出中…" : "確認送出"}
+                    </button>
                   </div>
                 </div>
               </div>
