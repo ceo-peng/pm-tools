@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>PM 庫存更新系統（Auto GitHub Import + Mobile Layout）</title>
+    <title>PM 庫存更新系統 — Write4Version (Most Revised)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -13,316 +13,256 @@
     <div id="root"></div>
 
     <script type="text/babel">
-      const { useState, useMemo, useEffect } = React;
+      const {useState,useEffect,useMemo} = React;
 
-      /* ---------- Hard-coded GitHub raw URLs (auto import each load) ---------- */
-      const AUTO_BOOT_URLS = {
-        products: "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/products.csv",
+      /* -------------------- GitHub RAW URLs (hard-coded) -------------------- */
+      const URLS = {
+        products :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/products.csv",
         customers:"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/customers.csv",
-        bundles:  "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/bundle_items.csv",
-        gifts:    "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/gifts.csv",
-        nonsales: "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/non_sales_application.csv",
+        bundles  :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/bundle_items.csv",
+        gifts    :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/gifts.csv",
+        nonsales :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/non_sales_application.csv",
       };
 
-      /* ---------- LocalStorage keys ---------- */
-      const LS = {
-        products: "pm_inv_products_final_v3",
-        bundles:  "pm_inv_bundles_final_v3",
-        gifts:    "pm_inv_gifts_final_v3",
-        customers:"pm_inv_customers_final_v3",
-        nonsales: "pm_inv_nonsales_final_v3",
+      /* ----------------------------- CSV helpers ---------------------------- */
+      const lines = (csv)=>csv.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+      const maybeStripHeader=(arr,expect)=> {
+        if(!arr.length) return arr;
+        const first=arr[0].toLowerCase();
+        return expect.some(k=>first.includes(k)) ? arr.slice(1) : arr;
       };
-
-      /* ---------- Minimal seeds (fallback only if network fails) ---------- */
-      const PRODUCTS_SEED = [
-        { id:"仙人掌籽超能量金萃油 15ml (2027/07/30)", A:"正品(大)", B:"金萃油", C:"仙人掌籽超能量金萃油 15ml (2027/07/30)" },
-        { id:"仙人掌籽超能量金萃油 5ml (2027/05/10)",  A:"正品(旅)", B:"金萃油", C:"仙人掌籽超能量金萃油 5ml (2027/05/10)" },
-      ];
-      let PRODUCTS_REF = [...PRODUCTS_SEED];
-      let BUNDLES_REF  = [];
-      let GIFTS_REF    = [];
-      let CUSTOMERS_REF= [{id:"官網",name:"官網"}];
-      let NONSALES_REF = [{id:"INV",name:"盤點"}];
-
-      function persistAll(){
-        localStorage.setItem(LS.products,  JSON.stringify(PRODUCTS_REF));
-        localStorage.setItem(LS.bundles,   JSON.stringify(BUNDLES_REF));
-        localStorage.setItem(LS.gifts,     JSON.stringify(GIFTS_REF));
-        localStorage.setItem(LS.customers, JSON.stringify(CUSTOMERS_REF));
-        localStorage.setItem(LS.nonsales,  JSON.stringify(NONSALES_REF));
+      function parseProducts(csv){
+        let l=lines(csv); l=maybeStripHeader(l,["a,","b,","c"]);
+        return l.map(s=>{ const [A,B,C]=s.split(",").map(x=>x?.trim()); return {id:C,A,B,C}; })
+                .filter(x=>x?.id && x?.C);
       }
-      function clearAll(){ Object.values(LS).forEach(k=>localStorage.removeItem(k)); }
-      function classNames(...xs){ return xs.filter(Boolean).join(" "); }
+      function parsePairs(csv){
+        let l=lines(csv); l=maybeStripHeader(l,["id,","name"]);
+        return l.map(s=>{ const [id,name]=s.split(",").map(x=>x?.trim()); return {id,name}; })
+                .filter(x=>x?.id && x?.name);
+      }
+      function parseBundles(csv){ // for 套組 / 禮遇
+        let l=lines(csv);
+        l=maybeStripHeader(l,["bundle_id","bundle_name","product_id"]);
+        const map={};
+        l.forEach(s=>{
+          const [bid,bname,pid,qtyRaw,active]=s.split(",").map(x=>x?.trim());
+          if(!bid||!bname||!pid) return;
+          if(active==="0") return;
+          const qty=parseInt(qtyRaw||"1",10)||1;
+          (map[bid] ||= {id:bid,name:bname,items:[]}).items.push({productId:pid,qty});
+        });
+        return Object.values(map);
+      }
+      async function fetchCsv(url){ const r=await fetch(url,{cache:"no-store"}); if(!r.ok) throw new Error(url); return r.text(); }
 
-      /* ---------- Tiny toast ---------- */
+      /* -------------------------- Toast (tiny) -------------------------- */
       function useToast(){
         const [msg,setMsg]=useState("");
-        useEffect(()=>{ if(!msg) return; const t=setTimeout(()=>setMsg(""),2200); return ()=>clearTimeout(t); },[msg]);
-        const Toast=()=> msg ? <div className="fixed top-3 right-3 bg-black text-white text-xs px-3 py-2 rounded z-50">{msg}</div> : null;
-        return { setMsg, Toast };
+        useEffect(()=>{ if(!msg) return; const t=setTimeout(()=>setMsg(""),2200); return ()=>clearTimeout(t);},[msg]);
+        const Toast = ()=> msg? <div className="fixed top-3 right-3 z-50 bg-black text-white text-xs px-3 py-2 rounded">{msg}</div>:null;
+        return {setMsg,Toast};
       }
 
-      /* ---------- Compact but tappable Stepper (mobile-friendly) ---------- */
-      function Stepper({ value, min=0, onChange }){
+      /* -------------------- Stepper (大字按鈕 + 小輸入框) ------------------- */
+      function Stepper({value,min=0,onChange}){
         return (
-          <div className="inline-flex items-center rounded border border-gray-300 h-8 sm:h-7">
-            <button className="px-2 text-sm sm:text-[11px]" onClick={()=>onChange(Math.max(min,(value||0)-1))}>−</button>
+          <div className="inline-flex items-stretch border border-gray-300 rounded h-[34px] overflow-hidden">
+            <button
+              className="px-2 text-[13px] leading-[34px] select-none"
+              onClick={()=>onChange(Math.max(min,(value||0)-1))}
+            >減</button>
             <input
-              className="w-10 sm:w-8 text-center text-sm sm:text-[11px] outline-none"
+              className="w-9 text-center text-[13px] outline-none border-l border-r border-gray-300"
               value={value}
               onChange={(e)=>{const n=parseInt(e.target.value.replace(/[^0-9]/g,''),10); onChange(Number.isFinite(n)?n:0);}}
             />
-            <button className="px-2 text-sm sm:text-[11px]" onClick={()=>onChange((value||0)+1)}>+</button>
+            <button
+              className="px-2 text-[13px] leading-[34px] select-none"
+              onClick={()=>onChange((value||0)+1)}
+            >加</button>
           </div>
         );
       }
 
-      function genFormDateId(prefix){
-        const now=new Date(); const pad=n=>String(n).padStart(2,'0');
-        return `${prefix}-${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
+      /* --------------------------- Form-Date-ID --------------------------- */
+      function genDocId(prefix){
+        const d=new Date(); const p=n=>String(n).padStart(2,"0");
+        return `${prefix}-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
       }
 
-      /* ---------- CSV helpers (header optional) ---------- */
-      const normLines = csv => csv.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-      const maybeStrip = (lines, tokens) => {
-        if(!lines.length) return lines;
-        const fst = lines[0].split(",").map(s=>s.trim().toLowerCase());
-        const looks = fst.every(t=>tokens.includes(t));
-        return looks ? lines.slice(1) : lines;
-      };
-      function parseProducts(csv){
-        let lines=normLines(csv); lines=maybeStrip(lines,["a","b","c"]);
-        return lines.map(l=>{ const [A,B,C]=l.split(",").map(s=>s?.trim()); return { id:C, A, B, C }; })
-                    .filter(x=>x?.id && x?.C);
-      }
-      function parsePairs(csv){
-        let lines=normLines(csv); lines=maybeStrip(lines,["id","name"]);
-        return lines.map(l=>{ const [id,name]=l.split(",").map(s=>s?.trim()); return {id,name}; })
-                    .filter(x=>x?.id && x?.name);
-      }
-      function parseBundles(csv){
-        let lines=normLines(csv);
-        lines=maybeStrip(lines,["bundle_id","bundle_name","product_id","qty","active"]);
-        const list={};
-        lines.forEach(l=>{
-          const [bid,bname,pid,qtyRaw,active]=l.split(",").map(s=>s?.trim());
-          if(!bid||!bname||!pid) return; if(active==="0") return;
-          if(!PRODUCTS_REF.find(p=>p.id===pid)) return;
-          const qty=parseInt(qtyRaw||"1",10)||1;
-          (list[bid] ||= {id:bid,name:bname,items:[]}).items.push({productId:pid,qty});
-        });
-        return Object.values(list);
-      }
-      async function fetchCsv(url){ const r=await fetch(url,{cache:"no-store"}); if(!r.ok) throw new Error(`${r.status} ${r.statusText}`); return r.text(); }
-
-      /* ---------- Admin (optional, kept for manual override) ---------- */
-      function AdminImport({ onChanged }){
-        const [open,setOpen]=useState(false);
-        const [admin,setAdmin]=useState(false);
-        const { setMsg, Toast } = useToast();
-        const [csvProd,setCsvProd]=useState(""); const [csvCust,setCsvCust]=useState("");
-        const [csvBundle,setCsvBundle]=useState(""); const [csvNon,setCsvNon]=useState(""); const [csvGift,setCsvGift]=useState("");
-        function login(){ const v=prompt("請輸入管理 PIN"); if(v==="50963212"){ setAdmin(true); setOpen(true); setMsg("管理者登入成功"); } else if(v!==null){ alert("PIN 錯誤"); } }
-        function loadProducts(){ PRODUCTS_REF=parseProducts(csvProd); persistAll(); onChanged(); setMsg(`載入商品：${PRODUCTS_REF.length}`); }
-        function loadCustomers(){ CUSTOMERS_REF=parsePairs(csvCust); persistAll(); onChanged(); setMsg(`載入客戶：${CUSTOMERS_REF.length}`); }
-        function loadBundles(){ BUNDLES_REF=parseBundles(csvBundle); persistAll(); onChanged(); setMsg(`載入套組：${BUNDLES_REF.length}`); }
-        function loadNonSales(){ NONSALES_REF=parsePairs(csvNon); persistAll(); onChanged(); setMsg(`載入非銷售：${NONSALES_REF.length}`); }
-        function loadGifts(){ GIFTS_REF=parseBundles(csvGift); persistAll(); onChanged(); setMsg(`載入禮遇：${GIFTS_REF.length}`); }
-        function wipeLocal(){ Object.values(LS).forEach(k=>localStorage.removeItem(k)); setMsg("已清除本機儲存"); }
-
-        return (
-          <section className="mt-6 rounded border border-gray-200 bg-gray-50">
-            <Toast />
-            <div className="px-3 py-2 border-b bg-gray-100 rounded-t flex items-center gap-2">
-              <span className="text-sm font-medium">匯入資料（系統用）</span>
-              <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=> admin ? setOpen(o=>!o) : alert('請先管理登入')}>{open?'▲':'▼'}</button>
-              {!admin ? <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={login}>管理登入</button> : <span className="text-xs text-green-700">已登入（管理者）</span>}
-            </div>
-            {open && admin && (
-              <div className="p-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
-                <div><div className="text-xs font-medium mb-1">商品 CSV (A,B,C)</div><textarea className="w-full h-28 border rounded p-2 text-xs" value={csvProd} onChange={e=>setCsvProd(e.target.value)} /><div className="mt-1"><button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={loadProducts}>載入商品</button></div></div>
-                <div><div className="text-xs font-medium mb-1">客戶 CSV (id,name)</div><textarea className="w-full h-28 border rounded p-2 text-xs" value={csvCust} onChange={e=>setCsvCust(e.target.value)} /><div className="mt-1"><button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={loadCustomers}>載入客戶</button></div></div>
-                <div><div className="text-xs font-medium mb-1">套組 CSV (bundle_id,bundle_name,product_id,qty,active)</div><textarea className="w-full h-28 border rounded p-2 text-xs" value={csvBundle} onChange={e=>setCsvBundle(e.target.value)} /><div className="mt-1"><button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={loadBundles}>載入套組</button></div></div>
-                <div><div className="text-xs font-medium mb-1">非銷售 CSV (id,name)</div><textarea className="w-full h-28 border rounded p-2 text-xs" value={csvNon} onChange={e=>setCsvNon(e.target.value)} /><div className="mt-1"><button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={loadNonSales}>載入非銷售</button></div></div>
-                <div className="lg:col-span-2"><div className="text-xs font-medium mb-1">禮遇 CSV (bundle_id,bundle_name,product_id,qty,active)</div><textarea className="w-full h-28 border rounded p-2 text-xs" value={csvGift} onChange={e=>setCsvGift(e.target.value)} /><div className="mt-1 flex gap-2"><button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={loadGifts}>載入禮遇</button><button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={wipeLocal}>清除本機儲存</button></div></div>
-              </div>
-            )}
-          </section>
-        );
-      }
-
-      /* ---------- Main App ---------- */
+      /* ================================ App ================================= */
       function App(){
-        const { setMsg, Toast } = useToast();
-        const [rev,setRev]=useState(0);
-        const bump=()=>setRev(x=>x+1);
+        const {setMsg,Toast}=useToast();
 
-        // Auto import from GitHub every load
-        const [boot,setBoot]=useState({loading:true, error:null});
+        // data
+        const [PRODUCTS,setPRODUCTS]=useState([]);
+        const [CUSTOMERS,setCUSTOMERS]=useState([]);
+        const [BUNDLES,setBUNDLES]=useState([]);
+        const [GIFTS,setGIFTS]=useState([]);
+        const [NONSALES,setNONSALES]=useState([]);
+
+        // order info
+        const [mode,setMode]=useState("sales"); // 'sales' | 'nonSales'
+        const [salesCat,setSalesCat]=useState("");
+        const [nonSalesCat,setNonSalesCat]=useState("");
+        const [po,setPo]=useState("");
+        const [memo,setMemo]=useState("");
+
+        // selections preview
+        const [bundleGroups,setBundleGroups]=useState({}); // {bundleId: count}
+        const [giftChecks,setGiftChecks]=useState({});      // {giftId: true}
+        const [pendingSingles,setPendingSingles]=useState({}); // {productId: qty}
+        const [openPreview,setOpenPreview]=useState(true);
+
+        // final rows
+        const [rows,setRows]=useState([]);
+
+        // confirm modal
+        const [showConfirm,setShowConfirm]=useState(false);
+
         useEffect(()=>{
           (async ()=>{
             try{
-              clearAll(); // Start fresh each time
               const [p,c,b,g,n]=await Promise.all([
-                fetchCsv(AUTO_BOOT_URLS.products),
-                fetchCsv(AUTO_BOOT_URLS.customers),
-                fetchCsv(AUTO_BOOT_URLS.bundles),
-                fetchCsv(AUTO_BOOT_URLS.gifts),
-                fetchCsv(AUTO_BOOT_URLS.nonsales),
+                fetchCsv(URLS.products), fetchCsv(URLS.customers),
+                fetchCsv(URLS.bundles),  fetchCsv(URLS.gifts),
+                fetchCsv(URLS.nonsales)
               ]);
-              PRODUCTS_REF=parseProducts(p); persistAll(); // persist once so bundles can validate product_id
-              BUNDLES_REF =parseBundles(b);
-              GIFTS_REF   =parseBundles(g);
-              CUSTOMERS_REF=parsePairs(c);
-              NONSALES_REF =parsePairs(n);
-              persistAll();
-              setBoot({loading:false,error:null}); setMsg("已自動載入 GitHub 資料"); bump();
-            }catch(err){
-              console.error(err);
-              PRODUCTS_REF=PRODUCTS_SEED.slice(); BUNDLES_REF=[]; GIFTS_REF=[];
-              CUSTOMERS_REF=[{id:"官網",name:"官網"}]; NONSALES_REF=[{id:"INV",name:"盤點"}];
-              persistAll(); setBoot({loading:false,error:String(err)}); setMsg("自動載入失敗，已使用內建資料"); bump();
+              setPRODUCTS(parseProducts(p));
+              setCUSTOMERS(parsePairs(c));
+              setBUNDLES(parseBundles(b));
+              setGIFTS(parseBundles(g));
+              setNONSALES(parsePairs(n));
+              setMsg("已自動載入 GitHub CSV");
+            }catch(e){
+              console.error(e);
+              setMsg("自動載入失敗（請檢查 RAW URL）");
             }
           })();
         },[]);
 
-        // Order info
-        const [mode,setMode]=useState("sales");
-        const [salesCat,setSalesCat]=useState("");
-        const [nonSalesCat,setNonSalesCat]=useState("");
-        const [po,setPo]=useState(""); const [memo,setMemo]=useState("");
-        const formDateId = useMemo(()=> genFormDateId(mode==='sales'?(salesCat||""): (nonSalesCat||"")), [mode,salesCat,nonSalesCat]);
-
-        // Selection references
-        const PRODUCTS = useMemo(()=> JSON.parse(localStorage.getItem(LS.products)||"[]"), [rev]);
-        const BUNDLES  = useMemo(()=> JSON.parse(localStorage.getItem(LS.bundles)||"[]"), [rev]);
-        const GIFTS    = useMemo(()=> JSON.parse(localStorage.getItem(LS.gifts)||"[]"), [rev]);
-        const CUSTOMERS= useMemo(()=> JSON.parse(localStorage.getItem(LS.customers)||"[]"), [rev]);
-        const NONSALES = useMemo(()=> JSON.parse(localStorage.getItem(LS.nonsales)||"[]"), [rev]);
-
-        // Single selection dropdowns
-        const categoriesA = useMemo(()=> [...new Set(PRODUCTS.map(p=>p.A))], [PRODUCTS]);
+        /* ---------- dropdown options ---------- */
+        const catA = useMemo(()=> [...new Set(PRODUCTS.map(x=>x.A))], [PRODUCTS]);
         const seriesByA = useMemo(()=>{
-          const by={}; categoriesA.forEach(a=>{ by[a]=[...new Set(PRODUCTS.filter(p=>p.A===a).map(p=>p.B))]; }); return by;
-        },[categoriesA,PRODUCTS]);
-        const productsByAB = useMemo(()=>{
-          const by={}; PRODUCTS.forEach(p=>{ const k=`${p.A}__${p.B}`; (by[k] ||= []).push(p); }); return by;
+          const obj={}; catA.forEach(a=>obj[a]=[...new Set(PRODUCTS.filter(p=>p.A===a).map(p=>p.B))]); return obj;
+        },[catA,PRODUCTS]);
+        const prodsByAB = useMemo(()=>{
+          const obj={}; PRODUCTS.forEach(p=>{ const k=`${p.A}__${p.B}`; (obj[k] ||= []).push(p);}); return obj;
         },[PRODUCTS]);
 
         const [selA,setSelA]=useState(""); const [selB,setSelB]=useState(""); const [selPid,setSelPid]=useState(""); const [singleQty,setSingleQty]=useState(1);
-        useEffect(()=>{ // init first options
+        useEffect(()=>{
           if(!PRODUCTS.length) return;
-          const a0=categoriesA[0]||""; const b0=(seriesByA[a0]||[])[0]||"";
+          const a0=catA[0]||""; const b0=(seriesByA[a0]||[])[0]||"";
           setSelA(a0); setSelB(b0);
-          const first=((productsByAB[`${a0}__${b0}`])||[])[0]; setSelPid(first?first.id:"");
+          const first=(prodsByAB[`${a0}__${b0}`]||[])[0];
+          setSelPid(first?first.id:"");
         },[PRODUCTS]);
 
-        // Preview states
-        const [bundleGroups,setBundleGroups]=useState({});
-        const [giftChecks,setGiftChecks]=useState({});
-        const [pendingSingles,setPendingSingles]=useState({});
-        const [openPreview,setOpenPreview]=useState(true);
-
+        /* ---------- previews ---------- */
         const previewBundles = useMemo(()=> Object.entries(bundleGroups)
-          .filter(([,g])=>g)
-          .map(([bid,groups])=>{
+          .filter(([,c])=>c>0)
+          .map(([bid,count])=>{
             const b=BUNDLES.find(x=>x.id===bid); if(!b) return null;
-            return { id:bid, title:`${b.name} × ${groups}`,
-              details:b.items.map(it=>({ productId:it.productId, name:(PRODUCTS.find(pp=>pp.id===it.productId)||{}).C || it.productId, qty:it.qty*groups })) };
-          }).filter(Boolean), [bundleGroups,rev]);
+            return { id:bid, title:`${b.name} × ${count}`, details:b.items.map(it=>{
+              const name=(PRODUCTS.find(p=>p.id===it.productId)||{}).C || it.productId;
+              return {productId:it.productId,name,qty:it.qty*count};
+            })};
+          }).filter(Boolean), [bundleGroups,BUNDLES,PRODUCTS]);
 
         const previewSingles = useMemo(()=> Object.entries(pendingSingles)
-          .filter(([,q])=>q)
-          .map(([pid,qty])=>({ productId:pid, name:(PRODUCTS.find(pp=>pp.id===pid)||{}).C || pid, qty })), [pendingSingles,rev]);
+          .filter(([,q])=>q>0)
+          .map(([pid,qty])=>{
+            const name=(PRODUCTS.find(p=>p.id===pid)||{}).C||pid;
+            return {productId:pid,name,qty};
+          }),[pendingSingles,PRODUCTS]);
 
         const previewGifts = useMemo(()=> Object.entries(giftChecks)
-          .filter(([,c])=>c)
+          .filter(([,ok])=>ok)
           .map(([gid])=>{
             const g=GIFTS.find(x=>x.id===gid); if(!g) return null;
-            return { id:gid, title:g.name, details:g.items.map(it=>({ productId:it.productId, name:(PRODUCTS.find(pp=>pp.id===it.productId)||{}).C || it.productId, qty:it.qty })) };
-          }).filter(Boolean), [giftChecks,rev]);
+            return {id:gid,title:g.name,details:g.items.map(it=>{
+              const name=(PRODUCTS.find(p=>p.id===it.productId)||{}).C||it.productId;
+              return {productId:it.productId,name,qty:it.qty};
+            })};
+          }).filter(Boolean),[giftChecks,GIFTS,PRODUCTS]);
 
         function clearPreview(){ setBundleGroups({}); setPendingSingles({}); setGiftChecks({}); }
-        const [rows,setRows]=useState([]);
+
         function confirmPreview(){
-          const map=new Map(); const add=(pid,qty)=>map.set(pid,(map.get(pid)||0)+qty);
+          const addMap=new Map();
+          const add=(pid,qty)=>addMap.set(pid,(addMap.get(pid)||0)+qty);
           previewBundles.forEach(b=>b.details.forEach(d=>add(d.productId,d.qty)));
           previewSingles.forEach(s=>add(s.productId,s.qty));
           previewGifts.forEach(g=>g.details.forEach(d=>add(d.productId,d.qty)));
-          if(map.size===0) return;
+          if(addMap.size===0) return;
           setRows(prev=>{
             const next=[...prev];
-            map.forEach((qty,pid)=>{
-              const p=PRODUCTS.find(x=>x.id===pid);
-              const i=next.findIndex(r=>r.productId===pid);
-              if(i>=0) next[i]={...next[i], qty: next[i].qty + qty};
-              else next.push({ id:`${pid}-${Date.now()}-${Math.random()}`, productId:pid, name:p?.C||pid, qty, picked:0 });
+            addMap.forEach((qty,pid)=>{
+              const name=(PRODUCTS.find(p=>p.id===pid)||{}).C||pid;
+              const idx=next.findIndex(x=>x.productId===pid);
+              if(idx>=0) next[idx]={...next[idx],qty:next[idx].qty+qty};
+              else next.push({id:`${pid}-${Date.now()}-${Math.random()}`,productId:pid,name,qty,picked:0});
             });
             return next;
           });
           setMsg("已加入最終清單（預覽保留）");
         }
 
+        const opLabel = useMemo(()=> mode==='sales' ? '出貨（扣）' : '進貨（入）', [mode]);
+        const formDateId = useMemo(()=> genDocId(mode==='sales'?(salesCat||''): (nonSalesCat||'')),[mode,salesCat,nonSalesCat]);
         const hasMismatch = rows.some(r=>(r.picked||0)!==(r.qty||0));
         const plannedTotal = rows.reduce((s,r)=>s+(r.qty||0),0);
         const pickedTotal  = rows.reduce((s,r)=>s+(r.picked||0),0);
 
-        if(boot.loading){
-          return <div className="mx-auto max-w-6xl p-6 text-sm">正在從 GitHub 載入資料…</div>;
-        }
-
         return (
-          <div className="mx-auto max-w-6xl p-4 pb-24"> {/* extra bottom padding for sticky bar */}
-            <Toast />
-            <h1 className="text-lg md:text-xl font-semibold mb-4">PM 庫存更新系統（自動匯入版）</h1>
+          <div className="mx-auto max-w-6xl p-4 pb-24">
+            <Toast/>
+            <h1 className="text-lg md:text-xl font-semibold mb-4">PM 庫存更新系統（Write4Version）</h1>
 
             {/* 出貨訂單資訊 */}
-            <section className="rounded border border-gray-200 bg-white p-3 shadow-sm mb-4">
-              <h2 className="text-sm font-medium mb-3">出貨訂單資訊</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-2 text-xs items-center">
-                <div className="flex items-center gap-2">
-                  <label className="whitespace-nowrap">模式</label>
-                  <select className="border rounded h-8 px-2" value={mode} onChange={e=>setMode(e.target.value)}>
-                    <option value="sales">銷售</option>
-                    <option value="nonSales">非銷售</option>
-                  </select>
+            <section className="rounded border border-gray-200 bg-white shadow-sm mb-4">
+              <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
+                <div className="font-medium text-sm">出貨訂單資訊</div>
+                <div className="text-xs text-gray-600">表單-日期-ID：<span className="font-mono">{formDateId}</span></div>
+              </div>
+              <div className="p-3 grid grid-cols-1 md:grid-cols-4 gap-2 text-xs">
+                <div className="flex items-center gap-3">
+                  <label><input type="radio" checked={mode==='sales'} onChange={()=>setMode('sales')}/> 銷售</label>
+                  <label><input type="radio" checked={mode==='nonSales'} onChange={()=>setMode('nonSales')}/> 非銷售</label>
                 </div>
                 {mode==='sales' ? (
-                  <div className="flex items-center gap-2">
-                    <label className="whitespace-nowrap">客戶分類</label>
-                    <select className="border rounded h-8 px-2" value={salesCat} onChange={e=>setSalesCat(e.target.value)}>
-                      {(CUSTOMERS||[]).map(x=> <option key={x.id} value={x.name}>{x.name}</option>)}
-                    </select>
-                  </div>
-                ):(
-                  <div className="flex items-center gap-2">
-                    <label className="whitespace-nowrap">非銷售分類</label>
-                    <select className="border rounded h-8 px-2" value={nonSalesCat} onChange={e=>setNonSalesCat(e.target.value)}>
-                      {(NONSALES||[]).map(x=> <option key={x.id} value={x.name}>{x.name}</option>)}
-                    </select>
-                  </div>
+                  <select className="border rounded h-8 px-2" value={salesCat} onChange={e=>setSalesCat(e.target.value)}>
+                    {(CUSTOMERS||[]).map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
+                  </select>
+                ) : (
+                  <select className="border rounded h-8 px-2" value={nonSalesCat} onChange={e=>setNonSalesCat(e.target.value)}>
+                    {(NONSALES||[]).map(n=><option key={n.id} value={n.name}>{n.name}</option>)}
+                  </select>
                 )}
                 <input className="border rounded h-8 px-2" placeholder="PO 出貨單號" value={po} onChange={e=>setPo(e.target.value)} />
                 <input className="border rounded h-8 px-2" placeholder="備註" value={memo} onChange={e=>setMemo(e.target.value)} />
-                <div className="md:col-span-3 lg:col-span-1 text-gray-600">
-                  表單-日期-ID：<span className="font-mono">{formDateId}</span>
-                </div>
               </div>
             </section>
 
-            {/* 產品選擇（套組 / 單品 / 禮遇） */}
+            {/* 產品選擇 */}
             <section className="rounded border border-gray-300 bg-gray-50 p-4">
               <h2 className="text-sm font-medium mb-3">產品選擇</h2>
 
-              {/* 套組 */}
+              {/* 套組：手機兩欄、兩行截斷、步進器靠右 */}
               <div className="mb-4">
                 <h3 className="text-xs font-semibold mb-2">套組</h3>
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
-                  {(BUNDLES||[]).map(b=> (
+                  {(BUNDLES||[]).map(b=>(
                     <div key={b.id} className="rounded border border-gray-200 bg-white p-2">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-xs font-medium truncate">{b.name}</span>
-                        <Stepper value={bundleGroups[b.id]||0} onChange={v=>setBundleGroups(s=>({...s,[b.id]:v}))} />
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className="text-[13px] leading-snug"
+                          style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}
+                          title={b.name}
+                        >{b.name}</span>
+                        <Stepper value={bundleGroups[b.id]||0} onChange={v=>setBundleGroups(s=>({...s,[b.id]:v}))}/>
                       </div>
                     </div>
                   ))}
@@ -335,36 +275,36 @@
                 <h3 className="text-xs font-semibold mb-2">單品</h3>
                 <div className="grid md:grid-cols-6 gap-2 items-center bg-white p-2 rounded border">
                   <select className="border rounded h-8 px-2 text-xs" value={selA} onChange={e=>setSelA(e.target.value)}>
-                    {categoriesA.map(a=> <option key={a}>{a}</option>)}
+                    {catA.map(a=><option key={a}>{a}</option>)}
                   </select>
                   <select className="border rounded h-8 px-2 text-xs" value={selB} onChange={e=>setSelB(e.target.value)}>
-                    {(seriesByA[selA]||[]).map(b=> <option key={b}>{b}</option>)}
+                    {(seriesByA[selA]||[]).map(b=><option key={b}>{b}</option>)}
                   </select>
                   <select className="md:col-span-3 border rounded h-8 px-2 text-xs" value={selPid} onChange={e=>setSelPid(e.target.value)}>
-                    {((productsByAB[`${selA}__${selB}`])||[]).map(p=> <option key={p.id} value={p.id}>{p.C}</option>)}
+                    {((prodsByAB[`${selA}__${selB}`])||[]).map(p=><option key={p.id} value={p.id}>{p.C}</option>)}
                   </select>
                   <div className="flex items-center gap-1 justify-self-end">
-                    <Stepper value={singleQty} min={1} onChange={setSingleQty} />
+                    <Stepper value={singleQty} min={1} onChange={setSingleQty}/>
                     <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=> selPid && setPendingSingles(prev=>({...prev,[selPid]:(prev[selPid]||0)+singleQty}))}>加</button>
                   </div>
                 </div>
               </div>
 
-              {/* 禮遇 */}
+              {/* 禮遇（手機兩欄） */}
               <div>
                 <h3 className="text-xs font-semibold mb-2">禮遇</h3>
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
-                  {(GIFTS||[]).map(g=> (
+                  {(GIFTS||[]).map(g=>(
                     <label key={g.id} className="flex items-center gap-2 rounded border border-gray-200 bg-white p-2 cursor-pointer">
-                      <input type="checkbox" checked={!!giftChecks[g.id]} onChange={e=>setGiftChecks(s=>({...s,[g.id]:e.target.checked}))} />
-                      <span className="text-xs leading-snug truncate">{g.name}</span>
+                      <input type="checkbox" checked={!!giftChecks[g.id]} onChange={e=>setGiftChecks(s=>({...s,[g.id]:e.target.checked}))}/>
+                      <span className="text-xs leading-snug" style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}} title={g.name}>{g.name}</span>
                     </label>
                   ))}
                   {(GIFTS||[]).length===0 && <div className="text-[11px] text-gray-400">（尚無禮遇）</div>}
                 </div>
               </div>
 
-              {/* 預覽（三卡，可開合） */}
+              {/* 預覽（可開合，三卡） */}
               <div className="mt-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-semibold">庫存更新預覽</h3>
@@ -377,11 +317,11 @@
                         <div className="text-xs font-semibold mb-2">套組</div>
                         {previewBundles.length===0 ? <div className="text-xs text-gray-400">（無）</div> : (
                           <ul className="space-y-2 text-xs">
-                            {previewBundles.map(b=> (
+                            {previewBundles.map(b=>(
                               <li key={b.id} className="border-b border-dashed border-gray-200 pb-1">
                                 <div className="font-medium mb-1">{b.title}</div>
                                 <ul className="ml-3 list-disc text-[11px] text-gray-600">
-                                  {b.details.map((d,i)=> <li key={i}>{d.name} × {d.qty}</li>)}
+                                  {b.details.map((d,i)=><li key={i}>{d.name} × {d.qty}</li>)}
                                 </ul>
                               </li>
                             ))}
@@ -392,11 +332,11 @@
                         <div className="text-xs font-semibold mb-2">單品</div>
                         {previewSingles.length===0 ? <div className="text-xs text-gray-400">（無）</div> : (
                           <ul className="space-y-2 text-xs">
-                            {previewSingles.map(s=> (
+                            {previewSingles.map(s=>(
                               <li key={s.productId} className="flex items-center justify-between gap-2">
                                 <div className="text-[11px] leading-snug whitespace-normal break-words">{s.name}</div>
                                 <div className="flex items-center gap-2">
-                                  <Stepper value={s.qty} min={0} onChange={v=>setPendingSingles(prev=>({...prev,[s.productId]:v}))} />
+                                  <Stepper value={s.qty} min={0} onChange={v=>setPendingSingles(prev=>({...prev,[s.productId]:v}))}/>
                                   <button className="h-7 w-7 border border-gray-300 rounded text-sm text-gray-600" onClick={()=>setPendingSingles(prev=>{const n={...prev}; delete n[s.productId]; return n;})}>×</button>
                                 </div>
                               </li>
@@ -408,11 +348,11 @@
                         <div className="text-xs font-semibold mb-2">禮遇</div>
                         {previewGifts.length===0 ? <div className="text-xs text-gray-400">（無）</div> : (
                           <ul className="space-y-2 text-xs">
-                            {previewGifts.map(g=> (
+                            {previewGifts.map(g=>(
                               <li key={g.id} className="border-b border-dashed border-gray-200 pb-1">
                                 <div className="font-medium mb-1">{g.title}</div>
                                 <ul className="ml-3 list-disc text-[11px] text-gray-600">
-                                  {g.details.map((d,i)=> <li key={i}>{d.name} × {d.qty}</li>)}
+                                  {g.details.map((d,i)=><li key={i}>{d.name} × {d.qty}</li>)}
                                 </ul>
                               </li>
                             ))}
@@ -429,70 +369,51 @@
               </div>
             </section>
 
-            {/* 最終清單（mobile-friendly rows + sticky bar） */}
+            {/* 出貨清單／庫存扣減確認 */}
             {rows.length>0 && (
               <section className="mt-6 rounded border border-gray-200 bg-white shadow-sm p-4">
                 <h2 className="font-medium mb-2 text-sm">出貨清單／庫存扣減確認</h2>
 
-                {/* Header values (only values as requested) */}
-                <div className="mb-3 text-xs text-gray-700 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 bg-gray-50 border border-gray-200 rounded p-2">
-                  <div>類別：<span className="font-medium">{mode==='sales' ? salesCat : nonSalesCat}</span></div>
-                  <div>客戶 PO：<span className="font-medium">{po || '—'}</span></div>
-                  <div>備註：<span className="font-medium">{memo || '—'}</span></div>
-                  <div>表單-日期-ID：<span className="font-mono">{formDateId}</span></div>
+                {/* header 卡：值加粗 */}
+                <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+                    <div><div className="text-[11px] text-gray-500">類別</div><div className="text-sm font-semibold">{mode==='sales'?(salesCat||'—'):(nonSalesCat||'—')}</div></div>
+                    <div><div className="text-[11px] text-gray-500">客戶 PO</div><div className="text-sm font-semibold">{po||'—'}</div></div>
+                    <div><div className="text-[11px] text-gray-500">備註</div><div className="text-sm font-semibold">{memo||'—'}</div></div>
+                    <div><div className="text-[11px] text-gray-500">表單-日期-ID</div><div className="text-sm font-semibold font-mono">{formDateId}</div></div>
+                  </div>
                 </div>
 
-                {/* Column headers (desktop only) */}
-                <div className="hidden md:grid grid-cols-12 text-[12px] text-gray-500 mb-1">
-                  <div className="col-span-2">點交量</div>
-                  <div className="col-span-7">商品名稱</div>
-                  <div className="col-span-2 text-right">預計</div>
-                  <div className="col-span-1 text-right">刪</div>
-                </div>
-
-                {/* Rows */}
+                {/* rows：mobile 兩行布局 + sticky 操作列 */}
                 <ul className="space-y-2">
                   {rows.map(r=>{
                     const mismatch=(r.picked||0)!==(r.qty||0);
                     return (
-                      <li key={r.id} className={classNames("rounded-md border", mismatch ? "border-red-300 bg-red-50/40" : "border-gray-200 bg-white")}>
+                      <li key={r.id} className={`rounded-md border ${mismatch?'border-red-300 bg-red-50/40':'border-gray-200 bg-white'}`}>
                         <div className="p-2 sm:p-2.5 grid grid-cols-1 md:grid-cols-12 md:items-center md:gap-2">
-                          {/* Name */}
                           <div className="md:col-span-7">
                             <div className="text-[15px] leading-5 md:text-[13px] break-words">{r.name}</div>
                           </div>
-
-                          {/* Desktop controls */}
+                          {/* desktop controls */}
                           <div className="hidden md:flex md:col-span-2 items-center gap-1">
-                            <input className={classNames("w-16 h-7 rounded border px-2 text-right tabular-nums", mismatch ? "border-red-400" : "border-gray-300")}
-                                   value={r.picked}
-                                   onChange={e=>{
-                                     const n=parseInt(e.target.value.replace(/[^0-9]/g,''),10);
-                                     setRows(prev=>prev.map(x=>x.id===r.id?{...x,picked:Number.isFinite(n)?n:0}:x));
-                                   }}/>
-                            <button title="帶入預計" className="h-7 w-7 border border-gray-300 rounded text-xs text-gray-600"
-                                    onClick={()=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,picked:x.qty}:x))}>=</button>
+                            <input className={`w-16 h-7 rounded border px-2 text-right tabular-nums ${mismatch?'border-red-400':'border-gray-300'}`} value={r.picked}
+                              onChange={e=>{const n=parseInt(e.target.value.replace(/[^0-9]/g,''),10); setRows(prev=>prev.map(x=>x.id===r.id?{...x,picked:Number.isFinite(n)?n:0}:x));}}/>
+                            {mismatch && <button title="帶入預計" className="h-7 px-2 border border-gray-300 rounded text-xs text-gray-600" onClick={()=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,picked:x.qty}:x))}>=</button>}
                           </div>
                           <div className="hidden md:flex md:col-span-2 justify-end">
-                            <Stepper value={r.qty} min={0} onChange={v=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,qty:v}:x))} />
+                            <Stepper value={r.qty} min={0} onChange={v=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,qty:v}:x))}/>
                           </div>
                           <div className="hidden md:flex md:col-span-1 justify-end">
                             <button className="h-7 w-7 border border-gray-300 rounded text-sm text-gray-600" onClick={()=>setRows(prev=>prev.filter(x=>x.id!==r.id))}>×</button>
                           </div>
-
-                          {/* Mobile controls */}
+                          {/* mobile controls */}
                           <div className="mt-2 md:hidden flex items-center justify-between gap-2">
                             <div className="flex items-center gap-1">
-                              <input className={classNames("w-16 h-9 rounded border px-2 text-right tabular-nums", mismatch ? "border-red-400" : "border-gray-300")}
-                                     value={r.picked}
-                                     onChange={e=>{
-                                       const n=parseInt(e.target.value.replace(/[^0-9]/g,''),10);
-                                       setRows(prev=>prev.map(x=>x.id===r.id?{...x,picked:Number.isFinite(n)?n:0}:x));
-                                     }}/>
-                              <button title="帶入預計" className="h-9 px-2 border border-gray-300 rounded text-sm text-gray-600"
-                                      onClick={()=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,picked:x.qty}:x))}>=</button>
+                              <input className={`w-16 h-9 rounded border px-2 text-right tabular-nums ${mismatch?'border-red-400':'border-gray-300'}`} value={r.picked}
+                                onChange={e=>{const n=parseInt(e.target.value.replace(/[^0-9]/g,''),10); setRows(prev=>prev.map(x=>x.id===r.id?{...x,picked:Number.isFinite(n)?n:0}:x));}}/>
+                              {mismatch && <button title="帶入預計" className="h-9 px-2 border border-gray-300 rounded text-sm text-gray-600" onClick={()=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,picked:x.qty}:x))}>=</button>}
                             </div>
-                            <Stepper value={r.qty} min={0} onChange={v=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,qty:v}:x))} />
+                            <Stepper value={r.qty} min={0} onChange={v=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,qty:v}:x))}/>
                             <button className="h-9 px-3 border border-gray-300 rounded text-sm text-gray-600" onClick={()=>setRows(prev=>prev.filter(x=>x.id!==r.id))}>刪</button>
                           </div>
                         </div>
@@ -501,39 +422,72 @@
                   })}
                 </ul>
 
-                {/* Totals */}
                 <div className="flex justify-between items-center mt-3 text-sm">
-                  <span>項：{rows.length}　計：{plannedTotal}　點：<span className={classNames(pickedTotal!==plannedTotal && 'text-red-600 font-medium')}>{pickedTotal}</span></span>
+                  <span>項：{rows.length}　預計：{plannedTotal}　點交：<span className={pickedTotal!==plannedTotal?'text-red-600 font-medium':''}>{pickedTotal}</span></span>
                 </div>
               </section>
             )}
 
-            {/* Sticky action bar (mobile) */}
+            {/* sticky action bar */}
             {rows.length>0 && (
               <div className="md:static fixed bottom-0 left-0 right-0 md:bg-transparent bg-white/95 md:shadow-none shadow-[0_-4px_12px_rgba(0,0,0,0.06)] md:p-0 p-2">
                 <div className="flex justify-end gap-2 max-w-6xl mx-auto">
                   <button className="h-9 px-3 border border-gray-300 rounded text-xs" onClick={()=>setRows(prev=>prev.map(x=>({...x,picked:x.qty})))}>全部帶入</button>
                   <button className="h-9 px-3 border border-gray-300 rounded text-xs" onClick={()=>setRows([])}>全部清除</button>
-                  <button className="h-9 px-3 border border-gray-300 rounded text-xs disabled:opacity-50" disabled={hasMismatch}
-                    onClick={()=>{
-                      const payload={
-                        mode, category: mode==='sales'?salesCat:nonSalesCat, po, memo, formDateId,
-                        items: rows.map(r=>({ productId:r.productId, name:r.name, qty:r.qty, picked:r.picked }))
-                      };
-                      console.log("POST payload (mock):", payload);
-                      setMsg("已提交（模擬）");
-                    }}>庫存更新提交</button>
+                  <button className="h-9 px-3 border border-gray-300 rounded text-xs disabled:opacity-50"
+                          disabled={rows.length===0}
+                          onClick={()=>setShowConfirm(true)}>庫存更新提交</button>
                 </div>
               </div>
             )}
 
-            {/* Admin import (optional) */}
-            <AdminImport onChanged={bump} />
+            {/* 確認對話框 */}
+            {showConfirm && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
+                  <div className="px-4 py-3 border-b">
+                    <div className="text-sm font-semibold">送出前確認</div>
+                    <div className="mt-1 text-xs text-gray-600">操作類型：{opLabel}</div>
+                  </div>
+                  <div className="p-4 max-h-[60vh] overflow-auto">
+                    <div className="text-xs mb-2">
+                      項：{rows.length}　預計：{plannedTotal}　點交：
+                      <span className={hasMismatch?'text-red-600 font-semibold':''}>{pickedTotal}</span>
+                    </div>
+                    {hasMismatch && <div className="mb-2 text-xs text-red-600">點交量與預計不一致，請先調整至一致才能送出。</div>}
+                    <ul className="space-y-2 text-xs">
+                      {rows.map(r=>(
+                        <li key={r.id} className="rounded border border-gray-200 p-2">
+                          <div className="font-medium">{r.name}</div>
+                          <div className="mt-1 text-[11px] text-gray-600">預計：{r.qty}　|　點交：{r.picked}</div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="px-4 py-3 border-t flex justify-end gap-2">
+                    <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>setShowConfirm(false)}>取消</button>
+                    <button className="h-8 px-3 border border-gray-300 rounded text-xs disabled:opacity-50"
+                            disabled={hasMismatch}
+                            onClick={()=>{
+                              const payload={
+                                op:opLabel, category: mode==='sales'?salesCat:nonSalesCat,
+                                po, memo, formDateId,
+                                items: rows.map(r=>({productId:r.productId,name:r.name,qty:r.qty,picked:r.picked}))
+                              };
+                              console.log("POST payload (mock):", payload);
+                              setShowConfirm(false);
+                              // TODO: 接 API
+                              alert("已提交（模擬），請查看 console。");
+                            }}>確認送出</button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         );
       }
 
-      ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+      ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
     </script>
   </body>
 </html>
