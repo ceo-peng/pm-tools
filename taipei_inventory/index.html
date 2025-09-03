@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>PM 庫存更新系統 — Write4Version (Updated)</title>
+    <title>PM 庫存更新系統 — Write4Version (Op Switch in List Header)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -105,8 +105,10 @@
         const [GIFTS,setGIFTS]=useState([]);
         const [NONSALES,setNONSALES]=useState([]);
 
-        // order info
+        // 操作類型（移到清單 header 的選擇）
         const [mode,setMode]=useState("sales"); // 'sales' | 'nonSales'
+
+        // order info（類別值）
         const [salesCat,setSalesCat]=useState("");     // value="" => 顯示「選擇訂單類別」
         const [nonSalesCat,setNonSalesCat]=useState(""); // value="" => 顯示「選擇訂單類別」
         const [po,setPo]=useState("");
@@ -224,17 +226,13 @@
             <Toast/>
             <h1 className="text-lg md:text-xl font-semibold mb-4">PM 庫存更新系統（Write4Version）</h1>
 
-            {/* 出貨訂單資訊 */}
+            {/* 出貨訂單資訊（移除原本的操作類型切換） */}
             <section className="rounded border border-gray-200 bg-white shadow-sm mb-4">
               <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
                 <div className="font-medium text-sm">出貨訂單資訊</div>
                 <div className="text-xs text-gray-600">表單-日期-ID：<span className="font-mono">{formDateId}</span></div>
               </div>
-              <div className="p-3 grid grid-cols-1 md:grid-cols-4 gap-2 text-xs">
-                <div className="flex items-center gap-3">
-                  <label><input type="radio" checked={mode==='sales'} onChange={()=>setMode('sales')}/> 銷售</label>
-                  <label><input type="radio" checked={mode==='nonSales'} onChange={()=>setMode('nonSales')}/> 非銷售</label>
-                </div>
+              <div className="p-3 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
                 {mode==='sales' ? (
                   <select className="border rounded h-8 px-2"
                           value={salesCat}
@@ -251,140 +249,52 @@
                   </select>
                 )}
                 <input className="border rounded h-8 px-2" placeholder="PO 出貨單號" value={po} onChange={e=>setPo(e.target.value)} />
-                <input className="border rounded h-8 px-2" placeholder="備註" value={memo} onChange={e=>setMemo(e.target.value)} />
+                <input className="border rounded h-8 px-2 md:col-span-1" placeholder="備註" value={memo} onChange={e=>setMemo(e.target.value)} />
               </div>
             </section>
 
-            {/* 產品選擇 */}
-            <section className="rounded border border-gray-300 bg-gray-50 p-4">
-              <h2 className="text-sm font-medium mb-3">產品選擇</h2>
-
-              {/* 套組：手機兩欄；手機時標題獨占第一行，Stepper 置右換行；桌機同列 */}
-              <div className="mb-4">
-                <h3 className="text-xs font-semibold mb-2">套組</h3>
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
-                  {(BUNDLES||[]).map(b=>(
-                    <div key={b.id} className="rounded border border-gray-200 bg-white p-2">
-                      {/* mobile: flex-col; md 以上：flex-row */}
-                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-2">
-                        <span
-                          className="text-[13px] leading-snug md:flex-1"
-                          style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}
-                          title={b.name}
-                        >{b.name}</span>
-                        <div className="md:self-auto self-end md:mt-0 mt-1 flex justify-end">
-                          <Stepper value={bundleGroups[b.id]||0} onChange={v=>setBundleGroups(s=>({...s,[b.id]:v}))}/>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  {(BUNDLES||[]).length===0 && <div className="text-[11px] text-gray-400">（尚無套組）</div>}
-                </div>
-              </div>
-
-              {/* 單品（維持既有，右側 Stepper） */}
-              <div className="mb-4">
-                <h3 className="text-xs font-semibold mb-2">單品</h3>
-                <div className="grid md:grid-cols-6 gap-2 items-center bg-white p-2 rounded border">
-                  <select className="border rounded h-8 px-2 text-xs" value={selA} onChange={e=>setSelA(e.target.value)}>
-                    {catA.map(a=><option key={a}>{a}</option>)}
-                  </select>
-                  <select className="border rounded h-8 px-2 text-xs" value={selB} onChange={e=>setSelB(e.target.value)}>
-                    {(seriesByA[selA]||[]).map(b=><option key={b}>{b}</option>)}
-                  </select>
-                  <select className="md:col-span-3 border rounded h-8 px-2 text-xs" value={selPid} onChange={e=>setSelPid(e.target.value)}>
-                    {((prodsByAB[`${selA}__${selB}`])||[]).map(p=><option key={p.id} value={p.id}>{p.C}</option>)}
-                  </select>
-                  <div className="flex items-center gap-1 justify-self-end">
-                    <Stepper value={singleQty} min={1} onChange={setSingleQty}/>
-                    <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=> selPid && setPendingSingles(prev=>({...prev,[selPid]:(prev[selPid]||0)+singleQty}))}>加</button>
-                  </div>
-                </div>
-              </div>
-
-              {/* 禮遇（手機兩欄） */}
-              <div>
-                <h3 className="text-xs font-semibold mb-2">禮遇</h3>
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
-                  {(GIFTS||[]).map(g=>(
-                    <label key={g.id} className="flex items-center gap-2 rounded border border-gray-200 bg-white p-2 cursor-pointer">
-                      <input type="checkbox" checked={!!giftChecks[g.id]} onChange={e=>setGiftChecks(s=>({...s,[g.id]:e.target.checked}))}/>
-                      <span className="text-xs leading-snug" style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}} title={g.name}>{g.name}</span>
-                    </label>
-                  ))}
-                  {(GIFTS||[]).length===0 && <div className="text-[11px] text-gray-400">（尚無禮遇）</div>}
-                </div>
-              </div>
-
-              {/* 預覽（可開合，三卡） */}
-              <div className="mt-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-semibold">庫存更新預覽</h3>
-                  <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>setOpenPreview(o=>!o)}>{openPreview?"收":"展"}</button>
-                </div>
-                {openPreview && (
-                  <div>
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-2">
-                      <div className="rounded border border-gray-200 bg-white p-3">
-                        <div className="text-xs font-semibold mb-2">套組</div>
-                        {previewBundles.length===0 ? <div className="text-xs text-gray-400">（無）</div> : (
-                          <ul className="space-y-2 text-xs">
-                            {previewBundles.map(b=>(
-                              <li key={b.id} className="border-b border-dashed border-gray-200 pb-1">
-                                <div className="font-medium mb-1">{b.title}</div>
-                                <ul className="ml-3 list-disc text-[11px] text-gray-600">
-                                  {b.details.map((d,i)=><li key={i}>{d.name} × {d.qty}</li>)}
-                                </ul>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                      <div className="rounded border border-gray-200 bg-white p-3">
-                        <div className="text-xs font-semibold mb-2">單品</div>
-                        {previewSingles.length===0 ? <div className="text-xs text-gray-400">（無）</div> : (
-                          <ul className="space-y-2 text-xs">
-                            {previewSingles.map(s=>(
-                              <li key={s.productId} className="flex items-center justify-between gap-2">
-                                <div className="text-[11px] leading-snug whitespace-normal break-words">{s.name}</div>
-                                <div className="flex items-center gap-2">
-                                  <Stepper value={s.qty} min={0} onChange={v=>setPendingSingles(prev=>({...prev,[s.productId]:v}))}/>
-                                  <button className="h-7 w-7 border border-gray-300 rounded text-sm text-gray-600" onClick={()=>setPendingSingles(prev=>{const n={...prev}; delete n[s.productId]; return n;})}>×</button>
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                      <div className="rounded border border-gray-200 bg-white p-3">
-                        <div className="text-xs font-semibold mb-2">禮遇</div>
-                        {previewGifts.length===0 ? <div className="text-xs text-gray-400">（無）</div> : (
-                          <ul className="space-y-2 text-xs">
-                            {previewGifts.map(g=>(
-                              <li key={g.id} className="border-b border-dashed border-gray-200 pb-1">
-                                <div className="font-medium mb-1">{g.title}</div>
-                                <ul className="ml-3 list-disc text-[11px] text-gray-600">
-                                  {g.details.map((d,i)=><li key={i}>{d.name} × {d.qty}</li>)}
-                                </ul>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    </div>
-                    <div className="mt-3 flex justify-end gap-2">
-                      <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={clearPreview}>全部清除</button>
-                      <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={confirmPreview}>確認加入</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </section>
+            {/* 產品選擇（保持不變） */}
+            <ProductPicker
+              PRODUCTS={PRODUCTS}
+              BUNDLES={BUNDLES}
+              GIFTS={GIFTS}
+              bundleGroups={bundleGroups}
+              setBundleGroups={setBundleGroups}
+              pendingSingles={pendingSingles}
+              setPendingSingles={setPendingSingles}
+              giftChecks={giftChecks}
+              setGiftChecks={setGiftChecks}
+              />
+            {/* 預覽 */}
+            <Preview
+              previewBundles={previewBundles}
+              previewSingles={previewSingles}
+              previewGifts={previewGifts}
+              openPreview={openPreview}
+              setOpenPreview={setOpenPreview}
+              clearPreview={clearPreview}
+              confirmPreview={confirmPreview}
+              PRODUCTS={PRODUCTS}
+            />
 
             {/* 出貨清單／庫存扣減確認 */}
             {rows.length>0 && (
               <section className="mt-6 rounded border border-gray-200 bg-white shadow-sm p-4">
-                <h2 className="font-medium mb-2 text-sm">出貨清單／庫存扣減確認</h2>
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="font-medium text-sm">出貨清單／庫存扣減確認</h2>
+
+                  {/* ✅ 操作類型切換（移到這裡） */}
+                  <div className="flex items-center gap-3 text-xs">
+                    <label className="flex items-center gap-1">
+                      <input type="radio" name="op" checked={mode==='sales'} onChange={()=>setMode('sales')}/>
+                      出貨（扣）
+                    </label>
+                    <label className="flex items-center gap-1">
+                      <input type="radio" name="op" checked={mode==='nonSales'} onChange={()=>setMode('nonSales')}/>
+                      進貨（入）
+                    </label>
+                  </div>
+                </div>
 
                 {/* header 卡：值加粗 */}
                 <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
@@ -396,51 +306,230 @@
                   </div>
                 </div>
 
-                {/* rows：mobile 兩行布局 + sticky 操作列 */}
-                <ul className="space-y-2">
-                  {rows.map(r=>{
-                    const mismatch=(r.picked||0)!==(r.qty||0);
-                    return (
-                      <li key={r.id} className={`rounded-md border ${mismatch?'border-red-300 bg-red-50/40':'border-gray-200 bg-white'}`}>
-                        <div className="p-2 sm:p-2.5 grid grid-cols-1 md:grid-cols-12 md:items-center md:gap-2">
-                          <div className="md:col-span-7">
-                            <div className="text-[15px] leading-5 md:text-[13px] break-words">{r.name}</div>
-                          </div>
-                          {/* desktop controls */}
-                          <div className="hidden md:flex md:col-span-2 items-center gap-1">
-                            <input className={`w-16 h-7 rounded border px-2 text-right tabular-nums ${mismatch?'border-red-400':'border-gray-300'}`} value={r.picked}
-                              onChange={e=>{const n=parseInt(e.target.value.replace(/[^0-9]/g,''),10); setRows(prev=>prev.map(x=>x.id===r.id?{...x,picked:Number.isFinite(n)?n:0}:x));}}/>
-                            {mismatch && <button title="帶入預計" className="h-7 px-2 border border-gray-300 rounded text-xs text-gray-600" onClick={()=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,picked:x.qty}:x))}>=</button>}
-                          </div>
-                          <div className="hidden md:flex md:col-span-2 justify-end">
-                            <Stepper value={r.qty} min={0} onChange={v=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,qty:v}:x))}/>
-                          </div>
-                          <div className="hidden md:flex md:col-span-1 justify-end">
-                            <button className="h-7 w-7 border border-gray-300 rounded text-sm text-gray-600" onClick={()=>setRows(prev=>prev.filter(x=>x.id!==r.id))}>×</button>
-                          </div>
-                          {/* mobile controls */}
-                          <div className="mt-2 md:hidden flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-1">
-                              <input className={`w-16 h-9 rounded border px-2 text-right tabular-nums ${mismatch?'border-red-400':'border-gray-300'}`} value={r.picked}
-                                onChange={e=>{const n=parseInt(e.target.value.replace(/[^0-9]/g,''),10); setRows(prev=>prev.map(x=>x.id===r.id?{...x,picked:Number.isFinite(n)?n:0}:x));}}/>
-                              {mismatch && <button title="帶入預計" className="h-9 px-2 border border-gray-300 rounded text-sm text-gray-600" onClick={()=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,picked:x.qty}:x))}>=</button>}
-                            </div>
-                            <Stepper value={r.qty} min={0} onChange={v=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,qty:v}:x))}/>
-                            <button className="h-9 px-3 border border-gray-300 rounded text-sm text-gray-600" onClick={()=>setRows(prev=>prev.filter(x=>x.id!==r.id))}>刪</button>
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
+                {/* rows */}
+                <RowsList rows={rows} setRows={setRows} />
 
                 <div className="flex justify-between items-center mt-3 text-sm">
-                  <span>項：{rows.length}　預計：{plannedTotal}　點交：<span className={pickedTotal!==plannedTotal?'text-red-600 font-medium':''}>{pickedTotal}</span></span>
+                  <span>項：{rows.length}　預計：{rows.reduce((s,r)=>s+r.qty,0)}　點交：<Totals rows={rows}/></span>
                 </div>
               </section>
             )}
 
-            {/* sticky action bar */}
+            {/* sticky action bar & confirm modal */}
+            <Actions rows={rows} setRows={setRows} mode={mode} salesCat={salesCat} nonSalesCat={nonSalesCat} po={po} memo={memo} formDateId={formDateId} />
+          </div>
+        );
+      }
+
+      /* -------------------------- Subcomponents -------------------------- */
+
+      function ProductPicker(props){
+        const {PRODUCTS,BUNDLES,GIFTS,bundleGroups,setBundleGroups,pendingSingles,setPendingSingles,giftChecks,setGiftChecks}=props;
+
+        const catA = useMemo(()=> [...new Set(PRODUCTS.map(x=>x.A))], [PRODUCTS]);
+        const seriesByA = useMemo(()=>{
+          const obj={}; catA.forEach(a=>obj[a]=[...new Set(PRODUCTS.filter(p=>p.A===a).map(p=>p.B))]); return obj;
+        },[catA,PRODUCTS]);
+        const prodsByAB = useMemo(()=>{
+          const obj={}; PRODUCTS.forEach(p=>{ const k=`${p.A}__${p.B}`; (obj[k] ||= []).push(p);}); return obj;
+        },[PRODUCTS]);
+
+        const [selA,setSelA]=useState(""); const [selB,setSelB]=useState(""); const [selPid,setSelPid]=useState(""); const [singleQty,setSingleQty]=useState(1);
+        useEffect(()=>{
+          if(!PRODUCTS.length) return;
+          const a0=catA[0]||""; const b0=(seriesByA[a0]||[])[0]||"";
+          setSelA(a0); setSelB(b0);
+          const first=(prodsByAB[`${a0}__${b0}`]||[])[0];
+          setSelPid(first?first.id:"");
+        },[PRODUCTS]);
+
+        return (
+          <section className="rounded border border-gray-300 bg-gray-50 p-4">
+            <h2 className="text-sm font-medium mb-3">產品選擇</h2>
+
+            {/* 套組：手機兩欄；手機時標題獨占第一行，Stepper 置右換行；桌機同列 */}
+            <div className="mb-4">
+              <h3 className="text-xs font-semibold mb-2">套組</h3>
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+                {(BUNDLES||[]).map(b=>(
+                  <div key={b.id} className="rounded border border-gray-200 bg-white p-2">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-2">
+                      <span
+                        className="text-[13px] leading-snug md:flex-1"
+                        style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}
+                        title={b.name}
+                      >{b.name}</span>
+                      <div className="md:self-auto self-end md:mt-0 mt-1 flex justify-end">
+                        <Stepper value={bundleGroups[b.id]||0} onChange={v=>setBundleGroups(s=>({...s,[b.id]:v}))}/>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {(BUNDLES||[]).length===0 && <div className="text-[11px] text-gray-400">（尚無套組）</div>}
+              </div>
+            </div>
+
+            {/* 單品 */}
+            <div className="mb-4">
+              <h3 className="text-xs font-semibold mb-2">單品</h3>
+              <div className="grid md:grid-cols-6 gap-2 items-center bg-white p-2 rounded border">
+                <select className="border rounded h-8 px-2 text-xs" value={selA} onChange={e=>setSelA(e.target.value)}>
+                  {catA.map(a=><option key={a}>{a}</option>)}
+                </select>
+                <select className="border rounded h-8 px-2 text-xs" value={selB} onChange={e=>setSelB(e.target.value)}>
+                  {(seriesByA[selA]||[]).map(b=><option key={b}>{b}</option>)}
+                </select>
+                <select className="md:col-span-3 border rounded h-8 px-2 text-xs" value={selPid} onChange={e=>setSelPid(e.target.value)}>
+                  {((prodsByAB[`${selA}__${selB}`])||[]).map(p=><option key={p.id} value={p.id}>{p.C}</option>)}
+                </select>
+                <div className="flex items-center gap-1 justify-self-end">
+                  <Stepper value={singleQty} min={1} onChange={setSingleQty}/>
+                  <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=> selPid && setPendingSingles(prev=>({...prev,[selPid]:(prev[selPid]||0)+singleQty}))}>加</button>
+                </div>
+              </div>
+            </div>
+
+            {/* 禮遇 */}
+            <div>
+              <h3 className="text-xs font-semibold mb-2">禮遇</h3>
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+                {(GIFTS||[]).map(g=>(
+                  <label key={g.id} className="flex items-center gap-2 rounded border border-gray-200 bg-white p-2 cursor-pointer">
+                    <input type="checkbox" checked={!!giftChecks[g.id]} onChange={e=>setGiftChecks(s=>({...s,[g.id]:e.target.checked}))}/>
+                    <span className="text-xs leading-snug" style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}} title={g.name}>{g.name}</span>
+                  </label>
+                ))}
+                {(GIFTS||[]).length===0 && <div className="text-[11px] text-gray-400">（尚無禮遇）</div>}
+              </div>
+            </div>
+          </section>
+        );
+      }
+
+      function Preview({previewBundles,previewSingles,previewGifts,openPreview,setOpenPreview,clearPreview,confirmPreview}){
+        return (
+          <section className="mt-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-semibold">庫存更新預覽</h3>
+              <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>setOpenPreview(o=>!o)}>{openPreview?"收":"展"}</button>
+            </div>
+            {openPreview && (
+              <div className="mt-2">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                  <Card title="套組">
+                    {previewBundles.length===0 ? <Empty/> : (
+                      <ul className="space-y-2 text-xs">
+                        {previewBundles.map(b=>(
+                          <li key={b.id} className="border-b border-dashed border-gray-200 pb-1">
+                            <div className="font-medium mb-1">{b.title}</div>
+                            <ul className="ml-3 list-disc text-[11px] text-gray-600">
+                              {b.details.map((d,i)=><li key={i}>{d.name} × {d.qty}</li>)}
+                            </ul>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </Card>
+                  <Card title="單品">
+                    {previewSingles.length===0 ? <Empty/> : (
+                      <ul className="space-y-2 text-xs">
+                        {previewSingles.map(s=>(
+                          <li key={s.productId} className="flex items-center justify-between gap-2">
+                            <div className="text-[11px] leading-snug whitespace-normal break-words">{s.name}</div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs">× {s.qty}</span>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </Card>
+                  <Card title="禮遇">
+                    {previewGifts.length===0 ? <Empty/> : (
+                      <ul className="space-y-2 text-xs">
+                        {previewGifts.map(g=>(
+                          <li key={g.id} className="border-b border-dashed border-gray-200 pb-1">
+                            <div className="font-medium mb-1">{g.title}</div>
+                            <ul className="ml-3 list-disc text-[11px] text-gray-600">
+                              {g.details.map((d,i)=><li key={i}>{d.name} × {d.qty}</li>)}
+                            </ul>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </Card>
+                </div>
+                <div className="mt-3 flex justify-end gap-2">
+                  <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={clearPreview}>全部清除</button>
+                  <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={confirmPreview}>確認加入</button>
+                </div>
+              </div>
+            )}
+          </section>
+        );
+      }
+
+      function Card({title,children}){ return (
+        <div className="rounded border border-gray-200 bg-white p-3">
+          <div className="text-xs font-semibold mb-2">{title}</div>
+          {children}
+        </div>
+      );}
+      function Empty(){ return <div className="text-xs text-gray-400">（無）</div>; }
+
+      function RowsList({rows,setRows}){
+        return (
+          <ul className="space-y-2">
+            {rows.map(r=>{
+              const mismatch=(r.picked||0)!==(r.qty||0);
+              return (
+                <li key={r.id} className={`rounded-md border ${mismatch?'border-red-300 bg-red-50/40':'border-gray-200 bg-white'}`}>
+                  <div className="p-2 sm:p-2.5 grid grid-cols-1 md:grid-cols-12 md:items-center md:gap-2">
+                    <div className="md:col-span-7">
+                      <div className="text-[15px] leading-5 md:text-[13px] break-words">{r.name}</div>
+                    </div>
+                    {/* desktop controls */}
+                    <div className="hidden md:flex md:col-span-2 items-center gap-1">
+                      <input className={`w-16 h-7 rounded border px-2 text-right tabular-nums ${mismatch?'border-red-400':'border-gray-300'}`} value={r.picked}
+                        onChange={e=>{const n=parseInt(e.target.value.replace(/[^0-9]/g,''),10); setRows(prev=>prev.map(x=>x.id===r.id?{...x,picked:Number.isFinite(n)?n:0}:x));}}/>
+                      {mismatch && <button title="帶入預計" className="h-7 px-2 border border-gray-300 rounded text-xs text-gray-600" onClick={()=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,picked:x.qty}:x))}>=</button>}
+                    </div>
+                    <div className="hidden md:flex md:col-span-2 justify-end">
+                      <span className="text-xs text-gray-500 mr-2">預計</span>
+                      <Stepper value={r.qty} min={0} onChange={v=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,qty:v}:x))}/>
+                    </div>
+                    <div className="hidden md:flex md:col-span-1 justify-end">
+                      <button className="h-7 w-7 border border-gray-300 rounded text-sm text-gray-600" onClick={()=>setRows(prev=>prev.filter(x=>x.id!==r.id))}>×</button>
+                    </div>
+                    {/* mobile controls */}
+                    <div className="mt-2 md:hidden flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1">
+                        <input className={`w-16 h-9 rounded border px-2 text-right tabular-nums ${mismatch?'border-red-400':'border-gray-300'}`} value={r.picked}
+                          onChange={e=>{const n=parseInt(e.target.value.replace(/[^0-9]/g,''),10); setRows(prev=>prev.map(x=>x.id===r.id?{...x,picked:Number.isFinite(n)?n:0}:x));}}/>
+                        {mismatch && <button title="帶入預計" className="h-9 px-2 border border-gray-300 rounded text-sm text-gray-600" onClick={()=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,picked:x.qty}:x))}>=</button>}
+                      </div>
+                      <Stepper value={r.qty} min={0} onChange={v=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,qty:v}:x))}/>
+                      <button className="h-9 px-3 border border-gray-300 rounded text-sm text-gray-600" onClick={()=>setRows(prev=>prev.filter(x=>x.id!==r.id))}>刪</button>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        );
+      }
+
+      function Totals({rows}){ const v=rows.reduce((s,r)=>s+(r.picked||0),0); const eq=v===rows.reduce((s,r)=>s+r.qty,0); return <span className={eq?'':'text-red-600 font-medium'}>{v}</span> }
+
+      function Actions({rows,setRows,mode,salesCat,nonSalesCat,po,memo,formDateId}){
+        const hasMismatch = rows.some(r=>(r.picked||0)!==(r.qty||0));
+        const opLabel = mode==='sales' ? '出貨（扣）' : '進貨（入）';
+        const plannedTotal = rows.reduce((s,r)=>s+(r.qty||0),0);
+        const pickedTotal  = rows.reduce((s,r)=>s+(r.picked||0),0);
+        const [showConfirm,setShowConfirm]=useState(false);
+
+        return (
+          <>
             {rows.length>0 && (
               <div className="md:static fixed bottom-0 left-0 right-0 md:bg-transparent bg-white/95 md:shadow-none shadow-[0_-4px_12px_rgba(0,0,0,0.06)] md:p-0 p-2">
                 <div className="flex justify-end gap-2 max-w-6xl mx-auto">
@@ -494,7 +583,7 @@
                 </div>
               </div>
             )}
-          </div>
+          </>
         );
       }
 
