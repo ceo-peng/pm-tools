@@ -3,547 +3,655 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>PM 庫存更新系統（Write4Version）</title>
+<title>PM 庫存更新系統（Write4Version – Final）</title>
 <style>
   :root{
     --bg:#ffffff; --fg:#111827; --muted:#6b7280; --line:#e5e7eb;
-    --card:#ffffff; --card2:#f9fafb; --accent:#2563eb;
-    --soft:#f3f4f6; --danger:#ef4444;
-    --radius:12px;
+    --brand:#0ea5e9; --brand-600:#0284c7; --card:#f9fafb; --danger:#ef4444;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
-  h1{font-size:22px;margin:16px 0}
-  .container{max-width:1120px;margin:0 auto;padding:16px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 1px 2px rgba(0,0,0,.04)}
-  .card-hd{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--card2)}
-  .card-bd{padding:12px}
+  body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
+  .container{max-width:1120px;margin:24px auto;padding:0 16px}
+  h1{font-size:22px;margin:0 0 16px}
+  .block{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 2px 6px rgba(0,0,0,.03);margin:16px 0}
+  .block-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);background:#fafafa}
+  .block-hd .ttl{font-weight:700;font-size:16px;letter-spacing:.02em}
+  .block-bd{padding:16px}
   .muted{color:var(--muted)}
   .row{display:flex;gap:12px;flex-wrap:wrap}
-  .col{flex:1 1 280px}
+  .field{display:flex;flex-direction:column;gap:6px;min-width:220px;flex:1}
+  label{font-size:12px;color:var(--muted)}
+  input[type=text],select,textarea{
+    width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;
+    outline:none;transition:.15s;border-color:var(--line);
+  }
+  input[type=text]:focus,select:focus,textarea:focus{border-color:var(--brand)}
+  textarea{min-height:72px;resize:vertical}
+  .radio-row{display:flex;gap:18px;align-items:center}
+  .hint{font-size:12px;color:var(--muted)}
   .grid{display:grid;gap:12px}
   .grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
-  @media (max-width:960px){.grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}}
-  @media (max-width:640px){.grid-3{grid-template-columns:repeat(1,minmax(0,1fr))}}
-
-  .btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer}
-  .btn:hover{border-color:#cbd5e1}
-  .btn-ok{background:var(--accent);color:#fff;border-color:var(--accent)}
-  .btn-danger{background:#fff;border-color:#fca5a5;color:#b91c1c}
-  .btn-ghost{background:transparent;border-color:transparent;color:var(--accent)}
-  .lab{font-size:12px;color:var(--muted)}
-  select,input[type=text]{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff}
-  .stack-8{display:flex;flex-direction:column;gap:8px}
-  .stack-12{display:flex;flex-direction:column;gap:12px}
-  .stack-16{display:flex;flex-direction:column;gap:16px}
-
-  .bundle-card,.gift-card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px;display:flex;gap:8px;align-items:center}
-  .title-2lines{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-
-  .stepper{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:10px;height:34px;background:#fff}
-  .stepper button{width:36px;height:32px;border:0;background:transparent;font-size:16px;cursor:pointer}
-  .stepper input{width:46px;height:32px;border:0;text-align:center;font-size:14px;outline:0}
-
-  table{width:100%;border-collapse:collapse}
-  th,td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
-  th{font-weight:600;text-align:left;background:#fafafa}
-  .badge{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);background:var(--soft)}
-  .pill{display:inline-block;padding:3px 8px;border:1px dashed var(--line);border-radius:999px;color:var(--muted);font-size:12px}
-
-  /* modal */
-  .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:16px}
-  .modal.show{display:flex}
-  .modal-card{max-width:880px;width:100%;background:#fff;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.25);overflow:hidden}
-  .modal-hd{padding:12px;border-bottom:1px solid var(--line);background:#f8fafc;font-weight:600}
-  .modal-bd{padding:12px;max-height:70vh;overflow:auto}
-  .modal-ft{padding:12px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end}
+  .grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  @media (max-width:1024px){.grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media (max-width:640px){.grid-3,.grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .card{border:1px solid var(--line);border-radius:12px;background:#fff;padding:12px}
+  .item-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .name{font-weight:600;font-size:14px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .stepper{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:10px;height:36px;overflow:hidden}
+  .stepper button{width:36px;height:36px;border:0;background:#fff;font-size:18px;cursor:pointer}
+  .stepper input{width:46px;border:0;border-left:1px solid var(--line);border-right:1px solid var(--line);text-align:center;font-weight:600}
+  .right{margin-left:auto}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:#fff;cursor:pointer}
+  .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+  .btn.danger{background:#fff;border-color:var(--danger);color:var(--danger)}
+  .btn.ghost{background:#fff}
+  .btn.small{padding:6px 10px;font-size:12px;border-radius:8px}
+  .divider{height:1px;background:var(--line);margin:12px 0}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
+  .pill{display:inline-flex;align-items:center;height:28px;padding:0 8px;border-radius:999px;border:1px solid var(--line);gap:8px;background:#fff}
+  .table{width:100%;border-collapse:separate;border-spacing:0 12px}
+  .tr{display:grid;grid-template-columns:140px 1fr 150px 50px;gap:12px;align-items:center}
+  .tr .title{font-weight:600}
+  @media (max-width:680px){
+    .tr{grid-template-columns:1fr;align-items:stretch}
+  }
+  .tag{padding:2px 8px;border-radius:999px;font-size:12px;background:#eef6ff;color:#0b6fb6}
+  .preview-list .row-item{border:1px dashed var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fff}
+  .sticky-actions{position:sticky;bottom:0;background:rgba(255,255,255,.9);backdrop-filter:saturate(180%) blur(6px);border-top:1px solid var(--line);padding:12px;display:flex;gap:10px;justify-content:flex-end}
+  /* Modal */
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.35);z-index:40}
+  .modal.open{display:flex}
+  .modal-card{width:min(840px,92vw);max-height:88vh;overflow:auto;background:#fff;border-radius:12px;border:1px solid var(--line)}
+  .modal-hd{padding:12px 16px;border-bottom:1px solid var(--line);font-weight:700}
+  .modal-bd{padding:16px}
 </style>
 </head>
 <body>
 <div class="container">
-  <div class="row" style="align-items:center">
-    <h1 style="margin:0;flex:1 1 auto">PM 庫存更新系統（Write4Version）</h1>
-    <button class="btn" id="btnResetAll" title="重載五個 CSV 與重置所有狀態">重置全部</button>
-  </div>
+  <h1>PM 庫存更新系統（Write4Version – Final）</h1>
 
   <!-- 出貨訂單資訊 -->
-  <section class="card" id="orderCard" style="margin-top:12px">
-    <div class="card-hd">
-      <div>出貨訂單資訊</div>
-      <div class="muted" id="docIdLabel">表單-日期-ID：—</div>
+  <section class="block" id="orderBlock">
+    <div class="block-hd">
+      <div class="ttl">出貨訂單資訊</div>
+      <div class="hint">表單-日期-ID：<span id="docId" class="mono">—</span></div>
     </div>
-    <div class="card-bd stack-12">
-      <div class="row">
-        <label class="btn"><input type="radio" name="mode" value="sales" checked> 銷售</label>
-        <label class="btn"><input type="radio" name="mode" value="non_sales"> 非銷售</label>
+    <div class="block-bd">
+      <div class="radio-row" style="margin-bottom:8px">
+        <label><input type="radio" name="mode" value="sales" checked> 銷售</label>
+        <label><input type="radio" name="mode" value="non_sales"> 非銷售</label>
       </div>
-
       <div class="row">
-        <div class="col stack-8">
-          <div class="lab" id="catLab">客戶分類</div>
-          <select id="categorySelect">
-            <option value="">選擇訂單類別</option>
+        <div class="field" id="customerWrap">
+          <label>類別（請選擇）</label>
+          <select id="customerSelect">
+            <option value="">— 選擇訂單類別 —</option>
           </select>
         </div>
-        <div class="col stack-8">
-          <div class="lab">客戶 PO 出貨單號</div>
-          <input id="poInput" type="text" placeholder="可留空" />
+        <div class="field" id="nonSalesWrap" style="display:none">
+          <label>類別（請選擇）</label>
+          <select id="nonSalesSelect">
+            <option value="">— 選擇訂單類別 —</option>
+          </select>
         </div>
-        <div class="col stack-8">
-          <div class="lab">備註</div>
-          <input id="memoInput" type="text" placeholder="可留空" />
-        </div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <div class="field"><label>客戶 PO 出貨單號</label><input id="poInput" type="text" placeholder="—" /></div>
+        <div class="field"><label>備註</label><input id="memoInput" type="text" placeholder="—" /></div>
+      </div>
+      <div class="row" style="margin-top:8px;justify-content:flex-end">
+        <button class="btn small" id="resetBtn">Reset All（重新載入資料）</button>
       </div>
     </div>
   </section>
 
   <!-- 產品選擇 -->
-  <section class="card" style="margin-top:12px">
-    <div class="card-hd">
-      <div>產品選擇</div>
-      <span class="pill">套組 / 單品 / 禮遇 → 先加入預覽</span>
+  <section class="block">
+    <div class="block-hd">
+      <div class="ttl">產品選擇</div>
+      <div class="hint">套組 / 單品 / 禮遇 → 先加入預覽</div>
     </div>
-    <div class="card-bd stack-16">
+    <div class="block-bd">
 
       <!-- 套組 -->
-      <div class="stack-8">
-        <div class="lab">套組</div>
-        <div id="bundleGrid" class="grid grid-3"></div>
-      </div>
+      <div style="font-weight:700;margin:2px 0 8px">套組</div>
+      <div id="bundleGrid" class="grid grid-3"></div>
 
       <!-- 單品 -->
-      <div class="stack-8">
-        <div class="lab">單品</div>
-        <div class="row">
-          <div class="col stack-8">
-            <div class="lab">商品類別（A）</div>
-            <select id="selA"></select>
+      <div class="divider"></div>
+      <div style="font-weight:700;margin:2px 0 8px">單品</div>
+      <div class="row">
+        <div class="field">
+          <label>商品類別（A）</label>
+          <select id="catA"></select>
+        </div>
+        <div class="field">
+          <label>系列名稱（B）</label>
+          <select id="catB"></select>
+        </div>
+        <div class="field" style="flex:2">
+          <label>產品名稱（C／唯一 ID）</label>
+          <select id="catC"></select>
+        </div>
+        <div class="field" style="max-width:180px">
+          <label>數量</label>
+          <div class="stepper">
+            <button id="sDec">−</button>
+            <input id="sQty" value="1" inputmode="numeric">
+            <button id="sInc">+</button>
           </div>
-          <div class="col stack-8">
-            <div class="lab">系列名稱（B）</div>
-            <select id="selB"></select>
-          </div>
-          <div class="col stack-8">
-            <div class="lab">產品名稱（C / 唯一 ID）</div>
-            <select id="selC"></select>
-          </div>
-          <div class="col stack-8">
-            <div class="lab">數量</div>
-            <div class="stepper" id="singleQtyWrap">
-              <button type="button" data-s="-1">−</button>
-              <input type="text" value="1" id="singleQty">
-              <button type="button" data-s="1">＋</button>
-            </div>
-          </div>
-          <div class="col stack-8">
-            <div class="lab">&nbsp;</div>
-            <button class="btn btn-ok" id="addSingleBtn">加入</button>
-          </div>
+        </div>
+        <div class="field" style="max-width:140px;align-self:flex-end">
+          <button id="addSingle" class="btn primary" title="加入單品">加入</button>
         </div>
       </div>
 
-      <!-- 禮遇：三欄（手機 2 欄） -->
-      <div class="stack-8">
-        <div class="lab">禮遇</div>
-        <div id="giftsGrid" class="grid grid-3"></div>
-      </div>
+      <!-- 禮遇 -->
+      <div class="divider"></div>
+      <div style="font-weight:700;margin:2px 0 8px">禮遇</div>
+      <div id="giftGrid" class="grid grid-3"></div>
+
     </div>
   </section>
 
-  <!-- 庫存更新預覽（套組/禮遇只展開明細；單品可編輯；可收合） -->
-  <section class="card" style="margin-top:12px">
-    <div class="card-hd">
-      <div>庫存更新預覽</div>
-      <button class="btn-ghost" id="togglePreviewBtn">收</button>
+  <!-- 預覽（單欄直列） -->
+  <section class="block" id="previewBlock">
+    <div class="block-hd">
+      <div class="ttl">庫存更新預覽</div>
+      <button id="togglePreview" class="btn small">收</button>
     </div>
-    <div class="card-bd" id="previewBody">
-      <div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:16px">
-        <div>
-          <div class="lab" style="margin-bottom:6px">套組</div>
-          <div id="pvBundles" class="stack-8 muted">(無)</div>
-        </div>
-        <div>
-          <div class="lab" style="margin-bottom:6px">單品</div>
-          <div id="pvSingles" class="stack-8 muted">(無)</div>
-        </div>
-        <div>
-          <div class="lab" style="margin-bottom:6px">禮遇</div>
-          <div id="pvGifts" class="stack-8 muted">(無)</div>
-        </div>
+    <div class="block-bd" id="previewBody">
+      <div class="preview-list">
+        <div class="hint" id="emptyPreview">（無）</div>
+        <div id="previewList"></div>
       </div>
-      <div class="row" style="margin-top:12px">
-        <button class="btn btn-danger" id="pvClear">全部清除</button>
-        <div style="flex:1 1 auto"></div>
-        <button class="btn btn-ok" id="pvCommit">確認加入</button>
+      <div class="row" style="justify-content:flex-end;margin-top:8px">
+        <button class="btn danger" id="clearPreview">全部清除</button>
+        <button class="btn primary" id="commitPreview">確認加入</button>
       </div>
     </div>
   </section>
 
   <!-- 出貨清單／庫存扣減確認 -->
-  <section class="card" style="margin-top:12px">
-    <div class="card-hd">
-      <div>出貨清單／庫存扣減確認</div>
-      <div class="row" style="gap:8px;align-items:center">
-        <span class="lab">簽名：</span>
-        <label class="btn"><input type="radio" name="sign" value="-1" checked> 出貨（扣）</label>
-        <label class="btn"><input type="radio" name="sign" value="1"> 進貨（入）</label>
+  <section class="block">
+    <div class="block-hd">
+      <div class="ttl">出貨清單／庫存扣減確認</div>
+      <div class="pill">
+        <span class="muted">簽名：</span>
+        <label><input type="radio" name="op" value="out" checked> 出貨（扣）</label>
+        <label style="margin-left:8px"><input type="radio" name="op" value="in"> 進貨（入）</label>
       </div>
     </div>
-    <div class="card-bd stack-12">
-      <div class="stack-8" id="orderHeader">
-        <div><span class="lab">類別：</span><span id="hdrCat">—</span></div>
-        <div><span class="lab">客戶 PO：</span><span id="hdrPO">—</span></div>
-        <div><span class="lab">備註：</span><span id="hdrMemo">—</span></div>
-        <div><span class="lab">表單-日期-ID：</span><span id="hdrDoc">—</span></div>
+    <div class="block-bd">
+
+      <!-- header summary -->
+      <div id="summary" class="card" style="margin-bottom:12px">
+        <div class="row">
+          <div><span class="muted">類別：</span><span id="sumCat">—</span></div>
+          <div><span class="muted">客戶 PO：</span><span id="sumPO">—</span></div>
+          <div><span class="muted">備註：</span><span id="sumMemo">—</span></div>
+          <div><span class="muted">表單-日期-ID：</span><span id="sumDoc" class="mono">—</span></div>
+        </div>
       </div>
 
-      <table>
-        <thead>
-          <tr>
-            <th style="width:120px">點交量（Picked）</th>
-            <th>商品名稱</th>
-            <th style="width:140px">預計（Planned）</th>
-            <th style="width:56px">刪</th>
-          </tr>
-        </thead>
-        <tbody id="finalTbody">
-          <tr><td colspan="4" class="muted">尚未加入任何品項</td></tr>
-        </tbody>
-      </table>
+      <div id="finalTable">
+        <div class="muted" id="finalEmpty">（尚未加入項目）</div>
+        <div id="finalRows"></div>
+      </div>
 
-      <div class="row">
-        <div class="badge" id="sumBadge">項：0　計：0　點：0</div>
-        <div style="flex:1 1 auto"></div>
-        <button class="btn" id="btnFill">全部帶入</button>
-        <button class="btn btn-danger" id="btnClearFinal">全部清除</button>
-        <button class="btn btn-ok" id="btnSubmit">庫存更新提交</button>
+      <div class="sticky-actions">
+        <button class="btn small" id="fillPicked">全部帶入</button>
+        <button class="btn small danger" id="clearFinal">全部清除</button>
+        <button class="btn small primary" id="submitAll">庫存更新提交</button>
       </div>
     </div>
   </section>
+
 </div>
 
-<!-- 提交前預覽 Modal -->
-<div class="modal" id="confirmModal">
+<!-- Modal -->
+<div class="modal" id="confirmModal" aria-hidden="true">
   <div class="modal-card">
     <div class="modal-hd">送出前確認</div>
     <div class="modal-bd">
-      <div class="stack-8" id="cmHeader"></div>
-      <table style="margin-top:8px">
-        <thead>
-          <tr><th style="width:80px">Δ</th><th>商品名稱（唯一 ID）</th></tr>
-        </thead>
-        <tbody id="cmBody"></tbody>
-      </table>
-    </div>
-    <div class="modal-ft">
-      <button class="btn" id="cmCancel">取消</button>
-      <button class="btn btn-ok" id="cmOk">確認送出</button>
+      <div class="card" style="margin-bottom:10px">
+        <div class="row">
+          <div><span class="muted">類別：</span><span id="mCat">—</span></div>
+          <div><span class="muted">客戶 PO：</span><span id="mPO">—</span></div>
+          <div><span class="muted">備註：</span><span id="mMemo">—</span></div>
+          <div><span class="muted">表單-日期-ID：</span><span id="mDoc" class="mono">—</span></div>
+          <div><span class="muted">簽名：</span><span id="mOp">出貨（扣）</span></div>
+        </div>
+      </div>
+      <div id="mList"></div>
+      <div class="row" style="justify-content:flex-end;margin-top:12px">
+        <button class="btn" id="mCancel">取消</button>
+        <button class="btn primary" id="mOk">確定送出</button>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
-/* ---------- Config ---------- */
+/* ========= Config (hard-coded CSV sources) ========= */
 const URLS = {
   products: "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/products.csv",
-  customers:"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/customers.csv",
-  bundles:  "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/bundle_items.csv",
-  gifts:    "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/gifts.csv",
-  nonsales: "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/non_sales_application.csv"
+  customers: "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/customers.csv",
+  bundles: "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/bundle_items.csv",
+  gifts:     "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/gifts.csv",
+  nonsales:  "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/non_sales_application.csv",
+  webhook:   "https://hook.us2.make.com/nbjdxrfypgoosj4qqxnzfmj9o29jq3c2"
 };
-const WEBHOOK = "https://hook.us2.make.com/nbjdxrfypgoosj4qqxnzfmj9o29jq3c2";
 
-/* ---------- Utils ---------- */
-const $=s=>document.querySelector(s);
-const $$=s=>Array.from(document.querySelectorAll(s));
-const clamp=(n,min,max)=>Math.min(max,Math.max(min,n));
-const lines=csv=>csv.split(/\r?\n/).map(s=>s.trim()).filter(s=>s && !/^#/.test(s));
-function parseProducts(csv){const arr=[];for(const l of lines(csv)){const t=l.split(",");if(t.length<3)continue;const[A,B,C]=t.map(s=>s.trim());if(C)arr.push({A,B,C,id:C,name:C});}return arr;}
-function parsePairs(csv){const arr=[];for(const l of lines(csv)){const[id,name]=l.split(",").map(s=>s.trim());if(id&&name)arr.push({id,name});}return arr;}
-function parseBundleCsv(csv){const map=new Map();for(const l of lines(csv)){const[bid,bname,pid,qtyRaw,active]=l.split(",").map(s=>s.trim());if(!bid||!bname||!pid)continue;if(active==="0")continue;const qty=parseInt(qtyRaw||"1",10)||1;const rec=map.get(bid)||{id:bid,name:bname,items:[]};rec.items.push({productId:pid,qty});map.set(bid,rec);}return Array.from(map.values());}
+/* ========= State ========= */
+let PRODUCTS=[];          // [{A,B,C,id=C}]
+let CUSTOMERS=[];         // [{id,name}]
+let NONSALES=[];          // [{id,name}]
+let BUNDLES=[];           // [{id,name,items:[{productId,qty}]}]
+let GIFTS=[];             // same as bundles
 
-/* ---------- State ---------- */
-let PRODUCTS=[], CUSTOMERS=[], NONSALES=[], BUNDLES=[], GIFTS=[];
-let preview={bundles:new Map(), singles:new Map(), gifts:new Set()};
-let finalCart=new Map();
+// selection
+const bundleCount = {};   // bundleId -> qty
+const giftChecked = {};   // giftId -> true/false
+let singleSel = {A:"",B:"",C:"",qty:1};
 
-/* ---------- Elements ---------- */
-const docIdLabel=$("#docIdLabel");
-const catLab=$("#catLab"), categorySelect=$("#categorySelect");
-const poInput=$("#poInput"), memoInput=$("#memoInput");
-const selA=$("#selA"), selB=$("#selB"), selC=$("#selC"), singleQty=$("#singleQty"), singleQtyWrap=$("#singleQtyWrap"), addSingleBtn=$("#addSingleBtn");
-const bundleGrid=$("#bundleGrid"), giftsGrid=$("#giftsGrid");
-const pvBundles=$("#pvBundles"), pvSingles=$("#pvSingles"), pvGifts=$("#pvGifts"), pvClear=$("#pvClear"), pvCommit=$("#pvCommit");
-const togglePreviewBtn=$("#togglePreviewBtn"), previewBody=$("#previewBody");
-const hdrCat=$("#hdrCat"), hdrPO=$("#hdrPO"), hdrMemo=$("#hdrMemo"), hdrDoc=$("#hdrDoc");
-const finalTbody=$("#finalTbody"), btnFill=$("#btnFill"), btnClearFinal=$("#btnClearFinal"), btnSubmit=$("#btnSubmit"), sumBadge=$("#sumBadge");
-const confirmModal=$("#confirmModal"), cmHeader=$("#cmHeader"), cmBody=$("#cmBody"), cmCancel=$("#cmCancel"), cmOk=$("#cmOk");
-const btnResetAll=$("#btnResetAll");
+// preview aggregated lines (before commit to final)
+let previewLines = [];    // [{productId, name, qty}]
 
-/* ---------- Mode / DocId ---------- */
-function mode(){return ($('input[name="mode"]:checked')||{}).value || "sales";}
-function setDocId(){
-  const now=new Date();const p=n=>String(n).padStart(2,"0");
-  const prefix=categorySelect.value||"";
-  const id=`${prefix||"—"}-${now.getFullYear()}${p(now.getMonth()+1)}${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}`;
-  docIdLabel.textContent=`表單-日期-ID：${id}`;
-  hdrDoc.textContent=id;
+// final table items (planned & picked)
+let finalItems = {};      // productId -> {name, planned, picked}
+
+/* ========= Utils ========= */
+const $ = sel => document.querySelector(sel);
+const el = (tag,attrs={},children=[])=>{
+  const n=document.createElement(tag);
+  Object.entries(attrs).forEach(([k,v])=>{
+    if(k==="class") n.className=v;
+    else if(k==="text") n.textContent=v;
+    else if(k==="html") n.innerHTML=v;
+    else n.setAttribute(k,v);
+  });
+  children.forEach(c=>n.appendChild(c));
+  return n;
+};
+
+const parseLines = (csv)=> csv.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+const parseProducts = (csv)=> parseLines(csv).map(line=>{
+  const [A,B,C]=line.split(",").map(s=>s.trim());
+  return (C?{A,B,C,id:C}:null);
+}).filter(Boolean);
+
+const parsePairs = (csv)=> parseLines(csv).map(line=>{
+  const [id,name]=line.split(",").map(s=>s.trim());
+  return (id&&name)?{id,name}:null;
+}).filter(Boolean);
+
+const parseBundles = (csv)=> {
+  const lines=parseLines(csv); const m={};
+  lines.forEach(line=>{
+    const [bid,bname,pid,qtyRaw,active]=line.split(",").map(s=>s.trim());
+    if(!bid||!bname||!pid) return;
+    if(active==="0") return;
+    const qty=parseInt(qtyRaw||"1",10)||1;
+    (m[bid] ||= {id:bid,name:bname,items:[]}).items.push({productId:pid,qty});
+  });
+  return Object.values(m);
+};
+
+const nowId = (prefix)=>{
+  const d=new Date(),pad=n=>String(n).padStart(2,"0");
+  return `${prefix}-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;
+};
+
+/* ========= Renderers ========= */
+function renderDocId(){
+  const mode = document.querySelector('input[name="mode"]:checked').value;
+  const cat = mode==="sales" ? $("#customerSelect").value || "待選" : $("#nonSalesSelect").value || "未選";
+  $("#docId").textContent = nowId(cat);
+  // summary mirror
+  $("#sumCat").textContent = cat || "—";
+  $("#sumPO").textContent = $("#poInput").value || "—";
+  $("#sumMemo").textContent = $("#memoInput").value || "—";
+  $("#sumDoc").textContent = $("#docId").textContent;
 }
-function fillCategoryOptions(){
-  categorySelect.innerHTML=`<option value="">選擇訂單類別</option>`;
-  const src=mode()==="sales"?CUSTOMERS:NONSALES;
-  src.forEach(x=>{const o=document.createElement("option");o.value=x.id;o.textContent=x.name;categorySelect.appendChild(o);});
-  catLab.textContent=mode()==="sales"?"客戶分類":"非銷售分類";
-  setDocId();
-}
 
-/* ---------- Singles A/B/C ---------- */
-function refreshABC(){
-  const A=[...new Set(PRODUCTS.map(p=>p.A))]; selA.innerHTML=A.map(a=>`<option value="${a}">${a}</option>`).join(""); selA.dispatchEvent(new Event("change"));
-}
-selA.addEventListener("change",()=>{
-  const a=selA.value; const B=[...new Set(PRODUCTS.filter(p=>p.A===a).map(p=>p.B))];
-  selB.innerHTML=B.map(b=>`<option value="${b}">${b}</option>`).join(""); selB.dispatchEvent(new Event("change"));
-});
-selB.addEventListener("change",()=>{
-  const a=selA.value,b=selB.value; const C=PRODUCTS.filter(p=>p.A===a&&p.B===b);
-  selC.innerHTML=C.map(p=>`<option value="${p.id}">${p.name}</option>`).join("");
-});
-singleQtyWrap.addEventListener("click",(e)=>{if(e.target.dataset.s){const d=Number(e.target.dataset.s);singleQty.value=clamp((parseInt(singleQty.value||"0",10)||0)+d,1,9999);}});
-addSingleBtn.addEventListener("click",()=>{
-  const id=selC.value; if(!id) return;
-  const qty=clamp(parseInt(singleQty.value||"0",10)||0,1,9999);
-  const name=(PRODUCTS.find(p=>p.id===id)||{}).name||id;
-  const cur=preview.singles.get(id)||{name,qty:0}; cur.qty+=qty; preview.singles.set(id,cur); renderPreview();
-});
-
-/* ---------- Bundles / Gifts (3-cols) ---------- */
 function renderBundleGrid(){
-  bundleGrid.innerHTML="";
-  BUNDLES.forEach(b=>{
-    const div=document.createElement("div"); div.className="bundle-card";
-    div.innerHTML=`<div class="title-2lines" style="flex:1 1 auto;font-weight:600">${b.name}</div>
-      <div class="stepper" data-bid="${b.id}">
-        <button type="button" data-s="-1">−</button>
-        <input type="text" value="${(preview.bundles.get(b.id)||{qty:0}).qty}" data-role="val">
-        <button type="button" data-s="1">＋</button>
-      </div>`;
-    const st=div.querySelector(".stepper");
-    const write=(v)=>{if(v<=0) preview.bundles.delete(b.id); else preview.bundles.set(b.id,{name:b.name,qty:v}); renderPreview(); st.querySelector('[data-role="val"]').value=v;};
-    st.addEventListener("click",(e)=>{if(!e.target.dataset.s) return; const d=Number(e.target.dataset.s); const v=clamp((parseInt(st.querySelector('[data-role="val"]').value||"0",10)||0)+d,0,999); write(v);});
-    st.querySelector('[data-role="val"]').addEventListener("input",(e)=>{let v=parseInt(e.target.value.replace(/[^0-9]/g,"")||"0",10); v=clamp(v,0,999); write(v);});
-    bundleGrid.appendChild(div);
-  });
-}
-function renderGifts(){
-  giftsGrid.innerHTML="";
-  GIFTS.forEach(g=>{
-    const card=document.createElement("label"); card.className="gift-card"; card.style.cursor="pointer";
-    const checked=preview.gifts.has(g.id)?"checked":"";
-    card.innerHTML=`<input type="checkbox" ${checked} style="margin-right:6px"> <div class="title-2lines" style="flex:1 1 auto">${g.name}</div>`;
-    card.querySelector("input").addEventListener("change",(e)=>{ if(e.target.checked) preview.gifts.add(g.id); else preview.gifts.delete(g.id); renderPreview(); });
-    giftsGrid.appendChild(card);
+  const host=$("#bundleGrid"); host.innerHTML="";
+  BUNDLES.forEach((b,i)=>{
+    const card=el("div",{class:"card"});
+    const top=el("div",{class:"item-row"},[
+      el("div",{class:"name",text:`${i+1}. ${b.name}`})
+    ]);
+    const st=el("div",{class:"stepper right"},[
+      el("button",{text:"−"}),
+      el("input",{value: bundleCount[b.id]||0,inputmode:"numeric"}),
+      el("button",{text:"+"})
+    ]);
+    top.appendChild(st); card.appendChild(top); host.appendChild(card);
+    const inp=st.querySelector("input");
+    st.children[0].onclick=()=>{ const v=Math.max(0,(+inp.value||0)-1); inp.value=v; bundleCount[b.id]=v; };
+    st.children[2].onclick=()=>{ const v=(+inp.value||0)+1; inp.value=v; bundleCount[b.id]=v; };
+    inp.oninput=()=>{ const n=parseInt(inp.value.replace(/[^0-9]/g,''),10); inp.value=Number.isFinite(n)?n:0; bundleCount[b.id]=+inp.value; };
   });
 }
 
-/* ---------- Preview (bundles/gifts 展開；singles 可編輯) ---------- */
+function renderGiftGrid(){
+  const host=$("#giftGrid"); host.innerHTML="";
+  GIFTS.forEach((g,i)=>{
+    const card=el("label",{class:"card item-row"});
+    const left=el("div",{class:"name",text:`${i+1}. ${g.name}`});
+    const ck=el("input",{type:"checkbox"});
+    ck.checked=!!giftChecked[g.id];
+    ck.onchange=()=>giftChecked[g.id]=ck.checked;
+    card.appendChild(left); card.appendChild(ck); host.appendChild(card);
+  });
+}
+
+function buildSingleSelectors(){
+  // A
+  const aSel=$("#catA"), bSel=$("#catB"), cSel=$("#catC");
+  const A=[...new Set(PRODUCTS.map(p=>p.A))].filter(Boolean);
+  aSel.innerHTML=A.map(a=>`<option value="${a}">${a}</option>`).join("");
+  singleSel.A=A[0]||"";
+  onAchange();
+
+  aSel.onchange=()=>{ singleSel.A=aSel.value; onAchange(); };
+  bSel.onchange=()=>{ singleSel.B=bSel.value; onBchange(); };
+  cSel.onchange=()=>{ singleSel.C=cSel.value; };
+}
+
+function onAchange(){
+  const bSel=$("#catB"), cSel=$("#catC");
+  const listB=[...new Set(PRODUCTS.filter(p=>p.A===singleSel.A).map(p=>p.B))].filter(Boolean);
+  bSel.innerHTML=listB.map(b=>`<option value="${b}">${b}</option>`).join("");
+  singleSel.B=listB[0]||"";
+  onBchange();
+}
+
+function onBchange(){
+  const cSel=$("#catC");
+  const listC=PRODUCTS.filter(p=>p.A===singleSel.A && p.B===singleSel.B).map(p=>p.C);
+  cSel.innerHTML=listC.map(c=>`<option value="${c}">${c}</option>`).join("");
+  singleSel.C=listC[0]||"";
+}
+
 function renderPreview(){
-  // 套組
-  pvBundles.innerHTML="";
-  if(preview.bundles.size===0){ pvBundles.innerHTML='<span class="muted">(無)</span>'; }
-  else{
-    preview.bundles.forEach((rec,bid)=>{
-      const b=BUNDLES.find(x=>x.id===bid); if(!b) return;
-      const list=b.items.map(it=>{
-        const base=(PRODUCTS.find(p=>p.id===it.productId)||{}).name||it.productId;
-        const total=it.qty*rec.qty;
-        return `<li>${base} × ${total}</li>`;
-      }).join("");
-      const box=document.createElement("div");
-      box.innerHTML=`<div style="font-weight:600;margin-bottom:4px">${rec.name} × ${rec.qty}</div><ul style="margin:0 0 0 18px;padding:0">${list}</ul>`;
-      pvBundles.appendChild(box);
-    });
-  }
-
-  // 單品（可編輯）
-  pvSingles.innerHTML="";
-  if(preview.singles.size===0){ pvSingles.innerHTML='<span class="muted">(無)</span>'; }
-  else{
-    preview.singles.forEach((rec,id)=>{
-      const row=document.createElement("div"); row.className="row"; row.style.alignItems="center";
-      row.innerHTML=`<div class="title-2lines" style="flex:1 1 auto">${rec.name}</div>
-        <div class="stepper">
-          <button type="button" data-k="${id}" data-s="-1">−</button>
-          <input type="text" value="${rec.qty}" data-k="${id}">
-          <button type="button" data-k="${id}" data-s="1">＋</button>
-        </div>`;
-      pvSingles.appendChild(row);
-    });
-    // 綁定
-    pvSingles.querySelectorAll('.stepper button[data-s]').forEach(btn=>{
-      btn.onclick=()=>{const k=btn.dataset.k; const s=Number(btn.dataset.s); const inp=btn.parentElement.querySelector('input'); let v=clamp((parseInt(inp.value||"0",10)||0)+s,0,9999); inp.value=v; if(v===0) preview.singles.delete(k); else preview.singles.set(k,{...(preview.singles.get(k)||{}),qty:v}); renderPreview();};
-    });
-    pvSingles.querySelectorAll('.stepper input').forEach(inp=>{
-      inp.oninput=()=>{let v=parseInt(inp.value.replace(/[^0-9]/g,"")||"0",10); v=clamp(v,0,9999); inp.value=v; const k=inp.dataset.k; if(v===0) preview.singles.delete(k); else preview.singles.set(k,{...(preview.singles.get(k)||{}),qty:v});};
-    });
-  }
-
-  // 禮遇（展開）
-  pvGifts.innerHTML="";
-  const chosen=[...preview.gifts];
-  if(chosen.length===0){ pvGifts.innerHTML='<span class="muted">(無)</span>'; }
-  else{
-    chosen.forEach(gid=>{
-      const g=GIFTS.find(x=>x.id===gid); if(!g) return;
-      const list=g.items.map(it=>{
-        const base=(PRODUCTS.find(p=>p.id===it.productId)||{}).name||it.productId;
-        return `<li>${base} × ${it.qty}</li>`;
-      }).join("");
-      const box=document.createElement("div");
-      box.innerHTML=`<div style="font-weight:600;margin-bottom:4px">${g.name}</div><ul style="margin:0 0 0 18px;padding:0">${list}</ul>`;
-      pvGifts.appendChild(box);
-    });
-  }
+  const list=$("#previewList"); list.innerHTML="";
+  $("#emptyPreview").style.display = previewLines.length? "none":"block";
+  previewLines.forEach(it=>{
+    const row=el("div",{class:"row-item"},[
+      el("div",{class:"name",text:`${it.name}`}),
+      el("div",{class:"muted",text:`× ${it.qty}`})
+    ]);
+    list.appendChild(row);
+  });
 }
 
-/* 收/展 */
-$("#togglePreviewBtn").addEventListener("click",()=>{
-  const open = !previewBody.style.display || previewBody.style.display!=="none";
-  previewBody.style.display = open ? "none" : "";
-  togglePreviewBtn.textContent = open ? "展" : "收";
-});
+function renderFinal(){
+  const host=$("#finalRows"); host.innerHTML="";
+  const keys=Object.keys(finalItems);
+  $("#finalEmpty").style.display = keys.length? "none":"block";
+  keys.forEach(id=>{
+    const it=finalItems[id];
+    const row=el("div",{class:"tr"});
+    // picked
+    const stPicked=el("div",{class:"stepper"},[
+      el("button",{text:"−"}),
+      el("input",{value: it.picked||0,inputmode:"numeric"}),
+      el("button",{text:"+"})
+    ]);
+    row.appendChild(stPicked);
+    // name
+    row.appendChild(el("div",{class:"title",text:it.name}));
+    // planned
+    const stPlan=el("div",{class:"stepper"},[
+      el("button",{text:"−"}),
+      el("input",{value: it.planned||0,inputmode:"numeric"}),
+      el("button",{text:"+"})
+    ]);
+    row.appendChild(stPlan);
+    // delete
+    const del=el("button",{class:"btn small danger",text:"✕"});
+    row.appendChild(del);
 
-/* 清空預覽 */
-pvClear.addEventListener("click",()=>{ preview={bundles:new Map(),singles:new Map(),gifts:new Set()}; renderBundleGrid(); renderGifts(); renderPreview(); });
+    const pI=stPicked.querySelector("input"), plI=stPlan.querySelector("input");
+    stPicked.children[0].onclick=()=>{ const v=Math.max(0,(+pI.value||0)-1); pI.value=v; it.picked=v; };
+    stPicked.children[2].onclick=()=>{ const v=(+pI.value||0)+1; pI.value=v; it.picked=v; };
+    pI.oninput=()=>{ const n=parseInt(pI.value.replace(/[^0-9]/g,''),10); pI.value=Number.isFinite(n)?n:0; it.picked=+pI.value; };
 
-/* 確認加入（展開到 finalCart） */
-pvCommit.addEventListener("click",()=>{
-  // 套組
-  preview.bundles.forEach((rec,bid)=>{
-    const b=BUNDLES.find(x=>x.id===bid); if(!b) return;
-    b.items.forEach(it=>{
-      const name=(PRODUCTS.find(p=>p.id===it.productId)||{}).name||it.productId;
-      const add=it.qty*rec.qty;
-      const cur=finalCart.get(it.productId)||{name,planned:0,picked:0}; cur.planned+=add; finalCart.set(it.productId,cur);
+    stPlan.children[0].onclick=()=>{ const v=Math.max(0,(+plI.value||0)-1); plI.value=v; it.planned=v; };
+    stPlan.children[2].onclick=()=>{ const v=(+plI.value||0)+1; plI.value=v; it.planned=v; };
+    plI.oninput=()=>{ const n=parseInt(plI.value.replace(/[^0-9]/g,''),10); plI.value=Number.isFinite(n)?n:0; it.planned=+plI.value; };
+
+    del.onclick=()=>{ delete finalItems[id]; renderFinal(); };
+    host.appendChild(row);
+  });
+}
+
+/* ========= Behaviors ========= */
+function rebuildDocIdOnChange(){
+  ["mode","customerSelect","nonSalesSelect","poInput","memoInput"].forEach(id=>{
+    (id==="mode" ? document.querySelectorAll('input[name="mode"]') : [$("#"+id)]).forEach(n=>{
+      n.addEventListener("change",renderDocId);
+      n.addEventListener("input",renderDocId);
     });
   });
-  // 單品
-  preview.singles.forEach((rec,id)=>{const cur=finalCart.get(id)||{name:rec.name,planned:0,picked:0}; cur.planned+=rec.qty; finalCart.set(id,cur);});
-  // 禮遇
-  preview.gifts.forEach(gid=>{const g=GIFTS.find(x=>x.id===gid); if(!g) return; g.items.forEach(it=>{const name=(PRODUCTS.find(p=>p.id===it.productId)||{}).name||it.productId; const cur=finalCart.get(it.productId)||{name,planned:0,picked:0}; cur.planned+=it.qty; finalCart.set(it.productId,cur);});});
-  // 清預覽
-  preview={bundles:new Map(),singles:new Map(),gifts:new Set()};
-  renderBundleGrid(); renderGifts(); renderPreview(); renderFinal();
-});
-
-/* ---------- Final table ---------- */
-function renderFinal(){
-  hdrCat.textContent=categorySelect.value||"—";
-  hdrPO.textContent=poInput.value||"—";
-  hdrMemo.textContent=memoInput.value||"—";
-  finalTbody.innerHTML="";
-  if(finalCart.size===0){ finalTbody.innerHTML='<tr><td colspan="4" class="muted">尚未加入任何品項</td></tr>'; }
-  else{
-    finalCart.forEach((rec,id)=>{
-      const tr=document.createElement("tr");
-      tr.innerHTML=`
-        <td>
-          <div class="stepper" data-pid="${id}" data-role="picked">
-            <button type="button" data-s="-1">−</button>
-            <input type="text" value="${rec.picked}">
-            <button type="button" data-s="1">＋</button>
-          </div>
-        </td>
-        <td>${rec.name}</td>
-        <td style="text-align:right">
-          <div class="stepper" data-pid="${id}" data-role="planned">
-            <button type="button" data-s="-1">−</button>
-            <input type="text" value="${rec.planned}">
-            <button type="button" data-s="1">＋</button>
-          </div>
-        </td>
-        <td><button class="btn btn-danger" data-del="${id}">×</button></td>`;
-      finalTbody.appendChild(tr);
-    });
-    // 綁定
-    finalTbody.querySelectorAll('.stepper button[data-s]').forEach(btn=>{
-      btn.onclick=()=>{const s=Number(btn.dataset.s); const wrap=btn.closest('.stepper'); const pid=wrap.dataset.pid; const role=wrap.dataset.role; const inp=wrap.querySelector('input'); let v=clamp((parseInt(inp.value||"0",10)||0)+s,0,99999); inp.value=v; const rec=finalCart.get(pid); rec[role]=v; if(rec.planned===0&&rec.picked===0) finalCart.delete(pid); renderSum();};
-    });
-    finalTbody.querySelectorAll('.stepper input').forEach(inp=>{
-      inp.oninput=()=>{let v=parseInt(inp.value.replace(/[^0-9]/g,"")||"0",10); v=clamp(v,0,99999); inp.value=v; const wrap=inp.closest('.stepper'); const pid=wrap.dataset.pid; const role=wrap.dataset.role; const rec=finalCart.get(pid); rec[role]=v; if(rec.planned===0&&rec.picked===0) finalCart.delete(pid); renderSum();};
-    });
-    finalTbody.querySelectorAll('[data-del]').forEach(btn=>{ btn.onclick=()=>{finalCart.delete(btn.dataset.del); renderFinal();}; });
-  }
-  renderSum();
 }
-function renderSum(){ let items=finalCart.size, planned=0, picked=0; finalCart.forEach(r=>{planned+=r.planned;picked+=r.picked;}); sumBadge.textContent=`項：${items}　計：${planned}　點：${picked}`; }
-btnFill.addEventListener("click",()=>{ finalCart.forEach(r=>r.picked=r.planned); renderFinal(); });
-btnClearFinal.addEventListener("click",()=>{ finalCart.clear(); renderFinal(); });
 
-/* ---------- Submit + Modal ---------- */
-btnSubmit.addEventListener("click",()=>{
-  if(finalCart.size===0){ alert("沒有任何品項"); return; }
-  const sign=Number(($('input[name="sign"]:checked')||{}).value||-1);
-  cmHeader.innerHTML=`<div><span class="lab">類別：</span>${categorySelect.value||"—"}</div>
-    <div><span class="lab">客戶 PO：</span>${poInput.value||"—"}</div>
-    <div><span class="lab">備註：</span>${memoInput.value||"—"}</div>
-    <div><span class="lab">表單-日期-ID：</span>${hdrDoc.textContent}</div>`;
-  cmBody.innerHTML="";
-  finalCart.forEach((rec,id)=>{ if(rec.picked===0) return; const delta=rec.picked*sign; const tr=document.createElement("tr"); tr.innerHTML=`<td style="font-weight:600;color:${delta<0?'#b91c1c':'#166534'}">${delta}</td><td>${rec.name}</td>`; cmBody.appendChild(tr); });
-  $("#confirmModal").classList.add("show");
-});
-$("#cmCancel").addEventListener("click",()=>$("#confirmModal").classList.remove("show"));
-$("#cmOk").addEventListener("click",async()=>{
-  $("#confirmModal").classList.remove("show");
-  const sign=Number(($('input[name="sign"]:checked')||{}).value||-1);
-  const payload={
-    category: categorySelect.value||"",
-    po: poInput.value||"",
-    memo: memoInput.value||"",
-    formDateId: hdrDoc.textContent||"",
-    items: Array.from(finalCart,([productId,rec])=> rec.picked===0?null:{productId,delta:rec.picked*sign}).filter(Boolean)
+function updateModeVisibility(){
+  const mode = document.querySelector('input[name="mode"]:checked').value;
+  $("#customerWrap").style.display = (mode==="sales") ? "" : "none";
+  $("#nonSalesWrap").style.display = (mode==="non_sales") ? "" : "none";
+  renderDocId();
+}
+
+function collectFromSelectionsIntoPreview(){
+  previewLines.length=0;
+
+  // bundles
+  BUNDLES.forEach(b=>{
+    const cnt = bundleCount[b.id]||0;
+    if(!cnt) return;
+    // expand items
+    b.items.forEach(it=>{
+      const prod = PRODUCTS.find(p=>p.id===it.productId);
+      if(!prod) return;
+      pushPreview(prod.id, prod.id, it.qty*cnt);
+    });
+  });
+
+  // single
+  // (no-op here; single is added by button)
+
+  // gifts
+  GIFTS.forEach(g=>{
+    if(!giftChecked[g.id]) return;
+    g.items.forEach(it=>{
+      const prod = PRODUCTS.find(p=>p.id===it.productId);
+      if(!prod) return;
+      pushPreview(prod.id, prod.id, it.qty);
+    });
+  });
+
+  renderPreview();
+}
+
+function pushPreview(id,name,qty){
+  const ex=previewLines.find(x=>x.productId===id);
+  if(ex) ex.qty += qty;
+  else previewLines.push({productId:id,name:id,qty});
+}
+
+function commitPreviewToFinal(){
+  previewLines.forEach(it=>{
+    if(!finalItems[it.productId]) finalItems[it.productId]={name:it.name,planned:0,picked:0};
+    finalItems[it.productId].planned += it.qty;
+  });
+  // clear preview (but keep selections for reference，如你所述)
+  previewLines.length=0;
+  renderPreview();
+  renderFinal();
+}
+
+function addSingle(){
+  const qty = Math.max(0, parseInt($("#sQty").value,10)||0);
+  if(!singleSel.C || !qty) return;
+  pushPreview(singleSel.C, singleSel.C, qty);
+  renderPreview();
+}
+
+/* ========= Modal & Submit ========= */
+const modal = $("#confirmModal");
+function openModal(){
+  // prepare list from finalItems & op
+  const op = document.querySelector('input[name="op"]:checked').value; // out/in
+  const sign = op==="out" ? -1 : +1;
+
+  $("#mCat").textContent = $("#sumCat").textContent;
+  $("#mPO").textContent = $("#sumPO").textContent;
+  $("#mMemo").textContent = $("#sumMemo").textContent;
+  $("#mDoc").textContent = $("#sumDoc").textContent;
+  $("#mOp").textContent  = op==="out" ? "出貨（扣）" : "進貨（入）";
+
+  const host=$("#mList"); host.innerHTML="";
+  const keys=Object.keys(finalItems);
+  if(!keys.length){ host.innerHTML='<div class="hint">（沒有要送出的項目）</div>'; }
+  keys.forEach(id=>{
+    const it=finalItems[id];
+    const delta=(it.picked||0)*sign;
+    const row=el("div",{class:"row",style:"justify-content:space-between;border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:8px"},[
+      el("div",{class:"name",text:it.name}),
+      el("div",{class:"mono",text:`Δ ${delta}`})
+    ]);
+    host.appendChild(row);
+  });
+
+  modal.classList.add("open");
+}
+function closeModal(){ modal.classList.remove("open"); }
+
+async function doSubmit(){
+  const op = document.querySelector('input[name="op"]:checked').value;
+  const sign = op==="out" ? -1 : +1;
+
+  const mode = document.querySelector('input[name="mode"]:checked').value;
+  const category = (mode==="sales" ? $("#customerSelect").value : $("#nonSalesSelect").value) || "";
+
+  const payload = {
+    category,
+    po: $("#poInput").value || "",
+    memo: $("#memoInput").value || "",
+    formDateId: $("#docId").textContent || "",
+    items: Object.keys(finalItems).map(id=>{
+      const it=finalItems[id];
+      return { productId:id, delta:(it.picked||0)*sign };
+    }).filter(x=>x.delta!==0)
   };
+
   try{
-    const res=await fetch("https://hook.us2.make.com/nbjdxrfypgoosj4qqxnzfmj9o29jq3c2",{method:"POST",headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-    alert(res.ok?"已送出（Webhook OK）":"送出失敗（Webhook 回應非 2xx）");
-  }catch(e){ alert("送出失敗（網路錯誤）"); }
-});
-
-/* ---------- Reset All：重載五個 CSV & 清空狀態 ---------- */
-btnResetAll.addEventListener("click",()=>init(true));
-
-/* ---------- Sync header ---------- */
-[categorySelect,poInput,memoInput].forEach(el=>el.addEventListener("input",()=>{hdrCat.textContent=categorySelect.value||"—"; hdrPO.textContent=poInput.value||"—"; hdrMemo.textContent=memoInput.value||"—"; setDocId();}));
-$$('input[name="mode"]').forEach(r=>r.addEventListener("change",fillCategoryOptions));
-
-/* ---------- Init (load seeds) ---------- */
-async function init(forceReload=false){
-  // 清狀態
-  preview={bundles:new Map(),singles:new Map(),gifts:new Set()};
-  finalCart.clear();
-  renderPreview(); renderFinal();
-
-  const [p,c,b,g,n] = await Promise.all([
-    fetch(URLS.products,{cache:forceReload?"reload":"default"}).then(r=>r.text()).then(parseProducts),
-    fetch(URLS.customers,{cache:forceReload?"reload":"default"}).then(r=>r.text()).then(parsePairs),
-    fetch(URLS.bundles,{cache:forceReload?"reload":"default"}).then(r=>r.text()).then(parseBundleCsv),
-    fetch(URLS.gifts,{cache:forceReload?"reload":"default"}).then(r=>r.text()).then(parseBundleCsv),
-    fetch(URLS.nonsales,{cache:forceReload?"reload":"default"}).then(r=>r.text()).then(parsePairs),
-  ]).catch(()=>[[],[],[],[],[]]);
-
-  PRODUCTS=p; CUSTOMERS=c; BUNDLES=b; GIFTS=g; NONSALES=n;
-
-  fillCategoryOptions();
-  renderBundleGrid();
-  renderGifts();
-  refreshABC();
-
-  // 清空輸入欄位
-  poInput.value=""; memoInput.value="";
-  hdrCat.textContent=categorySelect.value||"—"; hdrPO.textContent="—"; hdrMemo.textContent="—";
-  setDocId();
+    await fetch(URLS.webhook,{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify(payload)
+    });
+    alert("已送出！");
+    closeModal();
+  }catch(e){
+    alert("送出失敗，請稍後再試。");
+    console.error(e);
+  }
 }
-init();
+
+/* ========= Data Loading ========= */
+async function loadAll(){
+  const [p,c,b,g,n]=await Promise.all([
+    fetch(URLS.products).then(r=>r.text()),
+    fetch(URLS.customers).then(r=>r.text()),
+    fetch(URLS.bundles).then(r=>r.text()),
+    fetch(URLS.gifts).then(r=>r.text()),
+    fetch(URLS.nonsales).then(r=>r.text())
+  ]);
+  PRODUCTS=parseProducts(p);
+  CUSTOMERS=parsePairs(c);
+  BUNDLES=parseBundles(b);
+  GIFTS=parseBundles(g);
+  NONSALES=parsePairs(n);
+
+  // fill customer & non-sales dropdowns
+  $("#customerSelect").innerHTML = `<option value="">— 選擇訂單類別 —</option>` + CUSTOMERS.map(x=>`<option value="${x.name}">${x.name}</option>`).join("");
+  $("#nonSalesSelect").innerHTML = `<option value="">— 選擇訂單類別 —</option>` + NONSALES.map(x=>`<option value="${x.name}">${x.name}</option>`).join("");
+
+  renderBundleGrid();
+  renderGiftGrid();
+  buildSingleSelectors();
+  collectFromSelectionsIntoPreview();
+  renderDocId();
+}
+
+/* ========= Event wiring ========= */
+document.addEventListener("DOMContentLoaded", async ()=>{
+  await loadAll();
+
+  // Mode toggle
+  document.querySelectorAll('input[name="mode"]').forEach(r=>r.addEventListener("change", updateModeVisibility));
+  updateModeVisibility();
+  rebuildDocIdOnChange();
+
+  // singles stepper
+  $("#sDec").onclick=()=>{ const v=Math.max(1,(+$("#sQty").value||1)-1); $("#sQty").value=v; };
+  $("#sInc").onclick=()=>{ const v=(+$("#sQty").value||1)+1; $("#sQty").value=v; };
+  $("#addSingle").onclick=addSingle;
+
+  // preview
+  $("#togglePreview").onclick=()=>{
+    const bd=$("#previewBody");
+    const isOpen = bd.style.display!=="none";
+    bd.style.display=isOpen?"none":"block";
+    $("#togglePreview").textContent = isOpen ? "展開" : "收";
+  };
+  $("#clearPreview").onclick=()=>{ previewLines.length=0; renderPreview(); };
+  $("#commitPreview").onclick=()=>{
+    commitPreviewToFinal();
+    // mirror summary
+    renderDocId();
+  };
+
+  // final actions
+  $("#fillPicked").onclick=()=>{
+    Object.values(finalItems).forEach(it=>it.picked = it.planned);
+    renderFinal();
+  };
+  $("#clearFinal").onclick=()=>{ finalItems={}; renderFinal(); };
+  $("#submitAll").onclick=()=>{
+    // open modal for confirm
+    openModal();
+  };
+
+  // modal
+  $("#mCancel").onclick=closeModal;
+  $("#mOk").onclick=doSubmit;
+
+  // reset all
+  $("#resetBtn").onclick=async ()=>{
+    // wipe states
+    Object.keys(bundleCount).forEach(k=>delete bundleCount[k]);
+    Object.keys(giftChecked).forEach(k=>delete giftChecked[k]);
+    previewLines.length=0; finalItems={};
+    $("#poInput").value=""; $("#memoInput").value="";
+    document.querySelector('input[name="mode"][value="sales"]').checked=true;
+    await loadAll();
+    renderFinal();
+  };
+
+  // reflect summary on inputs change
+  ["poInput","memoInput","customerSelect","nonSalesSelect"].forEach(id=>{
+    $("#"+id).addEventListener("input",renderDocId);
+    $("#"+id).addEventListener("change",renderDocId);
+  });
+
+  // keep preview synced with selections
+  setInterval(collectFromSelectionsIntoPreview, 400);
+});
 </script>
 </body>
 </html>
