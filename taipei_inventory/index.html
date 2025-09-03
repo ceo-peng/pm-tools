@@ -7,14 +7,13 @@
 <style>
   :root{
     --bg:#ffffff; --fg:#111827; --muted:#6b7280; --line:#e5e7eb;
-    --card:#ffffff; --card2:#f9fafb; --accent:#2563eb; --accent2:#111827;
-    --soft:#f3f4f6; --danger:#ef4444; --ok:#16a34a; --warn:#d97706;
+    --card:#ffffff; --card2:#f9fafb; --accent:#2563eb;
+    --soft:#f3f4f6; --danger:#ef4444;
     --radius:12px;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
   h1{font-size:22px;margin:16px 0}
-  h2{font-size:18px;margin:0 0 8px}
   .container{max-width:1120px;margin:0 auto;padding:16px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 1px 2px rgba(0,0,0,.04)}
   .card-hd{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--card2)}
@@ -32,28 +31,23 @@
   .btn-ok{background:var(--accent);color:#fff;border-color:var(--accent)}
   .btn-danger{background:#fff;border-color:#fca5a5;color:#b91c1c}
   .btn-ghost{background:transparent;border-color:transparent;color:var(--accent)}
-  .badge{font-size:12px;padding:2px 8px;border-radius:50px;border:1px solid var(--line);background:var(--soft);}
-
-  .field{display:flex;flex-direction:column;gap:6px}
   .lab{font-size:12px;color:var(--muted)}
   select,input[type=text]{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff}
   .stack-8{display:flex;flex-direction:column;gap:8px}
   .stack-12{display:flex;flex-direction:column;gap:12px}
   .stack-16{display:flex;flex-direction:column;gap:16px}
-  .bleed{margin:0 -6px}
 
-  .bundle-card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px}
+  .bundle-card,.gift-card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px;display:flex;gap:8px;align-items:center}
   .title-2lines{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  .right{margin-left:auto}
 
   .stepper{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:10px;height:34px;background:#fff}
   .stepper button{width:36px;height:32px;border:0;background:transparent;font-size:16px;cursor:pointer}
   .stepper input{width:46px;height:32px;border:0;text-align:center;font-size:14px;outline:0}
 
   table{width:100%;border-collapse:collapse}
-  th,td{padding:10px;border-bottom:1px solid var(--line);vertical-align:middle}
+  th,td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
   th{font-weight:600;text-align:left;background:#fafafa}
-
+  .badge{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);background:var(--soft)}
   .pill{display:inline-block;padding:3px 8px;border:1px dashed var(--line);border-radius:999px;color:var(--muted);font-size:12px}
 
   /* modal */
@@ -67,10 +61,13 @@
 </head>
 <body>
 <div class="container">
-  <h1>PM 庫存更新系統（Write4Version）</h1>
+  <div class="row" style="align-items:center">
+    <h1 style="margin:0;flex:1 1 auto">PM 庫存更新系統（Write4Version）</h1>
+    <button class="btn" id="btnResetAll" title="重載五個 CSV 與重置所有狀態">重置全部</button>
+  </div>
 
   <!-- 出貨訂單資訊 -->
-  <section class="card" id="orderCard">
+  <section class="card" id="orderCard" style="margin-top:12px">
     <div class="card-hd">
       <div>出貨訂單資訊</div>
       <div class="muted" id="docIdLabel">表單-日期-ID：—</div>
@@ -82,17 +79,17 @@
       </div>
 
       <div class="row">
-        <div class="col field">
+        <div class="col stack-8">
           <div class="lab" id="catLab">客戶分類</div>
           <select id="categorySelect">
             <option value="">選擇訂單類別</option>
           </select>
         </div>
-        <div class="col field">
+        <div class="col stack-8">
           <div class="lab">客戶 PO 出貨單號</div>
           <input id="poInput" type="text" placeholder="可留空" />
         </div>
-        <div class="col field">
+        <div class="col stack-8">
           <div class="lab">備註</div>
           <input id="memoInput" type="text" placeholder="可留空" />
         </div>
@@ -118,19 +115,19 @@
       <div class="stack-8">
         <div class="lab">單品</div>
         <div class="row">
-          <div class="col field">
+          <div class="col stack-8">
             <div class="lab">商品類別（A）</div>
             <select id="selA"></select>
           </div>
-          <div class="col field">
+          <div class="col stack-8">
             <div class="lab">系列名稱（B）</div>
             <select id="selB"></select>
           </div>
-          <div class="col field">
+          <div class="col stack-8">
             <div class="lab">產品名稱（C / 唯一 ID）</div>
             <select id="selC"></select>
           </div>
-          <div class="col field">
+          <div class="col stack-8">
             <div class="lab">數量</div>
             <div class="stepper" id="singleQtyWrap">
               <button type="button" data-s="-1">−</button>
@@ -138,29 +135,29 @@
               <button type="button" data-s="1">＋</button>
             </div>
           </div>
-          <div class="col field">
+          <div class="col stack-8">
             <div class="lab">&nbsp;</div>
             <button class="btn btn-ok" id="addSingleBtn">加入</button>
           </div>
         </div>
       </div>
 
-      <!-- 禮遇 -->
+      <!-- 禮遇：三欄（手機 2 欄） -->
       <div class="stack-8">
         <div class="lab">禮遇</div>
-        <div id="giftsWrap" class="stack-8"></div>
+        <div id="giftsGrid" class="grid grid-3"></div>
       </div>
     </div>
   </section>
 
-  <!-- 庫存更新預覽（可編輯 + 可收合） -->
+  <!-- 庫存更新預覽（套組/禮遇只展開明細；單品可編輯；可收合） -->
   <section class="card" style="margin-top:12px">
     <div class="card-hd">
       <div>庫存更新預覽</div>
       <button class="btn-ghost" id="togglePreviewBtn">收</button>
     </div>
     <div class="card-bd" id="previewBody">
-      <div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:16px" id="previewGrid">
+      <div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:16px">
         <div>
           <div class="lab" style="margin-bottom:6px">套組</div>
           <div id="pvBundles" class="stack-8 muted">(無)</div>
@@ -176,7 +173,7 @@
       </div>
       <div class="row" style="margin-top:12px">
         <button class="btn btn-danger" id="pvClear">全部清除</button>
-        <div class="right"></div>
+        <div style="flex:1 1 auto"></div>
         <button class="btn btn-ok" id="pvCommit">確認加入</button>
       </div>
     </div>
@@ -193,32 +190,30 @@
       </div>
     </div>
     <div class="card-bd stack-12">
-      <div id="orderHeader" class="stack-8">
+      <div class="stack-8" id="orderHeader">
         <div><span class="lab">類別：</span><span id="hdrCat">—</span></div>
         <div><span class="lab">客戶 PO：</span><span id="hdrPO">—</span></div>
         <div><span class="lab">備註：</span><span id="hdrMemo">—</span></div>
         <div><span class="lab">表單-日期-ID：</span><span id="hdrDoc">—</span></div>
       </div>
 
-      <div class="stack-8">
-        <table>
-          <thead>
-            <tr>
-              <th style="width:120px">點交量（Picked）</th>
-              <th>商品名稱</th>
-              <th style="width:140px">預計（Planned）</th>
-              <th style="width:56px">刪</th>
-            </tr>
-          </thead>
-          <tbody id="finalTbody">
-            <tr><td colspan="4" class="muted">尚未加入任何品項</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:120px">點交量（Picked）</th>
+            <th>商品名稱</th>
+            <th style="width:140px">預計（Planned）</th>
+            <th style="width:56px">刪</th>
+          </tr>
+        </thead>
+        <tbody id="finalTbody">
+          <tr><td colspan="4" class="muted">尚未加入任何品項</td></tr>
+        </tbody>
+      </table>
 
       <div class="row">
         <div class="badge" id="sumBadge">項：0　計：0　點：0</div>
-        <div class="right"></div>
+        <div style="flex:1 1 auto"></div>
         <button class="btn" id="btnFill">全部帶入</button>
         <button class="btn btn-danger" id="btnClearFinal">全部清除</button>
         <button class="btn btn-ok" id="btnSubmit">庫存更新提交</button>
@@ -228,13 +223,11 @@
 </div>
 
 <!-- 提交前預覽 Modal -->
-<div class="modal" id="confirmModal" role="dialog" aria-modal="true">
+<div class="modal" id="confirmModal">
   <div class="modal-card">
     <div class="modal-hd">送出前確認</div>
     <div class="modal-bd">
-      <div class="stack-8" id="cmHeader">
-        <!-- 訂單資訊會放這 -->
-      </div>
+      <div class="stack-8" id="cmHeader"></div>
       <table style="margin-top:8px">
         <thead>
           <tr><th style="width:80px">Δ</th><th>商品名稱（唯一 ID）</th></tr>
@@ -250,342 +243,207 @@
 </div>
 
 <script>
-/* ---------- Config: GitHub CSV endpoints & Webhook ---------- */
+/* ---------- Config ---------- */
 const URLS = {
   products: "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/products.csv",
-  customers: "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/customers.csv",
-  bundles:   "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/bundle_items.csv",
-  gifts:     "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/gifts.csv",
-  nonsales:  "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/non_sales_application.csv"
+  customers:"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/customers.csv",
+  bundles:  "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/bundle_items.csv",
+  gifts:    "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/gifts.csv",
+  nonsales: "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/non_sales_application.csv"
 };
 const WEBHOOK = "https://hook.us2.make.com/nbjdxrfypgoosj4qqxnzfmj9o29jq3c2";
 
 /* ---------- Utils ---------- */
-const $ = sel => document.querySelector(sel);
-const $$ = sel => Array.from(document.querySelectorAll(sel));
-const clamp = (n,min,max)=>Math.min(max,Math.max(min,n));
-const parseLines = (csv)=> csv.split(/\r?\n/).map(s=>s.trim()).filter(s=>s && !/^#/.test(s));
-
-function parseProducts(csv){
-  const list = [];
-  for(const line of parseLines(csv)){
-    const parts = line.split(","); if(parts.length<3) continue;
-    const [A,B,C] = parts.map(s=>s.trim());
-    if(!C) continue;
-    list.push({A,B,C,id:C,name:C});
-  }
-  return list;
-}
-function parsePairs(csv){
-  const arr = [];
-  for(const line of parseLines(csv)){
-    const [id,name] = line.split(",").map(s=>s.trim());
-    if(id && name) arr.push({id,name});
-  }
-  return arr;
-}
-function parseBundleCsv(csv){
-  // bundle_id,bundle_name,product_id,qty,active
-  const map = new Map();
-  for(const line of parseLines(csv)){
-    const [bid,bname,pid,qtyRaw,active] = line.split(",").map(s=>s.trim());
-    if(!bid || !bname || !pid) continue;
-    if(active==="0") continue;
-    const qty = Number.parseInt(qtyRaw||"1",10) || 1;
-    const rec = map.get(bid) || {id:bid, name:bname, items:[]};
-    rec.items.push({productId:pid, qty});
-    map.set(bid,rec);
-  }
-  return Array.from(map.values());
-}
+const $=s=>document.querySelector(s);
+const $$=s=>Array.from(document.querySelectorAll(s));
+const clamp=(n,min,max)=>Math.min(max,Math.max(min,n));
+const lines=csv=>csv.split(/\r?\n/).map(s=>s.trim()).filter(s=>s && !/^#/.test(s));
+function parseProducts(csv){const arr=[];for(const l of lines(csv)){const t=l.split(",");if(t.length<3)continue;const[A,B,C]=t.map(s=>s.trim());if(C)arr.push({A,B,C,id:C,name:C});}return arr;}
+function parsePairs(csv){const arr=[];for(const l of lines(csv)){const[id,name]=l.split(",").map(s=>s.trim());if(id&&name)arr.push({id,name});}return arr;}
+function parseBundleCsv(csv){const map=new Map();for(const l of lines(csv)){const[bid,bname,pid,qtyRaw,active]=l.split(",").map(s=>s.trim());if(!bid||!bname||!pid)continue;if(active==="0")continue;const qty=parseInt(qtyRaw||"1",10)||1;const rec=map.get(bid)||{id:bid,name:bname,items:[]};rec.items.push({productId:pid,qty});map.set(bid,rec);}return Array.from(map.values());}
 
 /* ---------- State ---------- */
 let PRODUCTS=[], CUSTOMERS=[], NONSALES=[], BUNDLES=[], GIFTS=[];
-let preview = { bundles:new Map(), singles:new Map(), gifts:new Set() }; // 可編輯預覽
-let finalCart = new Map(); // productId -> {name, planned, picked}
+let preview={bundles:new Map(), singles:new Map(), gifts:new Set()};
+let finalCart=new Map();
 
 /* ---------- Elements ---------- */
-const docIdLabel = $("#docIdLabel");
-const catLab = $("#catLab");
-const categorySelect = $("#categorySelect");
-const poInput = $("#poInput");
-const memoInput = $("#memoInput");
-
-const bundleGrid = $("#bundleGrid");
-const selA=$("#selA"), selB=$("#selB"), selC=$("#selC");
-const singleQty=$("#singleQty"), singleQtyWrap=$("#singleQtyWrap"), addSingleBtn=$("#addSingleBtn");
-const giftsWrap=$("#giftsWrap");
-
-const pvBundles=$("#pvBundles"), pvSingles=$("#pvSingles"), pvGifts=$("#pvGifts");
-const pvClear=$("#pvClear"), pvCommit=$("#pvCommit"), togglePreviewBtn=$("#togglePreviewBtn"), previewBody=$("#previewBody");
-
+const docIdLabel=$("#docIdLabel");
+const catLab=$("#catLab"), categorySelect=$("#categorySelect");
+const poInput=$("#poInput"), memoInput=$("#memoInput");
+const selA=$("#selA"), selB=$("#selB"), selC=$("#selC"), singleQty=$("#singleQty"), singleQtyWrap=$("#singleQtyWrap"), addSingleBtn=$("#addSingleBtn");
+const bundleGrid=$("#bundleGrid"), giftsGrid=$("#giftsGrid");
+const pvBundles=$("#pvBundles"), pvSingles=$("#pvSingles"), pvGifts=$("#pvGifts"), pvClear=$("#pvClear"), pvCommit=$("#pvCommit");
+const togglePreviewBtn=$("#togglePreviewBtn"), previewBody=$("#previewBody");
 const hdrCat=$("#hdrCat"), hdrPO=$("#hdrPO"), hdrMemo=$("#hdrMemo"), hdrDoc=$("#hdrDoc");
-const finalTbody=$("#finalTbody");
-const btnFill=$("#btnFill"), btnClearFinal=$("#btnClearFinal"), btnSubmit=$("#btnSubmit");
-const sumBadge=$("#sumBadge");
-
+const finalTbody=$("#finalTbody"), btnFill=$("#btnFill"), btnClearFinal=$("#btnClearFinal"), btnSubmit=$("#btnSubmit"), sumBadge=$("#sumBadge");
 const confirmModal=$("#confirmModal"), cmHeader=$("#cmHeader"), cmBody=$("#cmBody"), cmCancel=$("#cmCancel"), cmOk=$("#cmOk");
+const btnResetAll=$("#btnResetAll");
 
-/* ---------- Mode: sales / non_sales -> category datasource ---------- */
-function currentMode(){ return ($('input[name="mode"]:checked')||{}).value || "sales"; }
+/* ---------- Mode / DocId ---------- */
+function mode(){return ($('input[name="mode"]:checked')||{}).value || "sales";}
 function setDocId(){
-  const now=new Date(); const p=(n)=>String(n).padStart(2,"0");
-  const prefix = (currentMode()==="sales" ? (categorySelect.value||"") : (categorySelect.value||""));
-  const id = `${prefix||"—"}-${now.getFullYear()}${p(now.getMonth()+1)}${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}`;
-  docIdLabel.textContent = `表單-日期-ID：${id}`;
-  hdrDoc.textContent = id;
+  const now=new Date();const p=n=>String(n).padStart(2,"0");
+  const prefix=categorySelect.value||"";
+  const id=`${prefix||"—"}-${now.getFullYear()}${p(now.getMonth()+1)}${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}`;
+  docIdLabel.textContent=`表單-日期-ID：${id}`;
+  hdrDoc.textContent=id;
 }
 function fillCategoryOptions(){
-  categorySelect.innerHTML = `<option value="">選擇訂單類別</option>`;
-  const src = currentMode()==="sales" ? CUSTOMERS : NONSALES;
-  src.forEach(x=>{
-    const opt=document.createElement("option");
-    opt.value=x.id; opt.textContent=x.name;
-    categorySelect.appendChild(opt);
-  });
-  catLab.textContent = currentMode()==="sales" ? "客戶分類" : "非銷售分類";
+  categorySelect.innerHTML=`<option value="">選擇訂單類別</option>`;
+  const src=mode()==="sales"?CUSTOMERS:NONSALES;
+  src.forEach(x=>{const o=document.createElement("option");o.value=x.id;o.textContent=x.name;categorySelect.appendChild(o);});
+  catLab.textContent=mode()==="sales"?"客戶分類":"非銷售分類";
   setDocId();
 }
 
-/* ---------- Singles A/B/C cascaded ---------- */
+/* ---------- Singles A/B/C ---------- */
 function refreshABC(){
-  // A
-  const Avals = [...new Set(PRODUCTS.map(p=>p.A))];
-  selA.innerHTML = Avals.map(a=>`<option value="${a}">${a}</option>`).join("");
-  selA.dispatchEvent(new Event("change"));
+  const A=[...new Set(PRODUCTS.map(p=>p.A))]; selA.innerHTML=A.map(a=>`<option value="${a}">${a}</option>`).join(""); selA.dispatchEvent(new Event("change"));
 }
 selA.addEventListener("change",()=>{
-  const a=selA.value;
-  const Bvals=[...new Set(PRODUCTS.filter(p=>p.A===a).map(p=>p.B))];
-  selB.innerHTML=Bvals.map(b=>`<option value="${b}">${b}</option>`).join("");
-  selB.dispatchEvent(new Event("change"));
+  const a=selA.value; const B=[...new Set(PRODUCTS.filter(p=>p.A===a).map(p=>p.B))];
+  selB.innerHTML=B.map(b=>`<option value="${b}">${b}</option>`).join(""); selB.dispatchEvent(new Event("change"));
 });
 selB.addEventListener("change",()=>{
-  const a=selA.value,b=selB.value;
-  const Cvals=PRODUCTS.filter(p=>p.A===a && p.B===b);
-  selC.innerHTML=Cvals.map(p=>`<option value="${p.id}">${p.name}</option>`).join("");
+  const a=selA.value,b=selB.value; const C=PRODUCTS.filter(p=>p.A===a&&p.B===b);
+  selC.innerHTML=C.map(p=>`<option value="${p.id}">${p.name}</option>`).join("");
 });
-/* stepper on singles qty */
-singleQtyWrap.addEventListener("click",(e)=>{
-  if(e.target.dataset.s){
-    const delta=Number(e.target.dataset.s);
-    const v=clamp((parseInt(singleQty.value||"0",10)||0)+delta,1,9999);
-    singleQty.value=v;
-  }
-});
-
-/* add single to preview.singles */
+singleQtyWrap.addEventListener("click",(e)=>{if(e.target.dataset.s){const d=Number(e.target.dataset.s);singleQty.value=clamp((parseInt(singleQty.value||"0",10)||0)+d,1,9999);}});
 addSingleBtn.addEventListener("click",()=>{
   const id=selC.value; if(!id) return;
   const qty=clamp(parseInt(singleQty.value||"0",10)||0,1,9999);
-  const name=(PRODUCTS.find(p=>p.id===id)||{}).name || id;
-  const cur=preview.singles.get(id)||{name,qty:0};
-  cur.qty += qty;
-  preview.singles.set(id,cur);
-  renderPreview();
+  const name=(PRODUCTS.find(p=>p.id===id)||{}).name||id;
+  const cur=preview.singles.get(id)||{name,qty:0}; cur.qty+=qty; preview.singles.set(id,cur); renderPreview();
 });
 
-/* ---------- Bundles / Gifts UI ---------- */
+/* ---------- Bundles / Gifts (3-cols) ---------- */
 function renderBundleGrid(){
   bundleGrid.innerHTML="";
   BUNDLES.forEach(b=>{
-    const div=document.createElement("div");
-    div.className="bundle-card";
-    div.innerHTML=`
-      <div style="display:flex;gap:8px;align-items:center">
-        <div class="title-2lines" style="font-weight:600;flex:1 1 auto">${b.name}</div>
-        <div class="stepper" data-bid="${b.id}">
-          <button type="button" data-s="-1">−</button>
-          <input type="text" value="0" data-role="val">
-          <button type="button" data-s="1">＋</button>
-        </div>
+    const div=document.createElement("div"); div.className="bundle-card";
+    div.innerHTML=`<div class="title-2lines" style="flex:1 1 auto;font-weight:600">${b.name}</div>
+      <div class="stepper" data-bid="${b.id}">
+        <button type="button" data-s="-1">−</button>
+        <input type="text" value="${(preview.bundles.get(b.id)||{qty:0}).qty}" data-role="val">
+        <button type="button" data-s="1">＋</button>
       </div>`;
     const st=div.querySelector(".stepper");
-    st.addEventListener("click",(e)=>{
-      if(!e.target.dataset.s) return;
-      const delta=Number(e.target.dataset.s);
-      const inp=st.querySelector('[data-role="val"]');
-      const v=clamp((parseInt(inp.value||"0",10)||0)+delta,0,999);
-      inp.value=v;
-      // 寫入預覽（可編輯）
-      if(v===0) preview.bundles.delete(b.id);
-      else preview.bundles.set(b.id,{name:b.name,qty:v});
-      renderPreview();
-    });
-    // 直接輸入也要寫回
-    st.querySelector('[data-role="val"]').addEventListener("input",(e)=>{
-      let v=parseInt(e.target.value.replace(/[^0-9]/g,"")||"0",10); v=clamp(v,0,999);
-      e.target.value=v;
-      if(v===0) preview.bundles.delete(b.id);
-      else preview.bundles.set(b.id,{name:b.name,qty:v});
-      renderPreview();
-    });
+    const write=(v)=>{if(v<=0) preview.bundles.delete(b.id); else preview.bundles.set(b.id,{name:b.name,qty:v}); renderPreview(); st.querySelector('[data-role="val"]').value=v;};
+    st.addEventListener("click",(e)=>{if(!e.target.dataset.s) return; const d=Number(e.target.dataset.s); const v=clamp((parseInt(st.querySelector('[data-role="val"]').value||"0",10)||0)+d,0,999); write(v);});
+    st.querySelector('[data-role="val"]').addEventListener("input",(e)=>{let v=parseInt(e.target.value.replace(/[^0-9]/g,"")||"0",10); v=clamp(v,0,999); write(v);});
     bundleGrid.appendChild(div);
   });
 }
 function renderGifts(){
-  giftsWrap.innerHTML="";
+  giftsGrid.innerHTML="";
   GIFTS.forEach(g=>{
-    const id=`gift_${g.id}`;
-    const row=document.createElement("label");
-    row.className="btn"; row.style.display="inline-flex"; row.style.alignItems="center"; row.style.gap="8px";
-    row.innerHTML=`<input type="checkbox" id="${id}"> ${g.name}`;
-    row.querySelector("input").addEventListener("change",(e)=>{
-      if(e.target.checked) preview.gifts.add(g.id);
-      else preview.gifts.delete(g.id);
-      renderPreview();
-    });
-    giftsWrap.appendChild(row);
+    const card=document.createElement("label"); card.className="gift-card"; card.style.cursor="pointer";
+    const checked=preview.gifts.has(g.id)?"checked":"";
+    card.innerHTML=`<input type="checkbox" ${checked} style="margin-right:6px"> <div class="title-2lines" style="flex:1 1 auto">${g.name}</div>`;
+    card.querySelector("input").addEventListener("change",(e)=>{ if(e.target.checked) preview.gifts.add(g.id); else preview.gifts.delete(g.id); renderPreview(); });
+    giftsGrid.appendChild(card);
   });
 }
 
-/* ---------- Preview (editable) ---------- */
+/* ---------- Preview (bundles/gifts 展開；singles 可編輯) ---------- */
 function renderPreview(){
   // 套組
   pvBundles.innerHTML="";
-  if(preview.bundles.size===0) pvBundles.innerHTML='<span class="muted">(無)</span>';
-  else {
+  if(preview.bundles.size===0){ pvBundles.innerHTML='<span class="muted">(無)</span>'; }
+  else{
     preview.bundles.forEach((rec,bid)=>{
-      const row=document.createElement("div");
-      row.className="row"; row.style.alignItems="center";
-      row.innerHTML=`
-        <div class="title-2lines" style="flex:1 1 auto">${rec.name}</div>
-        <div class="stepper">
-          <button type="button" data-k="${bid}" data-t="bundle" data-s="-1">−</button>
-          <input type="text" value="${rec.qty}" data-k="${bid}" data-t="bundle">
-          <button type="button" data-k="${bid}" data-t="bundle" data-s="1">＋</button>
-        </div>`;
-      pvBundles.appendChild(row);
+      const b=BUNDLES.find(x=>x.id===bid); if(!b) return;
+      const list=b.items.map(it=>{
+        const base=(PRODUCTS.find(p=>p.id===it.productId)||{}).name||it.productId;
+        const total=it.qty*rec.qty;
+        return `<li>${base} × ${total}</li>`;
+      }).join("");
+      const box=document.createElement("div");
+      box.innerHTML=`<div style="font-weight:600;margin-bottom:4px">${rec.name} × ${rec.qty}</div><ul style="margin:0 0 0 18px;padding:0">${list}</ul>`;
+      pvBundles.appendChild(box);
     });
   }
 
-  // 單品
+  // 單品（可編輯）
   pvSingles.innerHTML="";
-  if(preview.singles.size===0) pvSingles.innerHTML='<span class="muted">(無)</span>';
-  else {
+  if(preview.singles.size===0){ pvSingles.innerHTML='<span class="muted">(無)</span>'; }
+  else{
     preview.singles.forEach((rec,id)=>{
-      const row=document.createElement("div");
-      row.className="row"; row.style.alignItems="center";
-      row.innerHTML=`
-        <div class="title-2lines" style="flex:1 1 auto">${rec.name}</div>
+      const row=document.createElement("div"); row.className="row"; row.style.alignItems="center";
+      row.innerHTML=`<div class="title-2lines" style="flex:1 1 auto">${rec.name}</div>
         <div class="stepper">
-          <button type="button" data-k="${id}" data-t="single" data-s="-1">−</button>
-          <input type="text" value="${rec.qty}" data-k="${id}" data-t="single">
-          <button type="button" data-k="${id}" data-t="single" data-s="1">＋</button>
+          <button type="button" data-k="${id}" data-s="-1">−</button>
+          <input type="text" value="${rec.qty}" data-k="${id}">
+          <button type="button" data-k="${id}" data-s="1">＋</button>
         </div>`;
       pvSingles.appendChild(row);
     });
-  }
-
-  // 禮遇
-  pvGifts.innerHTML="";
-  const chosen=[...preview.gifts];
-  if(chosen.length===0) pvGifts.innerHTML='<span class="muted">(無)</span>';
-  else {
-    chosen.forEach(id=>{
-      const g=GIFTS.find(x=>x.id===id);
-      const row=document.createElement("div");
-      row.className="row"; row.style.alignItems="center";
-      row.innerHTML=`<div class="title-2lines" style="flex:1 1 auto">${g?g.name:id}</div>
-        <button class="btn btn-danger right" data-remove-g="${id}">移除</button>`;
-      pvGifts.appendChild(row);
+    // 綁定
+    pvSingles.querySelectorAll('.stepper button[data-s]').forEach(btn=>{
+      btn.onclick=()=>{const k=btn.dataset.k; const s=Number(btn.dataset.s); const inp=btn.parentElement.querySelector('input'); let v=clamp((parseInt(inp.value||"0",10)||0)+s,0,9999); inp.value=v; if(v===0) preview.singles.delete(k); else preview.singles.set(k,{...(preview.singles.get(k)||{}),qty:v}); renderPreview();};
+    });
+    pvSingles.querySelectorAll('.stepper input').forEach(inp=>{
+      inp.oninput=()=>{let v=parseInt(inp.value.replace(/[^0-9]/g,"")||"0",10); v=clamp(v,0,9999); inp.value=v; const k=inp.dataset.k; if(v===0) preview.singles.delete(k); else preview.singles.set(k,{...(preview.singles.get(k)||{}),qty:v});};
     });
   }
 
-  // 綁定 stepper 事件：bundle/single 在預覽可直接改
-  previewBody.querySelectorAll('.stepper button[data-s]').forEach(btn=>{
-    btn.onclick=(e)=>{
-      const s=Number(btn.dataset.s), t=btn.dataset.t, k=btn.dataset.k;
-      const inp=btn.parentElement.querySelector('input');
-      let v=clamp((parseInt(inp.value||"0",10)||0)+s,0,999);
-      inp.value=v;
-      if(t==="bundle"){
-        if(v===0) preview.bundles.delete(k); else preview.bundles.set(k,{...(preview.bundles.get(k)||{}), qty:v});
-      }else{
-        const rec=preview.singles.get(k)||{name:(PRODUCTS.find(p=>p.id===k)||{}).name||k, qty:0};
-        rec.qty=v; if(v===0) preview.singles.delete(k); else preview.singles.set(k,rec);
-      }
-      renderPreview();
-    };
-  });
-  previewBody.querySelectorAll('.stepper input').forEach(inp=>{
-    inp.oninput=(e)=>{
-      let v=parseInt(inp.value.replace(/[^0-9]/g,"")||"0",10); v=clamp(v,0,999); inp.value=v;
-      const t=inp.dataset.t, k=inp.dataset.k;
-      if(t==="bundle"){
-        if(v===0) preview.bundles.delete(k); else preview.bundles.set(k,{...(preview.bundles.get(k)||{}), qty:v});
-      }else{
-        const rec=preview.singles.get(k)||{name:(PRODUCTS.find(p=>p.id===k)||{}).name||k, qty:0};
-        rec.qty=v; if(v===0) preview.singles.delete(k); else preview.singles.set(k,rec);
-      }
-    };
-  });
-  // 禮遇移除
-  previewBody.querySelectorAll('[data-remove-g]').forEach(btn=>{
-    btn.onclick=()=>{ preview.gifts.delete(btn.dataset.removeG); renderPreview(); };
-  });
+  // 禮遇（展開）
+  pvGifts.innerHTML="";
+  const chosen=[...preview.gifts];
+  if(chosen.length===0){ pvGifts.innerHTML='<span class="muted">(無)</span>'; }
+  else{
+    chosen.forEach(gid=>{
+      const g=GIFTS.find(x=>x.id===gid); if(!g) return;
+      const list=g.items.map(it=>{
+        const base=(PRODUCTS.find(p=>p.id===it.productId)||{}).name||it.productId;
+        return `<li>${base} × ${it.qty}</li>`;
+      }).join("");
+      const box=document.createElement("div");
+      box.innerHTML=`<div style="font-weight:600;margin-bottom:4px">${g.name}</div><ul style="margin:0 0 0 18px;padding:0">${list}</ul>`;
+      pvGifts.appendChild(box);
+    });
+  }
 }
 
-/* 收 / 展 */
-togglePreviewBtn.addEventListener("click",()=>{
+/* 收/展 */
+$("#togglePreviewBtn").addEventListener("click",()=>{
   const open = !previewBody.style.display || previewBody.style.display!=="none";
   previewBody.style.display = open ? "none" : "";
   togglePreviewBtn.textContent = open ? "展" : "收";
 });
 
-/* 全部清除預覽 */
-pvClear.addEventListener("click",()=>{
-  preview={bundles:new Map(),singles:new Map(),gifts:new Set()};
-  // 同步把上面套組步進器清為 0（視覺一致）
-  bundleGrid.querySelectorAll('.stepper [data-role="val"]').forEach(inp=>inp.value="0");
-  renderPreview();
-});
+/* 清空預覽 */
+pvClear.addEventListener("click",()=>{ preview={bundles:new Map(),singles:new Map(),gifts:new Set()}; renderBundleGrid(); renderGifts(); renderPreview(); });
 
-/* 確認加入：把預覽展開成單品，累加進 finalCart（planned） */
+/* 確認加入（展開到 finalCart） */
 pvCommit.addEventListener("click",()=>{
-  // 展開套組
+  // 套組
   preview.bundles.forEach((rec,bid)=>{
     const b=BUNDLES.find(x=>x.id===bid); if(!b) return;
     b.items.forEach(it=>{
-      const name=(PRODUCTS.find(p=>p.id===it.productId)||{}).name || it.productId;
-      const addQty = it.qty * rec.qty;
-      const cur = finalCart.get(it.productId) || {name, planned:0, picked:0};
-      cur.planned += addQty;
-      finalCart.set(it.productId, cur);
+      const name=(PRODUCTS.find(p=>p.id===it.productId)||{}).name||it.productId;
+      const add=it.qty*rec.qty;
+      const cur=finalCart.get(it.productId)||{name,planned:0,picked:0}; cur.planned+=add; finalCart.set(it.productId,cur);
     });
   });
   // 單品
-  preview.singles.forEach((rec,id)=>{
-    const cur = finalCart.get(id) || {name:rec.name, planned:0, picked:0};
-    cur.planned += rec.qty;
-    finalCart.set(id,cur);
-  });
-  // 禮遇（按 bundle 規則展開）
-  preview.gifts.forEach(gid=>{
-    const g=GIFTS.find(x=>x.id===gid); if(!g) return;
-    g.items.forEach(it=>{
-      const name=(PRODUCTS.find(p=>p.id===it.productId)||{}).name || it.productId;
-      const cur = finalCart.get(it.productId) || {name, planned:0, picked:0};
-      cur.planned += it.qty;
-      finalCart.set(it.productId,cur);
-    });
-  });
-  // 清空預覽
-  pvClear.click();
-  renderFinal();
+  preview.singles.forEach((rec,id)=>{const cur=finalCart.get(id)||{name:rec.name,planned:0,picked:0}; cur.planned+=rec.qty; finalCart.set(id,cur);});
+  // 禮遇
+  preview.gifts.forEach(gid=>{const g=GIFTS.find(x=>x.id===gid); if(!g) return; g.items.forEach(it=>{const name=(PRODUCTS.find(p=>p.id===it.productId)||{}).name||it.productId; const cur=finalCart.get(it.productId)||{name,planned:0,picked:0}; cur.planned+=it.qty; finalCart.set(it.productId,cur);});});
+  // 清預覽
+  preview={bundles:new Map(),singles:new Map(),gifts:new Set()};
+  renderBundleGrid(); renderGifts(); renderPreview(); renderFinal();
 });
 
 /* ---------- Final table ---------- */
 function renderFinal(){
-  // header 映射
-  hdrCat.textContent = categorySelect.value || "—";
-  hdrPO.textContent = poInput.value || "—";
-  hdrMemo.textContent = memoInput.value || "—";
-
+  hdrCat.textContent=categorySelect.value||"—";
+  hdrPO.textContent=poInput.value||"—";
+  hdrMemo.textContent=memoInput.value||"—";
   finalTbody.innerHTML="";
-  if(finalCart.size===0){
-    finalTbody.innerHTML = `<tr><td colspan="4" class="muted">尚未加入任何品項</td></tr>`;
-  }else{
+  if(finalCart.size===0){ finalTbody.innerHTML='<tr><td colspan="4" class="muted">尚未加入任何品項</td></tr>'; }
+  else{
     finalCart.forEach((rec,id)=>{
       const tr=document.createElement("tr");
       tr.innerHTML=`
@@ -607,135 +465,85 @@ function renderFinal(){
         <td><button class="btn btn-danger" data-del="${id}">×</button></td>`;
       finalTbody.appendChild(tr);
     });
-
-    // 綁定 stepper
+    // 綁定
     finalTbody.querySelectorAll('.stepper button[data-s]').forEach(btn=>{
-      btn.onclick=()=>{
-        const s=Number(btn.dataset.s);
-        const wrap=btn.closest('.stepper');
-        const pid=wrap.dataset.pid;
-        const role=wrap.dataset.role;
-        const inp=wrap.querySelector('input');
-        let v=clamp((parseInt(inp.value||"0",10)||0)+s,0,99999);
-        inp.value=v;
-        const rec=finalCart.get(pid);
-        rec[role]=v;
-        if(rec.planned===0 && rec.picked===0) finalCart.delete(pid);
-        renderSum();
-      };
+      btn.onclick=()=>{const s=Number(btn.dataset.s); const wrap=btn.closest('.stepper'); const pid=wrap.dataset.pid; const role=wrap.dataset.role; const inp=wrap.querySelector('input'); let v=clamp((parseInt(inp.value||"0",10)||0)+s,0,99999); inp.value=v; const rec=finalCart.get(pid); rec[role]=v; if(rec.planned===0&&rec.picked===0) finalCart.delete(pid); renderSum();};
     });
     finalTbody.querySelectorAll('.stepper input').forEach(inp=>{
-      inp.oninput=()=>{
-        let v=parseInt(inp.value.replace(/[^0-9]/g,"")||"0",10); v=clamp(v,0,99999); inp.value=v;
-        const wrap=inp.closest('.stepper'); const pid=wrap.dataset.pid; const role=wrap.dataset.role;
-        const rec=finalCart.get(pid); rec[role]=v;
-        if(rec.planned===0 && rec.picked===0) finalCart.delete(pid);
-        renderSum();
-      };
+      inp.oninput=()=>{let v=parseInt(inp.value.replace(/[^0-9]/g,"")||"0",10); v=clamp(v,0,99999); inp.value=v; const wrap=inp.closest('.stepper'); const pid=wrap.dataset.pid; const role=wrap.dataset.role; const rec=finalCart.get(pid); rec[role]=v; if(rec.planned===0&&rec.picked===0) finalCart.delete(pid); renderSum();};
     });
-    finalTbody.querySelectorAll('[data-del]').forEach(btn=>{
-      btn.onclick=()=>{ finalCart.delete(btn.dataset.del); renderFinal(); };
-    });
+    finalTbody.querySelectorAll('[data-del]').forEach(btn=>{ btn.onclick=()=>{finalCart.delete(btn.dataset.del); renderFinal();}; });
   }
   renderSum();
 }
-function renderSum(){
-  const items=finalCart.size;
-  let planned=0, picked=0;
-  finalCart.forEach(rec=>{ planned+=rec.planned; picked+=rec.picked; });
-  sumBadge.textContent = `項：${items}　計：${planned}　點：${picked}`;
-}
+function renderSum(){ let items=finalCart.size, planned=0, picked=0; finalCart.forEach(r=>{planned+=r.planned;picked+=r.picked;}); sumBadge.textContent=`項：${items}　計：${planned}　點：${picked}`; }
+btnFill.addEventListener("click",()=>{ finalCart.forEach(r=>r.picked=r.planned); renderFinal(); });
+btnClearFinal.addEventListener("click",()=>{ finalCart.clear(); renderFinal(); });
 
-/* 全部帶入 picked = planned */
-btnFill.addEventListener("click",()=>{
-  finalCart.forEach(rec=>{ rec.picked = rec.planned; });
-  renderFinal();
-});
-/* 清空最終清單 */
-btnClearFinal.addEventListener("click",()=>{
-  finalCart.clear(); renderFinal();
-});
-
-/* ---------- Submit with confirm modal ---------- */
+/* ---------- Submit + Modal ---------- */
 btnSubmit.addEventListener("click",()=>{
   if(finalCart.size===0){ alert("沒有任何品項"); return; }
-  // 填 header
-  const cat = categorySelect.value || "—";
-  cmHeader.innerHTML = `
-    <div><span class="lab">類別：</span>${cat}</div>
+  const sign=Number(($('input[name="sign"]:checked')||{}).value||-1);
+  cmHeader.innerHTML=`<div><span class="lab">類別：</span>${categorySelect.value||"—"}</div>
     <div><span class="lab">客戶 PO：</span>${poInput.value||"—"}</div>
     <div><span class="lab">備註：</span>${memoInput.value||"—"}</div>
-    <div><span class="lab">表單-日期-ID：</span>${hdrDoc.textContent}</div>
-  `;
-  // 列 Δ 項目
-  const sign = Number(($('input[name="sign"]:checked')||{}).value||-1);
+    <div><span class="lab">表單-日期-ID：</span>${hdrDoc.textContent}</div>`;
   cmBody.innerHTML="";
-  finalCart.forEach((rec,id)=>{
-    if(rec.picked===0) return; // 未點交就不會送
-    const delta = rec.picked * sign;
-    const tr=document.createElement("tr");
-    tr.innerHTML=`<td style="font-weight:600;color:${delta<0?'#b91c1c':'#166534'}">${delta}</td><td>${rec.name}</td>`;
-    cmBody.appendChild(tr);
-  });
-  confirmModal.classList.add("show");
+  finalCart.forEach((rec,id)=>{ if(rec.picked===0) return; const delta=rec.picked*sign; const tr=document.createElement("tr"); tr.innerHTML=`<td style="font-weight:600;color:${delta<0?'#b91c1c':'#166534'}">${delta}</td><td>${rec.name}</td>`; cmBody.appendChild(tr); });
+  $("#confirmModal").classList.add("show");
 });
-cmCancel.addEventListener("click",()=>confirmModal.classList.remove("show"));
-cmOk.addEventListener("click",async()=>{
-  confirmModal.classList.remove("show");
-  const sign = Number(($('input[name="sign"]:checked')||{}).value||-1);
-  const payload = {
-    category: categorySelect.value || "",
-    po: poInput.value || "",
-    memo: memoInput.value || "",
-    formDateId: hdrDoc.textContent || "",
-    items: Array.from(finalCart, ([productId,rec]) => {
-      if(rec.picked===0) return null;
-      return { productId, delta: rec.picked * sign };
-    }).filter(Boolean)
+$("#cmCancel").addEventListener("click",()=>$("#confirmModal").classList.remove("show"));
+$("#cmOk").addEventListener("click",async()=>{
+  $("#confirmModal").classList.remove("show");
+  const sign=Number(($('input[name="sign"]:checked')||{}).value||-1);
+  const payload={
+    category: categorySelect.value||"",
+    po: poInput.value||"",
+    memo: memoInput.value||"",
+    formDateId: hdrDoc.textContent||"",
+    items: Array.from(finalCart,([productId,rec])=> rec.picked===0?null:{productId,delta:rec.picked*sign}).filter(Boolean)
   };
   try{
-    const res = await fetch(WEBHOOK,{method:"POST",headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-    alert(res.ok ? "已送出（Webhook OK）" : "送出失敗（Webhook 回應非 2xx）");
-  }catch(e){
-    alert("送出失敗（網路錯誤）");
-  }
+    const res=await fetch("https://hook.us2.make.com/nbjdxrfypgoosj4qqxnzfmj9o29jq3c2",{method:"POST",headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    alert(res.ok?"已送出（Webhook OK）":"送出失敗（Webhook 回應非 2xx）");
+  }catch(e){ alert("送出失敗（網路錯誤）"); }
 });
 
-/* ---------- Sync: header values + doc id ---------- */
-[categorySelect, poInput, memoInput].forEach(el=>el.addEventListener("input",()=>{
-  hdrCat.textContent = categorySelect.value || "—";
-  hdrPO.textContent = poInput.value || "—";
-  hdrMemo.textContent = memoInput.value || "—";
-  setDocId();
-}));
+/* ---------- Reset All：重載五個 CSV & 清空狀態 ---------- */
+btnResetAll.addEventListener("click",()=>init(true));
+
+/* ---------- Sync header ---------- */
+[categorySelect,poInput,memoInput].forEach(el=>el.addEventListener("input",()=>{hdrCat.textContent=categorySelect.value||"—"; hdrPO.textContent=poInput.value||"—"; hdrMemo.textContent=memoInput.value||"—"; setDocId();}));
 $$('input[name="mode"]').forEach(r=>r.addEventListener("change",fillCategoryOptions));
 
-/* ---------- Load seeds on start ---------- */
-(async function init(){
-  // 讀 CSV
+/* ---------- Init (load seeds) ---------- */
+async function init(forceReload=false){
+  // 清狀態
+  preview={bundles:new Map(),singles:new Map(),gifts:new Set()};
+  finalCart.clear();
+  renderPreview(); renderFinal();
+
   const [p,c,b,g,n] = await Promise.all([
-    fetch(URLS.products).then(r=>r.text()).then(parseProducts),
-    fetch(URLS.customers).then(r=>r.text()).then(parsePairs),
-    fetch(URLS.bundles).then(r=>r.text()).then(parseBundleCsv),
-    fetch(URLS.gifts).then(r=>r.text()).then(parseBundleCsv),
-    fetch(URLS.nonsales).then(r=>r.text()).then(parsePairs),
+    fetch(URLS.products,{cache:forceReload?"reload":"default"}).then(r=>r.text()).then(parseProducts),
+    fetch(URLS.customers,{cache:forceReload?"reload":"default"}).then(r=>r.text()).then(parsePairs),
+    fetch(URLS.bundles,{cache:forceReload?"reload":"default"}).then(r=>r.text()).then(parseBundleCsv),
+    fetch(URLS.gifts,{cache:forceReload?"reload":"default"}).then(r=>r.text()).then(parseBundleCsv),
+    fetch(URLS.nonsales,{cache:forceReload?"reload":"default"}).then(r=>r.text()).then(parsePairs),
   ]).catch(()=>[[],[],[],[],[]]);
 
   PRODUCTS=p; CUSTOMERS=c; BUNDLES=b; GIFTS=g; NONSALES=n;
 
-  // 初始 UI
   fillCategoryOptions();
   renderBundleGrid();
   renderGifts();
   refreshABC();
-  renderPreview();
-  renderFinal();
 
-  // 初次對 header
-  hdrCat.textContent = categorySelect.value || "—";
-  hdrPO.textContent = "—";
-  hdrMemo.textContent = "—";
-})();
+  // 清空輸入欄位
+  poInput.value=""; memoInput.value="";
+  hdrCat.textContent=categorySelect.value||"—"; hdrPO.textContent="—"; hdrMemo.textContent="—";
+  setDocId();
+}
+init();
 </script>
 </body>
 </html>
