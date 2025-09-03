@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>PM 庫存更新系統 — Write4Version (Op Switch in List Header)</title>
+    <title>PM 庫存更新系統 — Write4Version (Final UI + Full Functions)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -15,7 +15,7 @@
     <script type="text/babel">
       const {useState,useEffect,useMemo} = React;
 
-      /* -------------------- GitHub RAW URLs (hard-coded) -------------------- */
+      /* -------------------- Config -------------------- */
       const URLS = {
         products :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/products.csv",
         customers:"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/customers.csv",
@@ -23,6 +23,8 @@
         gifts    :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/gifts.csv",
         nonsales :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/non_sales_application.csv",
       };
+      const WEBHOOK = "https://hook.us2.make.com/nbjdxrfypgoosj4qqxnzfmj9o29jq3c2";
+      const PIN = "50963212";
 
       /* ----------------------------- CSV helpers ---------------------------- */
       const lines = (csv)=>csv.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -65,22 +67,26 @@
       }
 
       /* -------------------- Stepper (符號按鈕 + 小輸入框) ------------------- */
-      function Stepper({value,min=0,onChange}){
+      function Stepper({value,min=0,onChange,small=false}){
+        const h = small ? "h-[26px]" : "h-[34px]";
+        const btnW = small ? "w-6" : "w-7";
+        const fz = small ? "text-[15px]" : "text-[16px]";
+        const inW = small ? "w-10 text-[12.5px]" : "w-9 text-[13px]";
         return (
-          <div className="inline-flex items-stretch border border-gray-300 rounded h-[34px] overflow-hidden">
+          <div className={`inline-flex items-stretch border border-gray-300 rounded ${h} overflow-hidden`}>
             <button
-              className="px-2 text-[16px] leading-[34px] select-none"
+              className={`${btnW} ${fz} leading-none select-none`}
               onClick={()=>onChange(Math.max(min,(value||0)-1))}
               aria-label="decrement"
             >−</button>
             <input
-              className="w-9 text-center text-[13px] outline-none border-l border-r border-gray-300"
+              className={`${inW} text-center outline-none border-l border-r border-gray-300`}
               value={value}
               onChange={(e)=>{const n=parseInt(e.target.value.replace(/[^0-9]/g,''),10); onChange(Number.isFinite(n)?n:0);}}
               inputMode="numeric"
             />
             <button
-              className="px-2 text-[16px] leading-[34px] select-none"
+              className={`${btnW} ${fz} leading-none select-none`}
               onClick={()=>onChange((value||0)+1)}
               aria-label="increment"
             >+</button>
@@ -105,14 +111,15 @@
         const [GIFTS,setGIFTS]=useState([]);
         const [NONSALES,setNONSALES]=useState([]);
 
-        // 操作類型（移到清單 header 的選擇）
-        const [mode,setMode]=useState("sales"); // 'sales' | 'nonSales'
-
-        // order info（類別值）
-        const [salesCat,setSalesCat]=useState("");     // value="" => 顯示「選擇訂單類別」
-        const [nonSalesCat,setNonSalesCat]=useState(""); // value="" => 顯示「選擇訂單類別」
+        // 訂單模式（僅決定要顯示哪個下拉；與出/入庫無關）
+        const [orderMode,setOrderMode]=useState("sales"); // 'sales' | 'nonSales'
+        const [salesCat,setSalesCat]=useState("");
+        const [nonSalesCat,setNonSalesCat]=useState("");
         const [po,setPo]=useState("");
         const [memo,setMemo]=useState("");
+
+        // 出/入庫操作（決定簽名）
+        const [op,setOp]=useState("out"); // 'out' 出貨(扣) | 'in' 進貨(入)
 
         // selections preview
         const [bundleGroups,setBundleGroups]=useState({}); // {bundleId: count}
@@ -125,6 +132,9 @@
 
         // confirm modal
         const [showConfirm,setShowConfirm]=useState(false);
+
+        // Admin panel
+        const [adminOpen,setAdminOpen]=useState(false);
 
         useEffect(()=>{
           (async ()=>{
@@ -147,7 +157,7 @@
           })();
         },[]);
 
-        /* ---------- dropdown options ---------- */
+        /* ---------- dropdown options for 單品 ---------- */
         const catA = useMemo(()=> [...new Set(PRODUCTS.map(x=>x.A))], [PRODUCTS]);
         const seriesByA = useMemo(()=>{
           const obj={}; catA.forEach(a=>obj[a]=[...new Set(PRODUCTS.filter(p=>p.A===a).map(p=>p.B))]); return obj;
@@ -212,48 +222,115 @@
             });
             return next;
           });
-          // 不清預覽：保留參考
+          // 保留預覽內容（不清空），作為參考
         }
 
-        const opLabel = useMemo(()=> mode==='sales' ? '出貨（扣）' : '進貨（入）', [mode]);
-        const formDateId = useMemo(()=> genDocId(mode==='sales'?(salesCat||''): (nonSalesCat||'')),[mode,salesCat,nonSalesCat]);
-        const hasMismatch = rows.some(r=>(r.picked||0)!==(r.qty||0));
-        const plannedTotal = rows.reduce((s,r)=>s+(r.qty||0),0);
-        const pickedTotal  = rows.reduce((s,r)=>s+(r.picked||0),0);
+        const formDateId = useMemo(()=> {
+          const prefix = (orderMode==='sales' ? (salesCat||"") : (nonSalesCat||""));
+          return genDocId(prefix);
+        },[orderMode,salesCat,nonSalesCat]);
+
+        /* ---------- UI helpers ---------- */
+        const OrderInfo = () => (
+          <section className="rounded border border-gray-200 bg-white shadow-sm mb-4">
+            <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
+              <div className="font-medium text-sm">出貨訂單資訊</div>
+              <div className="text-xs text-gray-600">表單-日期-ID：<span className="font-mono">{formDateId}</span></div>
+            </div>
+            <div className="p-3 space-y-3 text-xs">
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-1">
+                  <input type="radio" name="ordermode" checked={orderMode==='sales'} onChange={()=>setOrderMode('sales')} />
+                  銷售
+                </label>
+                <label className="flex items-center gap-1">
+                  <input type="radio" name="ordermode" checked={orderMode==='nonSales'} onChange={()=>setOrderMode('nonSales')} />
+                  非銷售
+                </label>
+              </div>
+
+              {orderMode==='sales' ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <div>
+                    <div className="text-[11px] text-gray-500 mb-1">客戶分類</div>
+                    <select className="border rounded h-8 px-2 w-full"
+                            value={salesCat}
+                            onChange={e=>setSalesCat(e.target.value)}>
+                      <option value="" disabled>選擇訂單類別</option>
+                      {(CUSTOMERS||[]).map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-gray-500 mb-1">PO 出貨單號</div>
+                    <input className="border rounded h-8 px-2 w-full" placeholder="—" value={po} onChange={e=>setPo(e.target.value)} />
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-gray-500 mb-1">備註</div>
+                    <input className="border rounded h-8 px-2 w-full" placeholder="—" value={memo} onChange={e=>setMemo(e.target.value)} />
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <div>
+                    <div className="text-[11px] text-gray-500 mb-1">非銷售分類</div>
+                    <select className="border rounded h-8 px-2 w-full"
+                            value={nonSalesCat}
+                            onChange={e=>setNonSalesCat(e.target.value)}>
+                      <option value="" disabled>選擇訂單類別</option>
+                      {(NONSALES||[]).map(n=><option key={n.id} value={n.name}>{n.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-gray-500 mb-1">PO 出貨單號</div>
+                    <input className="border rounded h-8 px-2 w-full" placeholder="—" value={po} onChange={e=>setPo(e.target.value)} />
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-gray-500 mb-1">備註</div>
+                    <input className="border rounded h-8 px-2 w-full" placeholder="—" value={memo} onChange={e=>setMemo(e.target.value)} />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={resetAll}>Reset All（重抓 GitHub CSV）</button>
+              </div>
+            </div>
+          </section>
+        );
+
+        function resetAll(){
+          (async ()=>{
+            try{
+              const [p,c,b,g,n]=await Promise.all([
+                fetchCsv(URLS.products), fetchCsv(URLS.customers),
+                fetchCsv(URLS.bundles),  fetchCsv(URLS.gifts),
+                fetchCsv(URLS.nonsales)
+              ]);
+              setPRODUCTS(parseProducts(p));
+              setCUSTOMERS(parsePairs(c));
+              setBUNDLES(parseBundles(b));
+              setGIFTS(parseBundles(g));
+              setNONSALES(parsePairs(n));
+              // clear working states
+              setBundleGroups({}); setGiftChecks({}); setPendingSingles({});
+              setRows([]);
+              setMsg("已重抓 GitHub CSV");
+            }catch(e){
+              console.error(e);
+              setMsg("重抓失敗");
+            }
+          })();
+        }
 
         return (
           <div className="mx-auto max-w-6xl p-4 pb-24">
             <Toast/>
-            <h1 className="text-lg md:text-xl font-semibold mb-4">PM 庫存更新系統（Write4Version）</h1>
+            <h1 className="text-lg md:text-xl font-semibold mb-4">PM 庫存更新系統（Write4Version — Final）</h1>
 
-            {/* 出貨訂單資訊（移除原本的操作類型切換） */}
-            <section className="rounded border border-gray-200 bg-white shadow-sm mb-4">
-              <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
-                <div className="font-medium text-sm">出貨訂單資訊</div>
-                <div className="text-xs text-gray-600">表單-日期-ID：<span className="font-mono">{formDateId}</span></div>
-              </div>
-              <div className="p-3 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
-                {mode==='sales' ? (
-                  <select className="border rounded h-8 px-2"
-                          value={salesCat}
-                          onChange={e=>setSalesCat(e.target.value)}>
-                    <option value="" disabled>選擇訂單類別</option>
-                    {(CUSTOMERS||[]).map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
-                  </select>
-                ) : (
-                  <select className="border rounded h-8 px-2"
-                          value={nonSalesCat}
-                          onChange={e=>setNonSalesCat(e.target.value)}>
-                    <option value="" disabled>選擇訂單類別</option>
-                    {(NONSALES||[]).map(n=><option key={n.id} value={n.name}>{n.name}</option>)}
-                  </select>
-                )}
-                <input className="border rounded h-8 px-2" placeholder="PO 出貨單號" value={po} onChange={e=>setPo(e.target.value)} />
-                <input className="border rounded h-8 px-2 md:col-span-1" placeholder="備註" value={memo} onChange={e=>setMemo(e.target.value)} />
-              </div>
-            </section>
+            {/* 出貨訂單資訊（含 銷售/非銷售 切換 + 下拉） */}
+            <OrderInfo/>
 
-            {/* 產品選擇（保持不變） */}
+            {/* 產品選擇（UI 同你範例；手機兩欄/桌機三欄；單品三下拉有標題） */}
             <ProductPicker
               PRODUCTS={PRODUCTS}
               BUNDLES={BUNDLES}
@@ -264,8 +341,13 @@
               setPendingSingles={setPendingSingles}
               giftChecks={giftChecks}
               setGiftChecks={setGiftChecks}
-              />
-            {/* 預覽 */}
+              catA={catA} seriesByA={seriesByA} prodsByAB={prodsByAB}
+              selA={selA} setSelA={setSelA} selB={selB} setSelB={setSelB}
+              selPid={selPid} setSelPid={setSelPid}
+              singleQty={singleQty} setSingleQty={setSingleQty}
+            />
+
+            {/* 預覽（可收合） */}
             <Preview
               previewBundles={previewBundles}
               previewSingles={previewSingles}
@@ -274,7 +356,6 @@
               setOpenPreview={setOpenPreview}
               clearPreview={clearPreview}
               confirmPreview={confirmPreview}
-              PRODUCTS={PRODUCTS}
             />
 
             {/* 出貨清單／庫存扣減確認 */}
@@ -283,30 +364,29 @@
                 <div className="flex items-center justify-between mb-2">
                   <h2 className="font-medium text-sm">出貨清單／庫存扣減確認</h2>
 
-                  {/* ✅ 操作類型切換（移到這裡） */}
+                  {/* ✅ 出/入庫 selector（只決定簽名） */}
                   <div className="flex items-center gap-3 text-xs">
                     <label className="flex items-center gap-1">
-                      <input type="radio" name="op" checked={mode==='sales'} onChange={()=>setMode('sales')}/>
+                      <input type="radio" name="op" checked={op==='out'} onChange={()=>setOp('out')}/>
                       出貨（扣）
                     </label>
                     <label className="flex items-center gap-1">
-                      <input type="radio" name="op" checked={mode==='nonSales'} onChange={()=>setMode('nonSales')}/>
+                      <input type="radio" name="op" checked={op==='in'} onChange={()=>setOp('in')}/>
                       進貨（入）
                     </label>
                   </div>
                 </div>
 
-                {/* header 卡：值加粗 */}
+                {/* header 卡：與訂單資訊一致層級 */}
                 <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
-                    <div><div className="text-[11px] text-gray-500">類別</div><div className="text-sm font-semibold">{mode==='sales'?(salesCat||'—'):(nonSalesCat||'—')}</div></div>
+                    <div><div className="text-[11px] text-gray-500">類別</div><div className="text-sm font-semibold">{orderMode==='sales'?(salesCat||'—'):(nonSalesCat||'—')}</div></div>
                     <div><div className="text-[11px] text-gray-500">客戶 PO</div><div className="text-sm font-semibold">{po||'—'}</div></div>
                     <div><div className="text-[11px] text-gray-500">備註</div><div className="text-sm font-semibold">{memo||'—'}</div></div>
                     <div><div className="text-[11px] text-gray-500">表單-日期-ID</div><div className="text-sm font-semibold font-mono">{formDateId}</div></div>
                   </div>
                 </div>
 
-                {/* rows */}
                 <RowsList rows={rows} setRows={setRows} />
 
                 <div className="flex justify-between items-center mt-3 text-sm">
@@ -315,8 +395,20 @@
               </section>
             )}
 
-            {/* sticky action bar & confirm modal */}
-            <Actions rows={rows} setRows={setRows} mode={mode} salesCat={salesCat} nonSalesCat={nonSalesCat} po={po} memo={memo} formDateId={formDateId} />
+            {/* sticky actions + confirm modal + webhook POST */}
+            <Actions
+              rows={rows} setRows={setRows}
+              op={op}
+              orderMode={orderMode} salesCat={salesCat} nonSalesCat={nonSalesCat}
+              po={po} memo={memo} formDateId={formDateId}
+            />
+
+            {/* 系統用：PIN 開啟；手貼 CSV 覆蓋（預設關閉） */}
+            <AdminPanel
+              adminOpen={adminOpen} setAdminOpen={setAdminOpen}
+              setPRODUCTS={setPRODUCTS} setCUSTOMERS={setCUSTOMERS} setBUNDLES={setBUNDLES} setGIFTS={setGIFTS} setNONSALES={setNONSALES}
+              setBundleGroups={setBundleGroups} setGiftChecks={setGiftChecks} setPendingSingles={setPendingSingles} setRows={setRows}
+            />
           </div>
         );
       }
@@ -324,30 +416,28 @@
       /* -------------------------- Subcomponents -------------------------- */
 
       function ProductPicker(props){
-        const {PRODUCTS,BUNDLES,GIFTS,bundleGroups,setBundleGroups,pendingSingles,setPendingSingles,giftChecks,setGiftChecks}=props;
+        const {
+          PRODUCTS,BUNDLES,GIFTS,
+          bundleGroups,setBundleGroups,
+          pendingSingles,setPendingSingles,
+          giftChecks,setGiftChecks,
+          catA,seriesByA,prodsByAB,
+          selA,setSelA,selB,setSelB,selPid,setSelPid,
+          singleQty,setSingleQty
+        } = props;
 
-        const catA = useMemo(()=> [...new Set(PRODUCTS.map(x=>x.A))], [PRODUCTS]);
-        const seriesByA = useMemo(()=>{
-          const obj={}; catA.forEach(a=>obj[a]=[...new Set(PRODUCTS.filter(p=>p.A===a).map(p=>p.B))]); return obj;
-        },[catA,PRODUCTS]);
-        const prodsByAB = useMemo(()=>{
-          const obj={}; PRODUCTS.forEach(p=>{ const k=`${p.A}__${p.B}`; (obj[k] ||= []).push(p);}); return obj;
-        },[PRODUCTS]);
-
-        const [selA,setSelA]=useState(""); const [selB,setSelB]=useState(""); const [selPid,setSelPid]=useState(""); const [singleQty,setSingleQty]=useState(1);
-        useEffect(()=>{
-          if(!PRODUCTS.length) return;
-          const a0=catA[0]||""; const b0=(seriesByA[a0]||[])[0]||"";
-          setSelA(a0); setSelB(b0);
-          const first=(prodsByAB[`${a0}__${b0}`]||[])[0];
-          setSelPid(first?first.id:"");
-        },[PRODUCTS]);
+        // 當 A/B 改變時，重置下游選擇
+        useEffect(()=>{ const b0=(seriesByA[selA]||[])[0]||""; setSelB(b0); },[selA]);
+        useEffect(()=>{ const first=(prodsByAB[`${selA}__${selB}`]||[])[0]; setSelPid(first?first.id:""); },[selB,selA,prodsByAB]);
 
         return (
-          <section className="rounded border border-gray-300 bg-gray-50 p-4">
-            <h2 className="text-sm font-medium mb-3">產品選擇</h2>
+          <section className="rounded border border-gray-200 bg-white shadow-sm p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-medium text-sm">產品選擇</h2>
+              <div className="text-xs text-gray-500">套組 / 單品 / 禮遇 → 先加入預覽</div>
+            </div>
 
-            {/* 套組：手機兩欄；手機時標題獨占第一行，Stepper 置右換行；桌機同列 */}
+            {/* 套組：手機兩欄；桌機三欄；標題可 2 行；Stepper 置右且精簡 */}
             <div className="mb-4">
               <h3 className="text-xs font-semibold mb-2">套組</h3>
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
@@ -360,7 +450,9 @@
                         title={b.name}
                       >{b.name}</span>
                       <div className="md:self-auto self-end md:mt-0 mt-1 flex justify-end">
-                        <Stepper value={bundleGroups[b.id]||0} onChange={v=>setBundleGroups(s=>({...s,[b.id]:v}))}/>
+                        <Stepper value={bundleGroups[b.id]||0}
+                                 onChange={v=>setBundleGroups(s=>({...s,[b.id]:v}))}
+                                 small/>
                       </div>
                     </div>
                   </div>
@@ -369,34 +461,48 @@
               </div>
             </div>
 
-            {/* 單品 */}
+            {/* 單品（3 個下拉有標題；切換 A/B 會重置下游；加入數量 Stepper 靠右） */}
             <div className="mb-4">
               <h3 className="text-xs font-semibold mb-2">單品</h3>
               <div className="grid md:grid-cols-6 gap-2 items-center bg-white p-2 rounded border">
-                <select className="border rounded h-8 px-2 text-xs" value={selA} onChange={e=>setSelA(e.target.value)}>
-                  {catA.map(a=><option key={a}>{a}</option>)}
-                </select>
-                <select className="border rounded h-8 px-2 text-xs" value={selB} onChange={e=>setSelB(e.target.value)}>
-                  {(seriesByA[selA]||[]).map(b=><option key={b}>{b}</option>)}
-                </select>
-                <select className="md:col-span-3 border rounded h-8 px-2 text-xs" value={selPid} onChange={e=>setSelPid(e.target.value)}>
-                  {((prodsByAB[`${selA}__${selB}`])||[]).map(p=><option key={p.id} value={p.id}>{p.C}</option>)}
-                </select>
-                <div className="flex items-center gap-1 justify-self-end">
-                  <Stepper value={singleQty} min={1} onChange={setSingleQty}/>
-                  <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=> selPid && setPendingSingles(prev=>({...prev,[selPid]:(prev[selPid]||0)+singleQty}))}>加</button>
+                <div>
+                  <div className="text-[11px] text-gray-500 mb-1">商品類別（A）</div>
+                  <select className="border rounded h-8 px-2 text-xs w-full" value={selA} onChange={e=>setSelA(e.target.value)}>
+                    {catA.map(a=><option key={a}>{a}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <div className="text-[11px] text-gray-500 mb-1">系列名稱（B）</div>
+                  <select className="border rounded h-8 px-2 text-xs w-full" value={selB} onChange={e=>setSelB(e.target.value)}>
+                    {(seriesByA[selA]||[]).map(b=><option key={b}>{b}</option>)}
+                  </select>
+                </div>
+                <div className="md:col-span-3">
+                  <div className="text-[11px] text-gray-500 mb-1">產品名稱（C / 唯一 ID）</div>
+                  <select className="border rounded h-8 px-2 text-xs w-full" value={selPid} onChange={e=>setSelPid(e.target.value)}>
+                    {((prodsByAB[`${selA}__${selB}`])||[]).map(p=><option key={p.id} value={p.id}>{p.C}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-end justify-end gap-1">
+                  <Stepper value={singleQty} min={1} onChange={setSingleQty} />
+                  <button
+                    className="h-8 px-3 border border-gray-300 rounded text-xs"
+                    onClick={()=> selPid && setPendingSingles(prev=>({...prev,[selPid]:(prev[selPid]||0)+singleQty}))}
+                  >加</button>
                 </div>
               </div>
             </div>
 
-            {/* 禮遇 */}
+            {/* 禮遇：手機兩欄；桌機三欄；checkbox + 兩行標題 */}
             <div>
               <h3 className="text-xs font-semibold mb-2">禮遇</h3>
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
                 {(GIFTS||[]).map(g=>(
                   <label key={g.id} className="flex items-center gap-2 rounded border border-gray-200 bg-white p-2 cursor-pointer">
                     <input type="checkbox" checked={!!giftChecks[g.id]} onChange={e=>setGiftChecks(s=>({...s,[g.id]:e.target.checked}))}/>
-                    <span className="text-xs leading-snug" style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}} title={g.name}>{g.name}</span>
+                    <span className="text-xs leading-snug"
+                          style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}
+                          title={g.name}>{g.name}</span>
                   </label>
                 ))}
                 {(GIFTS||[]).length===0 && <div className="text-[11px] text-gray-400">（尚無禮遇）</div>}
@@ -423,7 +529,7 @@
                           <li key={b.id} className="border-b border-dashed border-gray-200 pb-1">
                             <div className="font-medium mb-1">{b.title}</div>
                             <ul className="ml-3 list-disc text-[11px] text-gray-600">
-                              {b.details.map((d,i)=><li key={i}>{d.name} × {d.qty}</li>)}
+                              {b.details.map((d,i)=><li key={i} title={d.name}>{d.name} × {d.qty}</li>)}
                             </ul>
                           </li>
                         ))}
@@ -435,7 +541,7 @@
                       <ul className="space-y-2 text-xs">
                         {previewSingles.map(s=>(
                           <li key={s.productId} className="flex items-center justify-between gap-2">
-                            <div className="text-[11px] leading-snug whitespace-normal break-words">{s.name}</div>
+                            <div className="text-[11px] leading-snug whitespace-normal break-words" title={s.name}>{s.name}</div>
                             <div className="flex items-center gap-2">
                               <span className="text-xs">× {s.qty}</span>
                             </div>
@@ -451,7 +557,7 @@
                           <li key={g.id} className="border-b border-dashed border-gray-200 pb-1">
                             <div className="font-medium mb-1">{g.title}</div>
                             <ul className="ml-3 list-disc text-[11px] text-gray-600">
-                              {g.details.map((d,i)=><li key={i}>{d.name} × {d.qty}</li>)}
+                              {g.details.map((d,i)=><li key={i} title={d.name}>{d.name} × {d.qty}</li>)}
                             </ul>
                           </li>
                         ))}
@@ -496,7 +602,7 @@
                     </div>
                     <div className="hidden md:flex md:col-span-2 justify-end">
                       <span className="text-xs text-gray-500 mr-2">預計</span>
-                      <Stepper value={r.qty} min={0} onChange={v=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,qty:v}:x))}/>
+                      <Stepper value={r.qty} min={0} onChange={v=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,qty:v}:x))} small/>
                     </div>
                     <div className="hidden md:flex md:col-span-1 justify-end">
                       <button className="h-7 w-7 border border-gray-300 rounded text-sm text-gray-600" onClick={()=>setRows(prev=>prev.filter(x=>x.id!==r.id))}>×</button>
@@ -521,12 +627,28 @@
 
       function Totals({rows}){ const v=rows.reduce((s,r)=>s+(r.picked||0),0); const eq=v===rows.reduce((s,r)=>s+r.qty,0); return <span className={eq?'':'text-red-600 font-medium'}>{v}</span> }
 
-      function Actions({rows,setRows,mode,salesCat,nonSalesCat,po,memo,formDateId}){
+      function Actions({rows,setRows,op,orderMode,salesCat,nonSalesCat,po,memo,formDateId}){
         const hasMismatch = rows.some(r=>(r.picked||0)!==(r.qty||0));
-        const opLabel = mode==='sales' ? '出貨（扣）' : '進貨（入）';
+        const opLabel = op==='out' ? '出貨（扣）' : '進貨（入）';
         const plannedTotal = rows.reduce((s,r)=>s+(r.qty||0),0);
         const pickedTotal  = rows.reduce((s,r)=>s+(r.picked||0),0);
         const [showConfirm,setShowConfirm]=useState(false);
+
+        async function postWebhook(){
+          const sign = op==='out' ? -1 : +1;
+          const category = (orderMode==='sales'?salesCat:nonSalesCat) || "";
+          const payload = {
+            category,
+            po: po || "",
+            memo: memo || "",
+            formDateId,
+            items: rows
+              .filter(r=>(r.picked||0)>0)
+              .map(r=>({ productId:r.productId, delta: (r.picked||0)*sign }))
+          };
+          const res = await fetch(WEBHOOK,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+          if(!res.ok) throw new Error("HTTP "+res.status);
+        }
 
         return (
           <>
@@ -542,22 +664,27 @@
               </div>
             )}
 
-            {/* 確認對話框 */}
+            {/* 確認對話框（含訂單 header） */}
             {showConfirm && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
                 <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
                   <div className="px-4 py-3 border-b">
                     <div className="text-sm font-semibold">送出前確認</div>
                     <div className="mt-1 text-xs text-gray-600">操作類型：{opLabel}</div>
+                    <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                      <div><span className="text-gray-500">類別：</span><span className="font-semibold">{orderMode==='sales'?(salesCat||'—'):(nonSalesCat||'—')}</span></div>
+                      <div><span className="text-gray-500">客戶 PO：</span><span className="font-semibold">{po||'—'}</span></div>
+                      <div><span className="text-gray-500">備註：</span><span className="font-semibold">{memo||'—'}</span></div>
+                      <div><span className="text-gray-500">表單-日期-ID：</span><span className="font-semibold font-mono">{formDateId}</span></div>
+                    </div>
                   </div>
                   <div className="p-4 max-h-[60vh] overflow-auto">
                     <div className="text-xs mb-2">
-                      項：{rows.length}　預計：{plannedTotal}　點交：
-                      <span className={hasMismatch?'text-red-600 font-semibold':''}>{pickedTotal}</span>
+                      項：{rows.length}　預計：{plannedTotal}　點交：<span className={hasMismatch?'text-red-600 font-semibold':''}>{pickedTotal}</span>
                     </div>
                     {hasMismatch && <div className="mb-2 text-xs text-red-600">點交量與預計不一致，請先調整至一致才能送出。</div>}
                     <ul className="space-y-2 text-xs">
-                      {rows.map(r=>(
+                      {rows.map(r=>( // 按你的需求：這裡不顯示 stepper，只顯示預計/點交總覽
                         <li key={r.id} className="rounded border border-gray-200 p-2">
                           <div className="font-medium">{r.name}</div>
                           <div className="mt-1 text-[11px] text-gray-600">預計：{r.qty}　|　點交：{r.picked}</div>
@@ -569,21 +696,93 @@
                     <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>setShowConfirm(false)}>取消</button>
                     <button className="h-8 px-3 border border-gray-300 rounded text-xs disabled:opacity-50"
                             disabled={hasMismatch}
-                            onClick={()=>{
-                              const payload={
-                                op:opLabel, category: mode==='sales'?salesCat:nonSalesCat,
-                                po, memo, formDateId,
-                                items: rows.map(r=>({productId:r.productId,name:r.name,qty:r.qty,picked:r.picked}))
-                              };
-                              console.log("POST payload (mock):", payload);
-                              setShowConfirm(false);
-                              alert("已提交（模擬），請查看 console。");
+                            onClick={async ()=>{
+                              try{
+                                await postWebhook();
+                                setShowConfirm(false);
+                                alert("已提交成功");
+                              }catch(e){
+                                console.error(e);
+                                alert("提交失敗，請稍後重試");
+                              }
                             }}>確認送出</button>
                   </div>
                 </div>
               </div>
             )}
           </>
+        );
+      }
+
+      function AdminPanel({adminOpen,setAdminOpen,setPRODUCTS,setCUSTOMERS,setBUNDLES,setGIFTS,setNONSALES,setBundleGroups,setGiftChecks,setPendingSingles,setRows}){
+        const [csvProducts,setCsvProducts]=useState("");
+        const [csvCustomers,setCsvCustomers]=useState("");
+        const [csvBundles,setCsvBundles]=useState("");
+        const [csvGifts,setCsvGifts]=useState("");
+        const [csvNonsales,setCsvNonsales]=useState("");
+
+        function tryPin(){
+          const pin=prompt("請輸入管理員 PIN：");
+          if(pin===PIN){ setAdminOpen(true); }
+          else if(pin!==null){ alert("PIN 錯誤"); }
+        }
+
+        return (
+          <section className="mt-6 rounded border border-gray-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
+              <div className="font-medium text-sm">匯入資料（系統用）</div>
+              <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>adminOpen?setAdminOpen(false):tryPin()}>
+                {adminOpen? "隱藏面板 ▴" : "管理登入 ▾"}
+              </button>
+            </div>
+            {adminOpen && (
+              <div className="p-4">
+                <div className="text-xs text-gray-500 mb-2">貼上 CSV 後按「載入」，會清空並覆蓋該資料集並即時重建 UI。</div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-[11px] text-gray-500 mb-1">商品 CSV（A,B,C）</div>
+                    <textarea className="w-full h-28 border rounded p-2 text-xs font-mono" value={csvProducts} onChange={e=>setCsvProducts(e.target.value)} placeholder="正品(大),金萃油,仙人掌籽超能量金萃油 15ml (2027/07/30)"></textarea>
+                    <button className="mt-2 h-8 px-3 border border-gray-300 rounded text-xs"
+                      onClick={()=>{ const list=parseProducts(csvProducts||""); if(!list.length) return alert("未解析到商品資料"); setPRODUCTS(list); setBundleGroups({}); setGiftChecks({}); setPendingSingles({}); setRows([]); alert(`商品 ${list.length} 筆已覆蓋`); }}>
+                      載入商品
+                    </button>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-gray-500 mb-1">客戶 CSV（id,name）</div>
+                    <textarea className="w-full h-28 border rounded p-2 text-xs font-mono" value={csvCustomers} onChange={e=>setCsvCustomers(e.target.value)} placeholder="C001,官網"></textarea>
+                    <button className="mt-2 h-8 px-3 border border-gray-300 rounded text-xs"
+                      onClick={()=>{ const list=parsePairs(csvCustomers||""); if(!list.length) return alert("未解析到客戶資料"); setCUSTOMERS(list); alert(`客戶 ${list.length} 筆已覆蓋`); }}>
+                      載入客戶
+                    </button>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-gray-500 mb-1">套組 CSV（bundle_id,bundle_name,product_id,qty,active）</div>
+                    <textarea className="w-full h-28 border rounded p-2 text-xs font-mono" value={csvBundles} onChange={e=>setCsvBundles(e.target.value)} placeholder="bundleX,夏日組,仙人掌籽超能量金萃油 15ml (2027/07/30),2,1"></textarea>
+                    <button className="mt-2 h-8 px-3 border border-gray-300 rounded text-xs"
+                      onClick={()=>{ const list=parseBundles(csvBundles||""); if(!list.length) return alert("未解析到套組資料"); setBUNDLES(list); setBundleGroups({}); alert(`套組 ${list.length} 筆已覆蓋`); }}>
+                      載入套組
+                    </button>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-gray-500 mb-1">禮遇 CSV（bundle_id,bundle_name,product_id,qty,active）</div>
+                    <textarea className="w-full h-28 border rounded p-2 text-xs font-mono" value={csvGifts} onChange={e=>setCsvGifts(e.target.value)} placeholder="giftA,消費禮,完美極萃面膜 鎖水能量(單片) (2028/08/12),1,1"></textarea>
+                    <button className="mt-2 h-8 px-3 border border-gray-300 rounded text-xs"
+                      onClick={()=>{ const list=parseBundles(csvGifts||""); if(!list.length) return alert("未解析到禮遇資料"); setGIFTS(list); setGiftChecks({}); alert(`禮遇 ${list.length} 筆已覆蓋`); }}>
+                      載入禮遇
+                    </button>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-gray-500 mb-1">非銷售 CSV（id,name）</div>
+                    <textarea className="w-full h-28 border rounded p-2 text-xs font-mono" value={csvNonsales} onChange={e=>setCsvNonsales(e.target.value)} placeholder="INV,盤點"></textarea>
+                    <button className="mt-2 h-8 px-3 border border-gray-300 rounded text-xs"
+                      onClick={()=>{ const list=parsePairs(csvNonsales||""); if(!list.length) return alert("未解析到非銷售資料"); setNONSALES(list); alert(`非銷售 ${list.length} 筆已覆蓋`); }}>
+                      載入非銷售
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
         );
       }
 
