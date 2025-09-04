@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>鉑翡斯 台北倉庫存更新系統 — Final (with Confirm Modal)</title>
+    <title>鉑翡斯 台北倉庫存更新系統 — Final</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -15,14 +15,14 @@
     <script type="text/babel">
       const {useState,useEffect,useMemo} = React;
 
-      /* -------------------- GitHub RAW URLs (hard-coded) -------------------- */
+      /* -------------------- GitHub RAW URLs -------------------- */
       const URLS = {
         products   : "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/products.csv",
         customers  : "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/customers.csv",
         bundles    : "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/bundle_items.csv",
         gifts      : "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/gifts.csv",
         nonsales   : "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/non_sales_application.csv",
-        packaging  : "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/packaging.csv", // 新增：包材
+        packaging  : "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/packaging.csv",
       };
 
       /* ----------------------------- CSV helpers ---------------------------- */
@@ -76,26 +76,16 @@
         return {setMsg,Toast};
       }
 
-      /* -------------------- Stepper (符號按鈕 + 小輸入框) ------------------- */
+      /* -------------------- Stepper ------------------- */
       function Stepper({value,min=0,onChange,small=false}){
         const h = small ? 30 : 34;
         const t = small ? 12 : 13;
         return (
-          <div className="inline-flex items-stretch border border-gray-300 rounded overflow-hidden"
-               style={{height:`${h}px`}}>
-            <button className="px-2 text-[16px] leading-none select-none"
-              onClick={()=>onChange(Math.max(min,(value||0)-1))}
-              aria-label="decrement">−</button>
-            <input
-              className="w-9 text-center outline-none border-l border-r border-gray-300"
-              style={{fontSize:`${t}px`}}
-              value={value}
-              onChange={(e)=>{const n=parseInt(e.target.value.replace(/[^0-9]/g,''),10); onChange(Number.isFinite(n)?n:0);}}
-              inputMode="numeric"
-            />
-            <button className="px-2 text-[16px] leading-none select-none"
-              onClick={()=>onChange((value||0)+1)}
-              aria-label="increment">+</button>
+          <div className="inline-flex items-stretch border border-gray-300 rounded overflow-hidden" style={{height:`${h}px`}}>
+            <button className="px-2 text-[16px] leading-none select-none" onClick={()=>onChange(Math.max(min,(value||0)-1))} aria-label="decrement">−</button>
+            <input className="w-9 text-center outline-none border-l border-r border-gray-300" style={{fontSize:`${t}px`}}
+                   value={value} onChange={(e)=>{const n=parseInt(e.target.value.replace(/[^0-9]/g,''),10); onChange(Number.isFinite(n)?n:0);}} inputMode="numeric" />
+            <button className="px-2 text-[16px] leading-none select-none" onClick={()=>onChange((value||0)+1)} aria-label="increment">+</button>
           </div>
         );
       }
@@ -116,21 +106,21 @@
         const [BUNDLES,setBUNDLES]=useState([]);
         const [GIFTS,setGIFTS]=useState([]);
         const [NONSALES,setNONSALES]=useState([]);
-        const [PACKAGING,setPACKAGING]=useState([]); // 新增：包材
+        const [PACKAGING,setPACKAGING]=useState([]);
 
-        // 上方「銷售／非銷售」只決定 category 與表單 ID（不影響預覽可見性）
+        // header state
         const [mode,setMode]=useState("sales"); // 'sales' | 'nonSales'
         const [salesCat,setSalesCat]=useState("");
         const [nonSalesCat,setNonSalesCat]=useState("");
         const [po,setPo]=useState("");
         const [memo,setMemo]=useState("");
 
-        // 下方「出貨／進貨」只決定 delta 正負號（與上方脫鉤）
-        const [op,setOp]=useState("ship"); // 'ship'(扣) | 'receive'(入)
+        // operation (plus/minus)
+        const [op,setOp]=useState("ship"); // 'ship' | 'receive'
 
         // selections preview
         const [bundleGroups,setBundleGroups]=useState({});
-        const [packGroups,setPackGroups]=useState({});     // 包材
+        const [packGroups,setPackGroups]=useState({});
         const [giftChecks,setGiftChecks]=useState({});
         const [pendingSingles,setPendingSingles]=useState({});
         const [openPreview,setOpenPreview]=useState(false);
@@ -138,16 +128,16 @@
         // final rows
         const [rows,setRows]=useState([]);
 
-        // 系統用面板
+        // system panel
         const [sysOpen,setSysOpen]=useState(false);
         const [pinOK,setPinOK]=useState(false);
 
-        // 自動載入 GitHub
+        // load all CSV
         async function loadFromGitHub(){
           const [p,c,b,g,n,pk] = await Promise.all([
             fetchCsv(URLS.products),   fetchCsv(URLS.customers),
             fetchCsv(URLS.bundles),    fetchCsv(URLS.gifts),
-            fetchCsv(URLS.nonsales),   tryFetchCsv(URLS.packaging) // 包材可能不存在時不報錯
+            fetchCsv(URLS.nonsales),   tryFetchCsv(URLS.packaging)
           ]);
           setPRODUCTS(parseProducts(p));
           setCUSTOMERS(parsePairs(c));
@@ -156,11 +146,11 @@
           setNONSALES(parsePairs(n));
           setPACKAGING(pk ? parseBundles(pk) : []);
 
-          // 重置選擇與清單
+          // reset selections & rows
           setBundleGroups({}); setPackGroups({}); setGiftChecks({}); setPendingSingles({});
           setRows([]);
 
-          setSalesCat(""); setNonSalesCat("");
+          setSalesCat(""); setNonSalesCat(""); setPo(""); setMemo("");
           setMsg("已自動載入 GitHub CSV 並重置。");
         }
         useEffect(()=>{ loadFromGitHub().catch(()=>setMsg("載入失敗，請檢查 RAW URL")); },[]);
@@ -253,7 +243,13 @@
         return (
           <div className="mx-auto max-w-6xl p-4 pb-28">
             <Toast/>
-            <h1 className="text-xl font-semibold mb-4">PM 庫存更新系統</h1>
+
+            {/* 頁首 + Reset All */}
+            <div className="mb-4 flex items-center justify-between">
+              <h1 className="text-xl font-semibold">PM 庫存更新系統</h1>
+              <button className="h-9 px-3 border border-gray-300 rounded text-xs"
+                      onClick={loadFromGitHub}>Reset All（重抓 GitHub，並清空選擇）</button>
+            </div>
 
             {/* 出貨訂單資訊 */}
             <section className="rounded border border-gray-200 bg-white shadow-sm mb-5">
@@ -298,7 +294,7 @@
               </div>
             </section>
 
-            {/* 產品選擇（順序：套組 → 單品 → 禮遇 → 包材） */}
+            {/* 產品選擇（順序：套組 → 單品 → 禮遇 → 包材；非銷售時隱藏 套組+禮遇） */}
             <section className="rounded border border-gray-200 bg-white shadow-sm mb-5">
               <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
                 <div className="font-medium">產品選擇</div>
@@ -306,28 +302,30 @@
               </div>
 
               <div className="p-4 space-y-6">
-                {/* 套組 */}
-                <div>
-                  <div className="text-sm font-semibold mb-2">套組</div>
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                    {BUNDLES.map(b=>(
-                      <div key={b.id} className="rounded border border-gray-200 p-2 bg-white">
-                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-2">
-                          <span className="text-[13px] leading-snug md:flex-1"
-                                title={b.name}
-                                style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}
-                          >{b.name}</span>
-                          <div className="md:self-auto self-end md:mt-0 mt-1 flex justify-end">
-                            <Stepper small value={bundleGroups[b.id]||0} onChange={v=>setBundleGroups(s=>({...s,[b.id]:v}))}/>
+                {/* 套組（非銷售隱藏） */}
+                {mode==='sales' && (
+                  <div>
+                    <div className="text-sm font-semibold mb-2">套組</div>
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                      {BUNDLES.map(b=>(
+                        <div key={b.id} className="rounded border border-gray-200 p-2 bg-white">
+                          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-2">
+                            <span className="text-[13px] leading-snug md:flex-1"
+                                  title={b.name}
+                                  style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}
+                            >{b.name}</span>
+                            <div className="md:self-auto self-end md:mt-0 mt-1 flex justify-end">
+                              <Stepper small value={bundleGroups[b.id]||0} onChange={v=>setBundleGroups(s=>({...s,[b.id]:v}))}/>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                    {BUNDLES.length===0 && <div className="text-xs text-gray-400">（尚無套組）</div>}
+                      ))}
+                      {BUNDLES.length===0 && <div className="text-xs text-gray-400">（尚無套組）</div>}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                {/* 單品 */}
+                {/* 單品（一直顯示） */}
                 <div>
                   <div className="text-sm font-semibold mb-2">單品</div>
                   <div className="rounded border bg-gray-50 p-3 space-y-2">
@@ -373,23 +371,25 @@
                   </div>
                 </div>
 
-                {/* 禮遇 */}
-                <div>
-                  <div className="text-sm font-semibold mb-2">禮遇</div>
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                    {GIFTS.map(g=>(
-                      <label key={g.id} className="flex items-center gap-2 rounded border border-gray-200 bg-white p-2 cursor-pointer">
-                        <input type="checkbox" checked={!!giftChecks[g.id]} onChange={e=>setGiftChecks(s=>({...s,[g.id]:e.target.checked}))}/>
-                        <span className="text-xs leading-snug"
-                              style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}
-                              title={g.name}>{g.name}</span>
-                      </label>
-                    ))}
-                    {GIFTS.length===0 && <div className="text-xs text-gray-400">（尚無禮遇）</div>}
+                {/* 禮遇（非銷售隱藏） */}
+                {mode==='sales' && (
+                  <div>
+                    <div className="text-sm font-semibold mb-2">禮遇</div>
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                      {GIFTS.map(g=>(
+                        <label key={g.id} className="flex items-center gap-2 rounded border border-gray-200 bg-white p-2 cursor-pointer">
+                          <input type="checkbox" checked={!!giftChecks[g.id]} onChange={e=>setGiftChecks(s=>({...s,[g.id]:e.target.checked}))}/>
+                          <span className="text-xs leading-snug"
+                                style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}
+                                title={g.name}>{g.name}</span>
+                        </label>
+                      ))}
+                      {GIFTS.length===0 && <div className="text-xs text-gray-400">（尚無禮遇）</div>}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                {/* 包材 */}
+                {/* 包材（一直顯示） */}
                 <div>
                   <div className="text-sm font-semibold mb-2">基礎包材內容</div>
                   <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
@@ -423,7 +423,6 @@
                 <div className="p-4">
                   {/* 2 cards per row on desktop; order: 套組 | 單品 | 禮遇 | 包材 */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {/* 1. 套組 */}
                     <Card title="套組">
                       {previewBundles.length===0 ? <Empty/> : (
                         <ul className="space-y-2 text-xs">
@@ -439,13 +438,11 @@
                       )}
                     </Card>
 
-                    {/* 2. 單品 */}
                     <Card title="單品">
                       {previewSingles.length===0 ? <Empty/> : (
                         <ul className="space-y-2 text-xs">
                           {previewSingles.map(s=>(
-                            <li key={s.productId}
-                                className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-1 items-start">
+                            <li key={s.productId} className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-1 items-start">
                               <div className="text-[11px] leading-snug break-words">{s.name}</div>
                               <div className="md:justify-self-end">
                                 <Stepper small value={s.qty} min={0}
@@ -461,7 +458,6 @@
                       )}
                     </Card>
 
-                    {/* 3. 禮遇 */}
                     <Card title="禮遇">
                       {previewGifts.length===0 ? <Empty/> : (
                         <ul className="space-y-2 text-xs">
@@ -477,7 +473,6 @@
                       )}
                     </Card>
 
-                    {/* 4. 包材 */}
                     <Card title="包材">
                       {previewPacks.length===0 ? <Empty/> : (
                         <ul className="space-y-2 text-xs">
@@ -508,7 +503,7 @@
                 <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
                   <div className="font-medium">出貨清單／庫存扣減確認</div>
 
-                  {/* 脫鉤的操作類型（只決定 delta 符號） */}
+                  {/* 操作類型（只決定 delta 符號） */}
                   <div className="flex items-center gap-4 text-xs">
                     <label className="flex items-center gap-1">
                       <input type="radio" name="op" checked={op==='ship'} onChange={()=>setOp('ship')}/>
@@ -521,7 +516,6 @@
                   </div>
                 </div>
 
-                {/* header 卡：值加粗 */}
                 <div className="p-3">
                   <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
@@ -593,7 +587,6 @@
       );}
       function Empty(){ return <div className="text-xs text-gray-400">（無）</div>; }
 
-      // Rows：手機兩行（第一行名稱、第二行一整組控制）
       function RowsList({rows,setRows}){
         return (
           <ul className="space-y-2">
@@ -602,12 +595,8 @@
               return (
                 <li key={r.id} className={`rounded-md border ${mismatch?'border-red-300 bg-red-50/40':'border-gray-200 bg-white'}`}>
                   <div className="p-2 sm:p-2.5">
-                    {/* 第一行：名稱（全寬） */}
                     <div className="text-[15px] leading-5 md:text-[13px] break-words">{r.name}</div>
-
-                    {/* 第二行：整組控制 */}
                     <div className="mt-2 grid grid-cols-12 items-center gap-2">
-                      {/* Picked */}
                       <div className="col-span-6 md:col-span-3 flex items-center gap-1">
                         <input className={`w-20 h-9 rounded border px-2 text-right tabular-nums ${mismatch?'border-red-400':'border-gray-300'}`} value={r.picked}
                           onChange={e=>{
@@ -619,14 +608,10 @@
                                   onClick={()=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,picked:x.qty}:x))}>=</button>
                         )}
                       </div>
-
-                      {/* Planned Stepper */}
                       <div className="col-span-5 md:col-span-3 flex items-center justify-start md:justify-end">
                         <span className="mr-2 text-xs text-gray-500 hidden md:inline">預計</span>
                         <Stepper value={r.qty} min={0} small onChange={v=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,qty:v}:x))}/>
                       </div>
-
-                      {/* 刪除 */}
                       <div className="col-span-1 md:col-span-1 flex justify-end">
                         <button className="h-9 w-9 border border-gray-300 rounded text-sm text-gray-600"
                                 onClick={()=>setRows(prev=>prev.filter(x=>x.id!==r.id))}>×</button>
@@ -640,7 +625,6 @@
         );
       }
 
-      /* --------------------- Submit with Confirm Modal --------------------- */
       function SubmitButton({rows,op,category,po,memo,formDateId}){
         const [open,setOpen]=useState(false);
         const [posting,setPosting]=useState(false);
@@ -690,7 +674,6 @@
                   </div>
 
                   <div className="p-4 max-h-[65vh] overflow-auto">
-                    {/* Header values */}
                     <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                         <div><span className="text-gray-500">類別：</span><span className="font-semibold">{category||'—'}</span></div>
@@ -700,7 +683,6 @@
                       </div>
                     </div>
 
-                    {/* Items (name + Δ) */}
                     {hasMismatch && (
                       <div className="mb-2 text-xs text-red-600">
                         點交量與預計不一致，請先在清單中校對後再送出。
@@ -729,7 +711,6 @@
         );
       }
 
-      /* ------------------------ 系統用：PIN & Panel ------------------------ */
       function PinGate({onOk}){
         const [pin,setPin]=useState("");
         return (
@@ -754,7 +735,6 @@
               <CsvBox title="套組 CSV（bundle_id,bundle_name,product_id,qty,active）" setter={setBUNDLES} parser={parseBundles}/>
               <CsvBox title="禮遇 CSV（bundle_id,bundle_name,product_id,qty,active）" setter={setGIFTS} parser={parseBundles}/>
               <CsvBox title="非銷售 CSV（id,name）" setter={setNONSALES} parser={parsePairs}/>
-              {/* 新增：包材 CSV */}
               <CsvBox title="包材 CSV（bundle_id,bundle_name,product_id,qty,active）" setter={setPACKAGING} parser={parseBundles}/>
             </div>
 
