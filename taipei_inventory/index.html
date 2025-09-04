@@ -401,14 +401,10 @@
                       {previewSingles.length===0 ? <Empty/> : (
                         <ul className="space-y-2 text-xs">
                           {previewSingles.map(s=>(
-                            <!-- *** MODIFIED ONLY THIS LI LAYOUT *** -->
+                            /* fixed: no HTML comments in JSX; mobile two-rows, desktop same-row */
                             <li key={s.productId}
                                 className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-1 items-start">
-                              <!-- name: always full-width on mobile; wraps cleanly -->
-                              <div className="text-[11px] leading-snug break-words">
-                                {s.name}
-                              </div>
-                              <!-- controls: second row on mobile; right-aligned on md+ -->
+                              <div className="text-[11px] leading-snug break-words">{s.name}</div>
                               <div className="md:justify-self-end">
                                 <Stepper small value={s.qty} min={0}
                                   onChange={(v)=>setPendingSingles(prev=>{
