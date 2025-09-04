@@ -15,6 +15,9 @@
     <script type="text/babel">
       const {useState,useEffect,useMemo} = React;
 
+      /* -------------------- Access code (simple gate) -------------------- */
+      const ACCESS_CODE = "pm2025"; // <— change here when needed
+
       /* -------------------- GitHub RAW URLs -------------------- */
       const URLS = {
         products   : "https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/products.csv",
@@ -96,9 +99,39 @@
         return `${prefix||'待選'}-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
       }
 
+      /* =========================== Access Gate ============================ */
+      function AccessGate({onOk}){
+        const [val,setVal]=useState("");
+        function submit(){
+          if(val.trim()===ACCESS_CODE) onOk();
+          else alert("Access code 錯誤");
+        }
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30">
+            <div className="w-full max-w-sm rounded-lg bg-white p-4 shadow-xl">
+              <div className="text-sm font-semibold mb-2">輸入存取代碼</div>
+              <input
+                className="w-full h-10 border rounded px-3 text-sm"
+                placeholder="Access code"
+                value={val}
+                onChange={(e)=>setVal(e.target.value)}
+                onKeyDown={(e)=>{ if(e.key==='Enter') submit(); }}
+                autoFocus
+              />
+              <div className="mt-3 flex justify-end">
+                <button className="h-9 px-3 border border-gray-300 rounded text-sm" onClick={submit}>進入</button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
       /* ================================ App ================================= */
       function App(){
         const {setMsg,Toast}=useToast();
+
+        // gate
+        const [authOK,setAuthOK]=useState(false);
 
         // data
         const [PRODUCTS,setPRODUCTS]=useState([]);
@@ -115,6 +148,11 @@
         const [po,setPo]=useState("");
         const [memo,setMemo]=useState("");
 
+        // collapsibles
+        const [openOrder,setOpenOrder]=useState(true);
+        const [openProducts,setOpenProducts]=useState(true);
+        const [openPreview,setOpenPreview]=useState(false);
+
         // operation (plus/minus)
         const [op,setOp]=useState("ship"); // 'ship' | 'receive'
 
@@ -123,7 +161,6 @@
         const [packGroups,setPackGroups]=useState({});
         const [giftChecks,setGiftChecks]=useState({});
         const [pendingSingles,setPendingSingles]=useState({});
-        const [openPreview,setOpenPreview]=useState(false);
 
         // final rows
         const [rows,setRows]=useState([]);
@@ -153,7 +190,7 @@
           setSalesCat(""); setNonSalesCat(""); setPo(""); setMemo("");
           setMsg("已自動載入 GitHub CSV 並重置。");
         }
-        useEffect(()=>{ loadFromGitHub().catch(()=>setMsg("載入失敗，請檢查 RAW URL")); },[]);
+        useEffect(()=>{ if(authOK) loadFromGitHub().catch(()=>setMsg("載入失敗，請檢查 RAW URL")); },[authOK]);
 
         /* ---------- dropdown options for 單品 ---------- */
         const catA = useMemo(()=> [...new Set(PRODUCTS.map(x=>x.A))], [PRODUCTS]);
@@ -234,10 +271,15 @@
             });
             return next;
           });
+          // auto-fold
+          setOpenOrder(false);
+          setOpenProducts(false);
           setOpenPreview(false);
         }
 
         const formDateId = useMemo(()=> genDocId(mode==='sales'?(salesCat||''): (nonSalesCat||'')),[mode,salesCat,nonSalesCat]);
+
+        if(!authOK) return <AccessGate onOk={()=>setAuthOK(true)} />;
 
         /* ------------------------------- UI ------------------------------- */
         return (
@@ -251,168 +293,175 @@
                       onClick={loadFromGitHub}>Reset All（重抓 GitHub，並清空選擇）</button>
             </div>
 
-            {/* 出貨訂單資訊 */}
+            {/* 出貨訂單資訊（可收合） */}
             <section className="rounded border border-gray-200 bg-white shadow-sm mb-5">
               <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
                 <div className="font-medium">出貨訂單資訊</div>
-                <div className="text-xs text-gray-600">表單-日期-ID：<span className="font-mono">{formDateId}</span></div>
-              </div>
-
-              <div className="p-3 space-y-3">
-                <div className="flex items-center gap-4 text-sm">
-                  <label className="flex items-center gap-2">
-                    <input type="radio" name="mode" checked={mode==='sales'} onChange={()=>setMode('sales')} />
-                    銷售
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input type="radio" name="mode" checked={mode==='nonSales'} onChange={()=>setMode('nonSales')} />
-                    非銷售
-                  </label>
+                <div className="flex items-center gap-3">
+                  <div className="text-xs text-gray-600">表單-日期-ID：<span className="font-mono">{formDateId}</span></div>
+                  <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>setOpenOrder(o=>!o)}>{openOrder?"收":"展"}</button>
                 </div>
-
-                {mode==='sales' ? (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    <select className="border rounded h-9 px-3 text-sm"
-                      value={salesCat} onChange={e=>setSalesCat(e.target.value)}>
-                      <option value="" disabled>選擇訂單類別</option>
-                      {CUSTOMERS.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
-                    </select>
-                    <input className="border rounded h-9 px-3 text-sm" placeholder="客戶 PO" value={po} onChange={e=>setPo(e.target.value)} />
-                    <input className="border rounded h-9 px-3 text-sm" placeholder="備註" value={memo} onChange={e=>setMemo(e.target.value)} />
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    <select className="border rounded h-9 px-3 text-sm"
-                      value={nonSalesCat} onChange={e=>setNonSalesCat(e.target.value)}>
-                      <option value="" disabled>選擇訂單類別</option>
-                      {NONSALES.map(n=><option key={n.id} value={n.name}>{n.name}</option>)}
-                    </select>
-                    <input className="border rounded h-9 px-3 text-sm" placeholder="客戶 PO" value={po} onChange={e=>setPo(e.target.value)} />
-                    <input className="border rounded h-9 px-3 text-sm" placeholder="備註" value={memo} onChange={e=>setMemo(e.target.value)} />
-                  </div>
-                )}
               </div>
+
+              {openOrder && (
+                <div className="p-3 space-y-3">
+                  <div className="flex items-center gap-4 text-sm">
+                    <label className="flex items-center gap-2">
+                      <input type="radio" name="mode" checked={mode==='sales'} onChange={()=>setMode('sales')} />
+                      銷售
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="radio" name="mode" checked={mode==='nonSales'} onChange={()=>setMode('nonSales')} />
+                      非銷售
+                    </label>
+                  </div>
+
+                  {mode==='sales' ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      <select className="border rounded h-9 px-3 text-sm"
+                        value={salesCat} onChange={e=>setSalesCat(e.target.value)}>
+                        <option value="" disabled>選擇訂單類別</option>
+                        {CUSTOMERS.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
+                      </select>
+                      <input className="border rounded h-9 px-3 text-sm" placeholder="客戶 PO" value={po} onChange={e=>setPo(e.target.value)} />
+                      <input className="border rounded h-9 px-3 text-sm" placeholder="備註" value={memo} onChange={e=>setMemo(e.target.value)} />
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      <select className="border rounded h-9 px-3 text-sm"
+                        value={nonSalesCat} onChange={e=>setNonSalesCat(e.target.value)}>
+                        <option value="" disabled>選擇訂單類別</option>
+                        {NONSALES.map(n=><option key={n.id} value={n.name}>{n.name}</option>)}
+                      </select>
+                      <input className="border rounded h-9 px-3 text-sm" placeholder="客戶 PO" value={po} onChange={e=>setPo(e.target.value)} />
+                      <input className="border rounded h-9 px-3 text-sm" placeholder="備註" value={memo} onChange={e=>setMemo(e.target.value)} />
+                    </div>
+                  )}
+                </div>
+              )}
             </section>
 
-            {/* 產品選擇（順序：套組 → 單品 → 禮遇 → 包材；非銷售時隱藏 套組+禮遇） */}
+            {/* 產品選擇（可收合；順序：套組 → 單品 → 禮遇 → 包材；非銷售時隱藏 套組/禮遇） */}
             <section className="rounded border border-gray-200 bg-white shadow-sm mb-5">
               <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
                 <div className="font-medium">產品選擇</div>
-                <div className="text-xs text-gray-500">套組 / 單品 / 禮遇 / 包材 → 先加入預覽</div>
+                <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>setOpenProducts(o=>!o)}>{openProducts?"收":"展"}</button>
               </div>
 
-              <div className="p-4 space-y-6">
-                {/* 套組（非銷售隱藏） */}
-                {mode==='sales' && (
+              {openProducts && (
+                <div className="p-4 space-y-6">
+                  {/* 套組（非銷售隱藏） */}
+                  {mode==='sales' && (
+                    <div>
+                      <div className="text-sm font-semibold mb-2">套組</div>
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                        {BUNDLES.map(b=>(
+                          <div key={b.id} className="rounded border border-gray-200 p-2 bg-white">
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-2">
+                              <span className="text-[13px] leading-snug md:flex-1"
+                                    title={b.name}
+                                    style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}
+                              >{b.name}</span>
+                              <div className="md:self-auto self-end md:mt-0 mt-1 flex justify-end">
+                                <Stepper small value={bundleGroups[b.id]||0} onChange={v=>setBundleGroups(s=>({...s,[b.id]:v}))}/>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {BUNDLES.length===0 && <div className="text-xs text-gray-400">（尚無套組）</div>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 單品（一直顯示） */}
                   <div>
-                    <div className="text-sm font-semibold mb-2">套組</div>
+                    <div className="text-sm font-semibold mb-2">單品</div>
+                    <div className="rounded border bg-gray-50 p-3 space-y-2">
+                      <div className="grid md:grid-cols-6 gap-2">
+                        <div className="md:col-span-2">
+                          <div className="text-[11px] text-gray-500 mb-1">商品類別（A）</div>
+                          <select className="w-full border rounded h-9 px-2 text-sm"
+                            value={selA}
+                            onChange={e=>{
+                              const v=e.target.value; setSelA(v);
+                              const nb=(seriesByA[v]||[])[0]||""; setSelB(nb);
+                              const first=(prodsByAB[`${v}__${nb}`]||[])[0]; setSelPid(first?first.id:"");
+                            }}>
+                            {catA.map(a=><option key={a}>{a}</option>)}
+                          </select>
+                        </div>
+                        <div className="md:col-span-2">
+                          <div className="text=[11px] text-gray-500 mb-1">系列名稱（B）</div>
+                          <select className="w-full border rounded h-9 px-2 text-sm"
+                            value={selB}
+                            onChange={e=>{
+                              const v=e.target.value; setSelB(v);
+                              const first=(prodsByAB[`${selA}__${v}`]||[])[0]; setSelPid(first?first.id:"");
+                            }}>
+                            {(seriesByA[selA]||[]).map(b=><option key={b}>{b}</option>)}
+                          </select>
+                        </div>
+                        <div className="md:col-span-2">
+                          <div className="text-[11px] text-gray-500 mb-1">產品名稱（C／唯一 ID）</div>
+                          <select className="w-full border rounded h-9 px-2 text-sm"
+                            value={selPid} onChange={e=>setSelPid(e.target.value)}
+                            title="若下拉文字過長將自動截斷，點開可見完整名稱。">
+                            {((prodsByAB[`${selA}__${selB}`])||[]).map(p=><option key={p.id} value={p.id}>{p.C}</option>)}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 justify-end">
+                        <Stepper small value={singleQty} min={1} onChange={setSingleQty}/>
+                        <button className="h-9 px-3 border border-gray-300 rounded text-sm"
+                          onClick={()=> selPid && setPendingSingles(prev=>({...prev,[selPid]:(prev[selPid]||0)+singleQty}))}>加</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 禮遇（非銷售隱藏） */}
+                  {mode==='sales' && (
+                    <div>
+                      <div className="text-sm font-semibold mb-2">禮遇</div>
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                        {GIFTS.map(g=>(
+                          <label key={g.id} className="flex items-center gap-2 rounded border border-gray-200 bg-white p-2 cursor-pointer">
+                            <input type="checkbox" checked={!!giftChecks[g.id]} onChange={e=>setGiftChecks(s=>({...s,[g.id]:e.target.checked}))}/>
+                            <span className="text-xs leading-snug"
+                                  style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}
+                                  title={g.name}>{g.name}</span>
+                          </label>
+                        ))}
+                        {GIFTS.length===0 && <div className="text-xs text-gray-400">（尚無禮遇）</div>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 包材（一直顯示） */}
+                  <div>
+                    <div className="text-sm font-semibold mb-2">基礎包材內容</div>
                     <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                      {BUNDLES.map(b=>(
-                        <div key={b.id} className="rounded border border-gray-200 p-2 bg-white">
+                      {PACKAGING.map(m=>(
+                        <div key={m.id} className="rounded border border-gray-200 p-2 bg-white">
                           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-2">
                             <span className="text-[13px] leading-snug md:flex-1"
-                                  title={b.name}
+                                  title={m.name}
                                   style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}
-                            >{b.name}</span>
+                            >{m.name}</span>
                             <div className="md:self-auto self-end md:mt-0 mt-1 flex justify-end">
-                              <Stepper small value={bundleGroups[b.id]||0} onChange={v=>setBundleGroups(s=>({...s,[b.id]:v}))}/>
+                              <Stepper small value={packGroups[m.id]||0} onChange={v=>setPackGroups(s=>({...s,[m.id]:v}))}/>
                             </div>
                           </div>
                         </div>
                       ))}
-                      {BUNDLES.length===0 && <div className="text-xs text-gray-400">（尚無套組）</div>}
-                    </div>
-                  </div>
-                )}
-
-                {/* 單品（一直顯示） */}
-                <div>
-                  <div className="text-sm font-semibold mb-2">單品</div>
-                  <div className="rounded border bg-gray-50 p-3 space-y-2">
-                    <div className="grid md:grid-cols-6 gap-2">
-                      <div className="md:col-span-2">
-                        <div className="text-[11px] text-gray-500 mb-1">商品類別（A）</div>
-                        <select className="w-full border rounded h-9 px-2 text-sm"
-                          value={selA}
-                          onChange={e=>{
-                            const v=e.target.value; setSelA(v);
-                            const nb=(seriesByA[v]||[])[0]||""; setSelB(nb);
-                            const first=(prodsByAB[`${v}__${nb}`]||[])[0]; setSelPid(first?first.id:"");
-                          }}>
-                          {catA.map(a=><option key={a}>{a}</option>)}
-                        </select>
-                      </div>
-                      <div className="md:col-span-2">
-                        <div className="text=[11px] text-gray-500 mb-1">系列名稱（B）</div>
-                        <select className="w-full border rounded h-9 px-2 text-sm"
-                          value={selB}
-                          onChange={e=>{
-                            const v=e.target.value; setSelB(v);
-                            const first=(prodsByAB[`${selA}__${v}`]||[])[0]; setSelPid(first?first.id:"");
-                          }}>
-                          {(seriesByA[selA]||[]).map(b=><option key={b}>{b}</option>)}
-                        </select>
-                      </div>
-                      <div className="md:col-span-2">
-                        <div className="text-[11px] text-gray-500 mb-1">產品名稱（C／唯一 ID）</div>
-                        <select className="w-full border rounded h-9 px-2 text-sm"
-                          value={selPid} onChange={e=>setSelPid(e.target.value)}
-                          title="若下拉文字過長將自動截斷，點開可見完整名稱。">
-                          {((prodsByAB[`${selA}__${selB}`])||[]).map(p=><option key={p.id} value={p.id}>{p.C}</option>)}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 justify-end">
-                      <Stepper small value={singleQty} min={1} onChange={setSingleQty}/>
-                      <button className="h-9 px-3 border border-gray-300 rounded text-sm"
-                        onClick={()=> selPid && setPendingSingles(prev=>({...prev,[selPid]:(prev[selPid]||0)+singleQty}))}>加</button>
+                      {PACKAGING.length===0 && <div className="text-xs text-gray-400">（尚無包材）</div>}
                     </div>
                   </div>
                 </div>
-
-                {/* 禮遇（非銷售隱藏） */}
-                {mode==='sales' && (
-                  <div>
-                    <div className="text-sm font-semibold mb-2">禮遇</div>
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                      {GIFTS.map(g=>(
-                        <label key={g.id} className="flex items-center gap-2 rounded border border-gray-200 bg-white p-2 cursor-pointer">
-                          <input type="checkbox" checked={!!giftChecks[g.id]} onChange={e=>setGiftChecks(s=>({...s,[g.id]:e.target.checked}))}/>
-                          <span className="text-xs leading-snug"
-                                style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}
-                                title={g.name}>{g.name}</span>
-                        </label>
-                      ))}
-                      {GIFTS.length===0 && <div className="text-xs text-gray-400">（尚無禮遇）</div>}
-                    </div>
-                  </div>
-                )}
-
-                {/* 包材（一直顯示） */}
-                <div>
-                  <div className="text-sm font-semibold mb-2">基礎包材內容</div>
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                    {PACKAGING.map(m=>(
-                      <div key={m.id} className="rounded border border-gray-200 p-2 bg-white">
-                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-2">
-                          <span className="text-[13px] leading-snug md:flex-1"
-                                title={m.name}
-                                style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}
-                          >{m.name}</span>
-                          <div className="md:self-auto self-end md:mt-0 mt-1 flex justify-end">
-                            <Stepper small value={packGroups[m.id]||0} onChange={v=>setPackGroups(s=>({...s,[m.id]:v}))}/>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    {PACKAGING.length===0 && <div className="text-xs text-gray-400">（尚無包材）</div>}
-                  </div>
-                </div>
-              </div>
+              )}
             </section>
 
-            {/* 庫存更新預覽（Sales / Non-sales 都顯示） */}
+            {/* 庫存更新預覽（可收合；Sales/Non-sales 都顯示） */}
             <section className="rounded border border-gray-200 bg-white shadow-sm mb-5">
               <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
                 <div className="font-medium">庫存更新預覽</div>
@@ -421,7 +470,6 @@
 
               {openPreview && (
                 <div className="p-4">
-                  {/* 2 cards per row on desktop; order: 套組 | 單品 | 禮遇 | 包材 */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <Card title="套組">
                       {previewBundles.length===0 ? <Empty/> : (
