@@ -330,7 +330,7 @@
                   </div>
                 )}
 
-                {/* 基礎包材內容（新）— 非銷售也要隱藏嗎？你需求只說隱藏套組/禮遇＋預覽，所以包材仍顯示；若你要一起隱藏，只要把外層也包上 mode==='sales' 判斷 */}
+                {/* 基礎包材內容（新） */}
                 <div>
                   <div className="text-sm font-semibold mb-2">基礎包材內容</div>
                   <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
@@ -741,7 +741,7 @@
               <CsvBox title="套組 CSV（bundle_id,bundle_name,product_id,qty,active）" setter={setBUNDLES} parser={parseBundles}/>
               <CsvBox title="禮遇 CSV（bundle_id,bundle_name,product_id,qty,active）" setter={setGIFTS} parser={parseBundles}/>
               <CsvBox title="非銷售 CSV（id,name）" setter={setNONSALES} parser={parsePairs}/>
-              <!-- 新增：包材 CSV -->
+              {/* 新增：包材 CSV */}
               <CsvBox title="包材 CSV（bundle_id,bundle_name,product_id,qty,active）" setter={setMATERIALS} parser={parseBundles}/>
             </div>
 
