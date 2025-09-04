@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>鉑翡斯 台北倉庫存更新系統 — Final (with Confirm Modal)</title>
+    <title>鉑翡斯 台北倉庫存更新系統 — Final (Access Gate + Reset + Collapsible)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -22,8 +22,8 @@
         bundles   :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/bundle_items.csv",
         gifts     :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/gifts.csv",
         nonsales  :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/non_sales_application.csv",
-        /* 新增：基礎包材內容 (packaging.csv) */
-        materials :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/packaging.csv",
+        packaging :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/packaging.csv", // 新：包材
+        config    :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/app_config.json" // Access code
       };
 
       /* ----------------------------- CSV helpers ---------------------------- */
@@ -107,6 +107,57 @@
         return `${prefix||'待選'}-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
       }
 
+      /* ========================= Access Gate (config) ======================== */
+      function useAccessGate(){
+        const [accessCode,setAccessCode]=useState(null);
+        const [userCode,setUserCode]=useState("");
+        const [granted,setGranted]=useState(false);
+
+        async function fetchConfig(){
+          try{
+            const res = await fetch(URLS.config, {cache:"no-store"});
+            const cfg = await res.json();
+            setAccessCode(cfg.accessCode || "");
+            if(granted && userCode !== cfg.accessCode){
+              setGranted(false);
+              alert("Access code 已更新，請重新輸入。");
+            }
+          }catch(e){
+            console.error("config fetch failed", e);
+            // 若讀不到 config，為安全起見不自動放行
+          }
+        }
+        useEffect(()=>{
+          fetchConfig();
+          const id=setInterval(fetchConfig,60000);
+          const onVis=()=>{ if(!document.hidden) fetchConfig(); };
+          document.addEventListener("visibilitychange",onVis);
+          return ()=>{ clearInterval(id); document.removeEventListener("visibilitychange",onVis); };
+        },[]);
+
+        const Gate = ()=> !granted ? (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-100">
+            <div className="p-6 bg-white rounded shadow-md w-80">
+              <h2 className="text-lg font-semibold mb-3">存取授權</h2>
+              <input
+                type="password"
+                className="w-full border rounded h-9 px-2 mb-3"
+                placeholder="輸入 Access Code"
+                value={userCode}
+                onChange={e=>setUserCode(e.target.value)}
+              />
+              <button
+                className="w-full h-9 bg-black text-white rounded"
+                onClick={()=> userCode===accessCode ? setGranted(true) : alert("Access code 錯誤")}
+              >確認</button>
+              <div className="mt-3 text-xs text-gray-500">提示：管理者可在 GitHub 的 <span className="font-mono">data/app_config.json</span> 即時修改 Access Code。</div>
+            </div>
+          </div>
+        ) : null;
+
+        return {Gate,granted};
+      }
+
       /* ================================ App ================================= */
       function App(){
         const {setMsg,Toast}=useToast();
@@ -117,7 +168,7 @@
         const [BUNDLES,setBUNDLES]=useState([]);
         const [GIFTS,setGIFTS]=useState([]);
         const [NONSALES,setNONSALES]=useState([]);
-        const [MATERIALS,setMATERIALS]=useState([]); // 包材（packaging.csv）
+        const [PACKAGING,setPACKAGING]=useState([]); // 新：包材
 
         // 上方「銷售／非銷售」只決定 category 與表單 ID
         const [mode,setMode]=useState("sales"); // 'sales' | 'nonSales'
@@ -131,7 +182,7 @@
 
         // selections preview
         const [bundleGroups,setBundleGroups]=useState({});
-        const [materialGroups,setMaterialGroups]=useState({});
+        const [packagingGroups,setPackagingGroups]=useState({}); // 新：包材
         const [giftChecks,setGiftChecks]=useState({});
         const [pendingSingles,setPendingSingles]=useState({});
         const [openPreview,setOpenPreview]=useState(false);
@@ -143,22 +194,26 @@
         const [sysOpen,setSysOpen]=useState(false);
         const [pinOK,setPinOK]=useState(false);
 
+        // 可折疊區塊
+        const [orderOpen,setOrderOpen]=useState(true);
+        const [productOpen,setProductOpen]=useState(true);
+
         // 自動載入 GitHub
         async function loadFromGitHub(){
-          const [p,c,b,g,n,m] = await Promise.all([
+          const [p,c,b,g,n,pk] = await Promise.all([
             fetchCsv(URLS.products),   fetchCsv(URLS.customers),
             fetchCsv(URLS.bundles),    fetchCsv(URLS.gifts),
-            fetchCsv(URLS.nonsales),   tryFetchCsv(URLS.materials) // 包材
+            fetchCsv(URLS.nonsales),   tryFetchCsv(URLS.packaging)
           ]);
           setPRODUCTS(parseProducts(p));
           setCUSTOMERS(parsePairs(c));
           setBUNDLES(parseBundles(b));
           setGIFTS(parseBundles(g));
           setNONSALES(parsePairs(n));
-          setMATERIALS(m ? parseBundles(m) : []);
+          setPACKAGING(pk ? parseBundles(pk) : []);
 
           // 重置選擇與清單
-          setBundleGroups({}); setMaterialGroups({}); setGiftChecks({}); setPendingSingles({});
+          setBundleGroups({}); setPackagingGroups({}); setGiftChecks({}); setPendingSingles({});
           setRows([]);
 
           setSalesCat(""); setNonSalesCat("");
@@ -196,17 +251,17 @@
             };
           }).filter(Boolean), [bundleGroups,BUNDLES,PRODUCTS]);
 
-        const previewMaterials = useMemo(()=> Object.entries(materialGroups)
+        const previewPackaging = useMemo(()=> Object.entries(packagingGroups)
           .filter(([,c])=>c>0)
-          .map(([mid,count])=>{
-            const m=MATERIALS.find(x=>x.id===mid); if(!m) return null;
-            return { id:mid, title:m.name, count,
-              details:m.items.map(it=>{
+          .map(([pid,count])=>{
+            const pk=PACKAGING.find(x=>x.id===pid); if(!pk) return null;
+            return { id:pid, title:pk.name, count,
+              details:pk.items.map(it=>{
                 const name=(PRODUCTS.find(p=>p.id===it.productId)||{}).C || it.productId;
                 return {productId:it.productId,name,qty:it.qty*count};
               })
             };
-          }).filter(Boolean), [materialGroups,MATERIALS,PRODUCTS]);
+          }).filter(Boolean), [packagingGroups,PACKAGING,PRODUCTS]);
 
         const previewSingles = useMemo(()=> Object.entries(pendingSingles)
           .filter(([,q])=>q>0)
@@ -225,13 +280,13 @@
             })};
           }).filter(Boolean),[giftChecks,GIFTS,PRODUCTS]);
 
-        function clearPreview(){ setBundleGroups({}); setMaterialGroups({}); setPendingSingles({}); setGiftChecks({}); }
+        function clearPreview(){ setBundleGroups({}); setPackagingGroups({}); setPendingSingles({}); setGiftChecks({}); }
 
         function confirmPreview(){
           const addMap=new Map();
           const add=(pid,qty)=>addMap.set(pid,(addMap.get(pid)||0)+qty);
           previewBundles.forEach(b=>b.details.forEach(d=>add(d.productId,d.qty)));
-          previewMaterials.forEach(m=>m.details.forEach(d=>add(d.productId,d.qty)));
+          previewPackaging.forEach(pk=>pk.details.forEach(d=>add(d.productId,d.qty)));
           previewSingles.forEach(s=>add(s.productId,s.qty));
           previewGifts.forEach(g=>g.details.forEach(d=>add(d.productId,d.qty)));
           if(addMap.size===0){ setOpenPreview(false); return; }
@@ -245,6 +300,9 @@
             });
             return next;
           });
+          // 加入後自動收合
+          setOrderOpen(false);
+          setProductOpen(false);
           setOpenPreview(false);
         }
 
@@ -254,171 +312,186 @@
         return (
           <div className="mx-auto max-w-6xl p-4 pb-28">
             <Toast/>
-            <h1 className="text-xl font-semibold mb-4">PM 庫存更新系統</h1>
+            <div className="flex items-center justify-between mb-4">
+              <h1 className="text-xl font-semibold">PM 庫存更新系統</h1>
+              <div className="flex items-center gap-2">
+                <button className="h-9 px-3 border border-gray-300 rounded text-xs"
+                        onClick={loadFromGitHub}>Reset All（重抓 GitHub，並清空選擇）</button>
+              </div>
+            </div>
 
-            {/* 出貨訂單資訊 */}
+            {/* 出貨訂單資訊（可收合） */}
             <section className="rounded border border-gray-200 bg-white shadow-sm mb-5">
               <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
                 <div className="font-medium">出貨訂單資訊</div>
-                <div className="text-xs text-gray-600">表單-日期-ID：<span className="font-mono">{formDateId}</span></div>
-              </div>
-
-              <div className="p-3 space-y-3">
-                <div className="flex items-center gap-4 text-sm">
-                  <label className="flex items-center gap-2">
-                    <input type="radio" name="mode" checked={mode==='sales'} onChange={()=>setMode('sales')} />
-                    銷售
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input type="radio" name="mode" checked={mode==='nonSales'} onChange={()=>setMode('nonSales')} />
-                    非銷售
-                  </label>
+                <div className="flex items-center gap-2">
+                  <div className="text-xs text-gray-600">表單-日期-ID：<span className="font-mono">{formDateId}</span></div>
+                  <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>setOrderOpen(o=>!o)}>{orderOpen?"收":"展"}</button>
                 </div>
-
-                {mode==='sales' ? (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    <select className="border rounded h-9 px-3 text-sm"
-                      value={salesCat} onChange={e=>setSalesCat(e.target.value)}>
-                      <option value="" disabled>選擇訂單類別</option>
-                      {CUSTOMERS.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
-                    </select>
-                    <input className="border rounded h-9 px-3 text-sm" placeholder="客戶 PO" value={po} onChange={e=>setPo(e.target.value)} />
-                    <input className="border rounded h-9 px-3 text-sm" placeholder="備註" value={memo} onChange={e=>setMemo(e.target.value)} />
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    <select className="border rounded h-9 px-3 text-sm"
-                      value={nonSalesCat} onChange={e=>setNonSalesCat(e.target.value)}>
-                      <option value="" disabled>選擇訂單類別</option>
-                      {NONSALES.map(n=><option key={n.id} value={n.name}>{n.name}</option>)}
-                    </select>
-                    <input className="border rounded h-9 px-3 text-sm" placeholder="客戶 PO" value={po} onChange={e=>setPo(e.target.value)} />
-                    <input className="border rounded h-9 px-3 text-sm" placeholder="備註" value={memo} onChange={e=>setMemo(e.target.value)} />
-                  </div>
-                )}
               </div>
+
+              {orderOpen && (
+                <div className="p-3 space-y-3">
+                  <div className="flex items-center gap-4 text-sm">
+                    <label className="flex items-center gap-2">
+                      <input type="radio" name="mode" checked={mode==='sales'} onChange={()=>setMode('sales')} />
+                      銷售
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="radio" name="mode" checked={mode==='nonSales'} onChange={()=>setMode('nonSales')} />
+                      非銷售
+                    </label>
+                  </div>
+
+                  {mode==='sales' ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      <select className="border rounded h-9 px-3 text-sm"
+                        value={salesCat} onChange={e=>setSalesCat(e.target.value)}>
+                        <option value="" disabled>選擇訂單類別</option>
+                        {CUSTOMERS.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
+                      </select>
+                      <input className="border rounded h-9 px-3 text-sm" placeholder="客戶 PO" value={po} onChange={e=>setPo(e.target.value)} />
+                      <input className="border rounded h-9 px-3 text-sm" placeholder="備註" value={memo} onChange={e=>setMemo(e.target.value)} />
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      <select className="border rounded h-9 px-3 text-sm"
+                        value={nonSalesCat} onChange={e=>setNonSalesCat(e.target.value)}>
+                        <option value="" disabled>選擇訂單類別</option>
+                        {NONSALES.map(n=><option key={n.id} value={n.name}>{n.name}</option>)}
+                      </select>
+                      <input className="border rounded h-9 px-3 text-sm" placeholder="客戶 PO" value={po} onChange={e=>setPo(e.target.value)} />
+                      <input className="border rounded h-9 px-3 text-sm" placeholder="備註" value={memo} onChange={e=>setMemo(e.target.value)} />
+                    </div>
+                  )}
+                </div>
+              )}
             </section>
 
-            {/* 產品選擇 */}
+            {/* 產品選擇（可收合） */}
             <section className="rounded border border-gray-200 bg-white shadow-sm mb-5">
               <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
                 <div className="font-medium">產品選擇</div>
-                <div className="text-xs text-gray-500">套組 / 單品 / 禮遇 / 包材 → 先加入預覽</div>
+                <div className="flex items-center gap-2">
+                  <div className="text-xs text-gray-500">套組 / 單品 / 禮遇 / 包材 → 先加入預覽</div>
+                  <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>setProductOpen(o=>!o)}>{productOpen?"收":"展"}</button>
+                </div>
               </div>
 
-              <div className="p-4 space-y-6">
-                {/* ① 套組（非銷售時隱藏） */}
-                {mode==='sales' && (
+              {productOpen && (
+                <div className="p-4 space-y-6">
+                  {/* 1. 套組（非銷售時隱藏） */}
+                  {mode==='sales' && (
+                    <div>
+                      <div className="text-sm font-semibold mb-2">套組</div>
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                        {BUNDLES.map(b=>(
+                          <div key={b.id} className="rounded border border-gray-200 p-2 bg-white">
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-2">
+                              <span className="text-[13px] leading-snug md:flex-1"
+                                    title={b.name}
+                                    style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}
+                              >{b.name}</span>
+                              <div className="md:self-auto self-end md:mt-0 mt-1 flex justify-end">
+                                <Stepper small value={bundleGroups[b.id]||0} onChange={v=>setBundleGroups(s=>({...s,[b.id]:v}))}/>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {BUNDLES.length===0 && <div className="text-xs text-gray-400">（尚無套組）</div>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 2. 單品（一直顯示） */}
                   <div>
-                    <div className="text-sm font-semibold mb-2">套組</div>
+                    <div className="text-sm font-semibold mb-2">單品</div>
+                    <div className="rounded border bg-gray-50 p-3 space-y-2">
+                      <div className="grid md:grid-cols-6 gap-2">
+                        <div className="md:col-span-2">
+                          <div className="text-[11px] text-gray-500 mb-1">商品類別（A）</div>
+                          <select className="w-full border rounded h-9 px-2 text-sm"
+                            value={selA}
+                            onChange={e=>{
+                              const v=e.target.value; setSelA(v);
+                              const nb=(seriesByA[v]||[])[0]||""; setSelB(nb);
+                              const first=(prodsByAB[`${v}__${nb}`]||[])[0]; setSelPid(first?first.id:"");
+                            }}>
+                            {catA.map(a=><option key={a}>{a}</option>)}
+                          </select>
+                        </div>
+                        <div className="md:col-span-2">
+                          <div className="text-[11px] text-gray-500 mb-1">系列名稱（B）</div>
+                          <select className="w-full border rounded h-9 px-2 text-sm"
+                            value={selB}
+                            onChange={e=>{
+                              const v=e.target.value; setSelB(v);
+                              const first=(prodsByAB[`${selA}__${v}`]||[])[0]; setSelPid(first?first.id:"");
+                            }}>
+                            {(seriesByA[selA]||[]).map(b=><option key={b}>{b}</option>)}
+                          </select>
+                        </div>
+                        <div className="md:col-span-2">
+                          <div className="text-[11px] text-gray-500 mb-1">產品名稱（C／唯一 ID）</div>
+                          <select className="w-full border rounded h-9 px-2 text-sm"
+                            value={selPid} onChange={e=>setSelPid(e.target.value)}
+                            title="若下拉文字過長將自動截斷，點開可見完整名稱。">
+                            {((prodsByAB[`${selA}__${selB}`])||[]).map(p=><option key={p.id} value={p.id}>{p.C}</option>)}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 justify-end">
+                        <Stepper small value={singleQty} min={1} onChange={setSingleQty}/>
+                        <button className="h-9 px-3 border border-gray-300 rounded text-sm"
+                          onClick={()=> selPid && setPendingSingles(prev=>({...prev,[selPid]:(prev[selPid]||0)+singleQty}))}>加</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3. 禮遇（非銷售時隱藏） */}
+                  {mode==='sales' && (
+                    <div>
+                      <div className="text-sm font-semibold mb-2">禮遇</div>
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                        {GIFTS.map(g=>(
+                          <label key={g.id} className="flex items-center gap-2 rounded border border-gray-200 bg-white p-2 cursor-pointer">
+                            <input type="checkbox" checked={!!giftChecks[g.id]} onChange={e=>setGiftChecks(s=>({...s,[g.id]:e.target.checked}))}/>
+                            <span className="text-xs leading-snug"
+                                  style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}
+                                  title={g.name}>{g.name}</span>
+                          </label>
+                        ))}
+                        {GIFTS.length===0 && <div className="text-xs text-gray-400">（尚無禮遇）</div>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 4. 包材（一直顯示） */}
+                  <div>
+                    <div className="text-sm font-semibold mb-2">基礎包材內容</div>
                     <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                      {BUNDLES.map(b=>(
-                        <div key={b.id} className="rounded border border-gray-200 p-2 bg-white">
+                      {PACKAGING.map(m=>(
+                        <div key={m.id} className="rounded border border-gray-200 p-2 bg-white">
                           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-2">
                             <span className="text-[13px] leading-snug md:flex-1"
-                                  title={b.name}
+                                  title={m.name}
                                   style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}
-                            >{b.name}</span>
+                            >{m.name}</span>
                             <div className="md:self-auto self-end md:mt-0 mt-1 flex justify-end">
-                              <Stepper small value={bundleGroups[b.id]||0} onChange={v=>setBundleGroups(s=>({...s,[b.id]:v}))}/>
+                              <Stepper small value={packagingGroups[m.id]||0} onChange={v=>setPackagingGroups(s=>({...s,[m.id]:v}))}/>
                             </div>
                           </div>
                         </div>
                       ))}
-                      {BUNDLES.length===0 && <div className="text-xs text-gray-400">（尚無套組）</div>}
-                    </div>
-                  </div>
-                )}
-
-                {/* ② 單品（一直顯示） */}
-                <div>
-                  <div className="text-sm font-semibold mb-2">單品</div>
-                  <div className="rounded border bg-gray-50 p-3 space-y-2">
-                    <div className="grid md:grid-cols-6 gap-2">
-                      <div className="md:col-span-2">
-                        <div className="text-[11px] text-gray-500 mb-1">商品類別（A）</div>
-                        <select className="w-full border rounded h-9 px-2 text-sm"
-                          value={selA}
-                          onChange={e=>{
-                            const v=e.target.value; setSelA(v);
-                            const nb=(seriesByA[v]||[])[0]||""; setSelB(nb);
-                            const first=(prodsByAB[`${v}__${nb}`]||[])[0]; setSelPid(first?first.id:"");
-                          }}>
-                          {catA.map(a=><option key={a}>{a}</option>)}
-                        </select>
-                      </div>
-                      <div className="md:col-span-2">
-                        <div className="text-[11px] text-gray-500 mb-1">系列名稱（B）</div>
-                        <select className="w-full border rounded h-9 px-2 text-sm"
-                          value={selB}
-                          onChange={e=>{
-                            const v=e.target.value; setSelB(v);
-                            const first=(prodsByAB[`${selA}__${v}`]||[])[0]; setSelPid(first?first.id:"");
-                          }}>
-                          {(seriesByA[selA]||[]).map(b=><option key={b}>{b}</option>)}
-                        </select>
-                      </div>
-                      <div className="md:col-span-2">
-                        <div className="text-[11px] text-gray-500 mb-1">產品名稱（C／唯一 ID）</div>
-                        <select className="w-full border rounded h-9 px-2 text-sm"
-                          value={selPid} onChange={e=>setSelPid(e.target.value)}
-                          title="若下拉文字過長將自動截斷，點開可見完整名稱。">
-                          {((prodsByAB[`${selA}__${selB}`])||[]).map(p=><option key={p.id} value={p.id}>{p.C}</option>)}
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* 數量＋加：手機窄寬自動另起一行 */}
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 justify-end">
-                      <Stepper small value={singleQty} min={1} onChange={setSingleQty}/>
-                      <button className="h-9 px-3 border border-gray-300 rounded text-sm"
-                        onClick={()=> selPid && setPendingSingles(prev=>({...prev,[selPid]:(prev[selPid]||0)+singleQty}))}>加</button>
+                      {PACKAGING.length===0 && <div className="text-xs text-gray-400">（尚無包材）</div>}
                     </div>
                   </div>
                 </div>
-
-                {/* ③ 禮遇（非銷售時隱藏） */}
-                {mode==='sales' && (
-                  <div>
-                    <div className="text-sm font-semibold mb-2">禮遇</div>
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                      {GIFTS.map(g=>(
-                        <label key={g.id} className="flex items-center gap-2 rounded border border-gray-200 bg-white p-2 cursor-pointer">
-                          <input type="checkbox" checked={!!giftChecks[g.id]} onChange={e=>setGiftChecks(s=>({...s,[g.id]:e.target.checked}))}/>
-                          <span className="text-xs leading-snug"
-                                style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}
-                                title={g.name}>{g.name}</span>
-                        </label>
-                      ))}
-                      {GIFTS.length===0 && <div className="text-xs text-gray-400">（尚無禮遇）</div>}
-                    </div>
-                  </div>
-                )}
-
-                {/* ④ 包材（一直顯示） */}
-                <div>
-                  <div className="text-sm font-semibold mb-2">基礎包材內容</div>
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                    {MATERIALS.map(m=>(
-                      <div key={m.id} className="rounded border border-gray-200 p-2 bg-white">
-                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-2">
-                          <span className="text-[13px] leading-snug md:flex-1"
-                                title={m.name}
-                                style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}
-                          >{m.name}</span>
-                          <div className="md:self-auto self-end md:mt-0 mt-1 flex justify-end">
-                            <Stepper small value={materialGroups[m.id]||0} onChange={v=>setMaterialGroups(s=>({...s,[m.id]:v}))}/>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    {MATERIALS.length===0 && <div className="text-xs text-gray-400">（尚無包材）</div>}
-                  </div>
-                </div>
-              </div>
+              )}
             </section>
 
-            {/* 庫存更新預覽 —— 兩種模式都顯示 */}
+            {/* 庫存更新預覽（Sales / Non-sales 都可顯示） */}
             <section className="rounded border border-gray-200 bg-white shadow-sm mb-5">
               <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
                 <div className="font-medium">庫存更新預覽</div>
@@ -427,7 +500,7 @@
 
               {openPreview && (
                 <div className="p-4">
-                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     <Card title="套組">
                       {previewBundles.length===0 ? <Empty/> : (
                         <ul className="space-y-2 text-xs">
@@ -464,25 +537,10 @@
                       )}
                     </Card>
 
-                    <Card title="禮遇">
-                      {previewGifts.length===0 ? <Empty/> : (
+                    <Card title="包材">
+                      {previewPackaging.length===0 ? <Empty/> : (
                         <ul className="space-y-2 text-xs">
-                          {previewGifts.map(g=>(
-                            <li key={g.id} className="border-b border-dashed border-gray-200 pb-1">
-                              <div className="font-medium mb-1">{g.title}</div>
-                              <ul className="ml-3 list-disc text-[11px] text-gray-600">
-                                {g.details.map((d,i)=><li key={i}>{d.name} × {d.qty}</li>)}
-                              </ul>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </Card>
-
-                    <Card title="基礎包材">
-                      {previewMaterials.length===0 ? <Empty/> : (
-                        <ul className="space-y-2 text-xs">
-                          {previewMaterials.map(m=>(
+                          {previewPackaging.map(m=>(
                             <li key={m.id} className="border-b border-dashed border-gray-200 pb-1">
                               <div className="font-medium mb-1">{m.title} × {m.count}</div>
                               <ul className="ml-3 list-disc text-[11px] text-gray-600">
@@ -572,7 +630,7 @@
                   ) : (
                     <SystemPanel
                       setPRODUCTS={setPRODUCTS} setCUSTOMERS={setCUSTOMERS}
-                      setBUNDLES={setBUNDLES} setGIFTS={setGIFTS} setNONSALES={setNONSALES} setMATERIALS={setMATERIALS}
+                      setBUNDLES={setBUNDLES} setGIFTS={setGIFTS} setNONSALES={setNONSALES} setPACKAGING={setPACKAGING}
                       reload={loadFromGitHub}
                     />
                   )}
@@ -745,7 +803,7 @@
         );
       }
 
-      function SystemPanel({setPRODUCTS,setCUSTOMERS,setBUNDLES,setGIFTS,setNONSALES,setMATERIALS,reload}){
+      function SystemPanel({setPRODUCTS,setCUSTOMERS,setBUNDLES,setGIFTS,setNONSALES,setPACKAGING,reload}){
         return (
           <div className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
@@ -754,8 +812,7 @@
               <CsvBox title="套組 CSV（bundle_id,bundle_name,product_id,qty,active）" setter={setBUNDLES} parser={parseBundles}/>
               <CsvBox title="禮遇 CSV（bundle_id,bundle_name,product_id,qty,active）" setter={setGIFTS} parser={parseBundles}/>
               <CsvBox title="非銷售 CSV（id,name）" setter={setNONSALES} parser={parsePairs}/>
-              {/* 新增：包材 CSV（packaging.csv 結構同 bundle/gifts） */}
-              <CsvBox title="包材 CSV（bundle_id,bundle_name,product_id,qty,active）" setter={setMATERIALS} parser={parseBundles}/>
+              <CsvBox title="包材 CSV（bundle_id,bundle_name,product_id,qty,active）" setter={setPACKAGING} parser={parseBundles}/>
             </div>
 
             <div className="flex gap-2">
@@ -784,7 +841,18 @@
         }
       }
 
-      ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+      /* ------------------------------- Root -------------------------------- */
+      function RootApp(){
+        const {Gate,granted} = useAccessGate();
+        return (
+          <>
+            <Gate/>
+            {granted && <App/>}
+          </>
+        );
+      }
+
+      ReactDOM.createRoot(document.getElementById("root")).render(<RootApp/>);
     </script>
   </body>
 </html>
