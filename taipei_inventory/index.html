@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>鉑翡斯 台北倉庫存更新系統 — Final (with Confirm Modal)</title>
+    <title>PM 庫存更新系統 — Write4Version</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -13,7 +13,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-      const {useState,useEffect,useMemo} = React;
+      const { useState, useEffect, useMemo } = React;
 
       /* -------------------- GitHub RAW URLs (hard-coded) -------------------- */
       const URLS = {
@@ -24,6 +24,9 @@
         nonsales :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/non_sales_application.csv",
       };
 
+      const WEBHOOK = "https://hook.us2.make.com/nbjdxrfypgoosj4qqxnzfmj9o29jq3c2";
+      const ADMIN_PIN = "50963212";
+
       /* ----------------------------- CSV helpers ---------------------------- */
       const lines = (csv)=>csv.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
       const maybeStripHeader=(arr,expect)=> {
@@ -32,18 +35,14 @@
         return expect.some(k=>first.includes(k)) ? arr.slice(1) : arr;
       };
       function parseProducts(csv){
-        let l=lines(csv); l=maybeStripHeader(l,["a,","b,","c","商品"]);
-        return l.map(s=>{
-          const [A,B,C]=s.split(",").map(x=>x?.trim());
-          return {id:C,A,B,C};
-        }).filter(x=>x?.id && x?.C);
+        let l=lines(csv); l=maybeStripHeader(l,["a,","b,","c"]);
+        return l.map(s=>{ const [A,B,C]=s.split(",").map(x=>x?.trim()); return {id:C,A,B,C}; })
+                .filter(x=>x?.id && x?.C);
       }
       function parsePairs(csv){
-        let l=lines(csv); l=maybeStripHeader(l,["id,","name","分類"]);
-        return l.map(s=>{
-          const [id,name]=s.split(",").map(x=>x?.trim());
-          return {id,name};
-        }).filter(x=>x?.id && x?.name);
+        let l=lines(csv); l=maybeStripHeader(l,["id,","name"]);
+        return l.map(s=>{ const [id,name]=s.split(",").map(x=>x?.trim()); return {id,name}; })
+                .filter(x=>x?.id && x?.name);
       }
       function parseBundles(csv){ // for 套組 / 禮遇
         let l=lines(csv);
@@ -58,11 +57,7 @@
         });
         return Object.values(map);
       }
-      async function fetchCsv(url){
-        const r=await fetch(url,{cache:"no-store"});
-        if(!r.ok) throw new Error(url);
-        return r.text();
-      }
+      async function fetchCsv(url){ const r=await fetch(url,{cache:"no-store"}); if(!r.ok) throw new Error(url); return r.text(); }
 
       /* -------------------------- Toast (tiny) -------------------------- */
       function useToast(){
@@ -73,25 +68,25 @@
       }
 
       /* -------------------- Stepper (符號按鈕 + 小輸入框) ------------------- */
-      function Stepper({value,min=0,onChange,small=false}){
-        const h = small ? 30 : 34;
-        const t = small ? 12 : 13;
+      function Stepper({value,min=0,onChange}){
         return (
-          <div className="inline-flex items-stretch border border-gray-300 rounded overflow-hidden"
-               style={{height:`${h}px`}}>
-            <button className="px-2 text-[16px] leading-none select-none"
+          <div className="inline-flex items-stretch border border-gray-300 rounded h-[34px] overflow-hidden">
+            <button
+              className="px-2 text-[16px] leading-[34px] select-none"
               onClick={()=>onChange(Math.max(min,(value||0)-1))}
-              aria-label="decrement">−</button>
+              aria-label="decrement"
+            >−</button>
             <input
-              className="w-9 text-center outline-none border-l border-r border-gray-300"
-              style={{fontSize:`${t}px`}}
+              className="w-9 text-center text-[13px] outline-none border-l border-r border-gray-300"
               value={value}
               onChange={(e)=>{const n=parseInt(e.target.value.replace(/[^0-9]/g,''),10); onChange(Number.isFinite(n)?n:0);}}
               inputMode="numeric"
             />
-            <button className="px-2 text-[16px] leading-none select-none"
+            <button
+              className="px-2 text-[16px] leading-[34px] select-none"
               onClick={()=>onChange((value||0)+1)}
-              aria-label="increment">+</button>
+              aria-label="increment"
+            >+</button>
           </div>
         );
       }
@@ -99,7 +94,8 @@
       /* --------------------------- Form-Date-ID --------------------------- */
       function genDocId(prefix){
         const d=new Date(); const p=n=>String(n).padStart(2,"0");
-        return `${prefix||'待選'}-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+        const clean = (prefix||"待選").toString().trim() || "待選";
+        return `${clean}-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
       }
 
       /* ================================ App ================================= */
@@ -113,52 +109,51 @@
         const [GIFTS,setGIFTS]=useState([]);
         const [NONSALES,setNONSALES]=useState([]);
 
-        // 上方「銷售／非銷售」只決定 category 與表單 ID
+        // 操作類型（放在清單 header 的 selector；只影響正負號）
         const [mode,setMode]=useState("sales"); // 'sales' | 'nonSales'
-        const [salesCat,setSalesCat]=useState("");
-        const [nonSalesCat,setNonSalesCat]=useState("");
+
+        // order info（類別值）
+        const [salesCat,setSalesCat]=useState("");     // value="" => 顯示「選擇訂單類別」
+        const [nonSalesCat,setNonSalesCat]=useState(""); // value="" => 顯示「選擇訂單類別」
         const [po,setPo]=useState("");
         const [memo,setMemo]=useState("");
 
-        // 下方「出貨／進貨」只決定 delta 正負號（與上方脫鉤）
-        const [op,setOp]=useState("ship"); // 'ship'(扣) | 'receive'(入)
-
         // selections preview
-        const [bundleGroups,setBundleGroups]=useState({});
-        const [giftChecks,setGiftChecks]=useState({});
-        const [pendingSingles,setPendingSingles]=useState({});
-        const [openPreview,setOpenPreview]=useState(false);
+        const [bundleGroups,setBundleGroups]=useState({}); // {bundleId: count}
+        const [giftChecks,setGiftChecks]=useState({});      // {giftId: true}
+        const [pendingSingles,setPendingSingles]=useState({}); // {productId: qty}
+        const [openPreview,setOpenPreview]=useState(true);
 
         // final rows
         const [rows,setRows]=useState([]);
 
-        // 系統用面板
-        const [sysOpen,setSysOpen]=useState(false);
-        const [pinOK,setPinOK]=useState(false);
+        // Admin panel
+        const [adminOpen,setAdminOpen]=useState(false);
+        const [adminAuthed,setAdminAuthed]=useState(false);
+        const [pinInput,setPinInput]=useState("");
 
-        // 自動載入 GitHub
-        async function loadFromGitHub(){
-          const [p,c,b,g,n]=await Promise.all([
-            fetchCsv(URLS.products), fetchCsv(URLS.customers),
-            fetchCsv(URLS.bundles),  fetchCsv(URLS.gifts),
-            fetchCsv(URLS.nonsales)
-          ]);
-          setPRODUCTS(parseProducts(p));
-          setCUSTOMERS(parsePairs(c));
-          setBUNDLES(parseBundles(b));
-          setGIFTS(parseBundles(g));
-          setNONSALES(parsePairs(n));
+        useEffect(()=>{
+          (async ()=>{
+            try{
+              const [p,c,b,g,n]=await Promise.all([
+                fetchCsv(URLS.products), fetchCsv(URLS.customers),
+                fetchCsv(URLS.bundles),  fetchCsv(URLS.gifts),
+                fetchCsv(URLS.nonsales)
+              ]);
+              setPRODUCTS(parseProducts(p));
+              setCUSTOMERS(parsePairs(c));
+              setBUNDLES(parseBundles(b));
+              setGIFTS(parseBundles(g));
+              setNONSALES(parsePairs(n));
+              setMsg("已自動載入 GitHub CSV");
+            }catch(e){
+              console.error(e);
+              setMsg("自動載入失敗（請檢查 RAW URL）");
+            }
+          })();
+        },[]);
 
-          // 重置選擇與清單
-          setBundleGroups({}); setGiftChecks({}); setPendingSingles({});
-          setRows([]);
-
-          setSalesCat(""); setNonSalesCat("");
-          setMsg("已自動載入 GitHub CSV 並重置。");
-        }
-        useEffect(()=>{ loadFromGitHub().catch(()=>setMsg("載入失敗，請檢查 RAW URL")); },[]);
-
-        /* ---------- dropdown options for 單品 ---------- */
+        /* ---------- dropdown options ---------- */
         const catA = useMemo(()=> [...new Set(PRODUCTS.map(x=>x.A))], [PRODUCTS]);
         const seriesByA = useMemo(()=>{
           const obj={}; catA.forEach(a=>obj[a]=[...new Set(PRODUCTS.filter(p=>p.A===a).map(p=>p.B))]); return obj;
@@ -166,6 +161,7 @@
         const prodsByAB = useMemo(()=>{
           const obj={}; PRODUCTS.forEach(p=>{ const k=`${p.A}__${p.B}`; (obj[k] ||= []).push(p);}); return obj;
         },[PRODUCTS]);
+
         const [selA,setSelA]=useState(""); const [selB,setSelB]=useState(""); const [selPid,setSelPid]=useState(""); const [singleQty,setSingleQty]=useState(1);
         useEffect(()=>{
           if(!PRODUCTS.length) return;
@@ -180,14 +176,13 @@
           .filter(([,c])=>c>0)
           .map(([bid,count])=>{
             const b=BUNDLES.find(x=>x.id===bid); if(!b) return null;
-            return { id:bid, title:b.name, count,
-              details:b.items.map(it=>{
-                const name=(PRODUCTS.find(p=>p.id===it.productId)||{}).C || it.productId;
-                return {productId:it.productId,name,qty:it.qty*count};
-              })
-            };
+            return { id:bid, title:`${b.name} × ${count}`, details:b.items.map(it=>{
+              const name=(PRODUCTS.find(p=>p.id===it.productId)||{}).C || it.productId;
+              return {productId:it.productId,name,qty:it.qty*count};
+            })};
           }).filter(Boolean), [bundleGroups,BUNDLES,PRODUCTS]);
 
+        // ✅ PATCHED: 單品清單使用 2 欄 Grid，右側數量固定靠右、穩定對齊
         const previewSingles = useMemo(()=> Object.entries(pendingSingles)
           .filter(([,q])=>q>0)
           .map(([pid,qty])=>{
@@ -213,7 +208,7 @@
           previewBundles.forEach(b=>b.details.forEach(d=>add(d.productId,d.qty)));
           previewSingles.forEach(s=>add(s.productId,s.qty));
           previewGifts.forEach(g=>g.details.forEach(d=>add(d.productId,d.qty)));
-          if(addMap.size===0){ setOpenPreview(false); return; }
+          if(addMap.size===0) return;
           setRows(prev=>{
             const next=[...prev];
             addMap.forEach((qty,pid)=>{
@@ -224,312 +219,281 @@
             });
             return next;
           });
-          setOpenPreview(false);
         }
 
         const formDateId = useMemo(()=> genDocId(mode==='sales'?(salesCat||''): (nonSalesCat||'')),[mode,salesCat,nonSalesCat]);
 
-        /* ------------------------------- UI ------------------------------- */
         return (
           <div className="mx-auto max-w-6xl p-4 pb-28">
             <Toast/>
-            <h1 className="text-xl font-semibold mb-4">PM 庫存更新系統</h1>
+            <h1 className="text-lg md:text-xl font-semibold mb-4">PM 庫存更新系統（Write4Version）</h1>
 
             {/* 出貨訂單資訊 */}
-            <section className="rounded border border-gray-200 bg-white shadow-sm mb-5">
+            <section className="rounded border border-gray-200 bg-white shadow-sm mb-4">
               <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
-                <div className="font-medium">出貨訂單資訊</div>
+                <div className="font-medium text-sm">出貨訂單資訊</div>
                 <div className="text-xs text-gray-600">表單-日期-ID：<span className="font-mono">{formDateId}</span></div>
               </div>
-
-              <div className="p-3 space-y-3">
-                <div className="flex items-center gap-4 text-sm">
-                  <label className="flex items-center gap-2">
-                    <input type="radio" name="mode" checked={mode==='sales'} onChange={()=>setMode('sales')} />
-                    銷售
+              <div className="p-3 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
+                <div className="flex gap-4 items-center">
+                  <label className="flex items-center gap-1">
+                    <input type="radio" name="op" checked={mode==='sales'} onChange={()=>setMode('sales')}/> 銷售
                   </label>
-                  <label className="flex items-center gap-2">
-                    <input type="radio" name="mode" checked={mode==='nonSales'} onChange={()=>setMode('nonSales')} />
-                    非銷售
+                  <label className="flex items-center gap-1">
+                    <input type="radio" name="op" checked={mode==='nonSales'} onChange={()=>setMode('nonSales')}/> 非銷售
                   </label>
                 </div>
 
                 {mode==='sales' ? (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    <select className="border rounded h-9 px-3 text-sm"
-                      value={salesCat} onChange={e=>setSalesCat(e.target.value)}>
-                      <option value="" disabled>選擇訂單類別</option>
-                      {CUSTOMERS.map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
-                    </select>
-                    <input className="border rounded h-9 px-3 text-sm" placeholder="客戶 PO" value={po} onChange={e=>setPo(e.target.value)} />
-                    <input className="border rounded h-9 px-3 text-sm" placeholder="備註" value={memo} onChange={e=>setMemo(e.target.value)} />
-                  </div>
+                  <select className="border rounded h-8 px-2"
+                          value={salesCat}
+                          onChange={e=>setSalesCat(e.target.value)}>
+                    <option value="" disabled>選擇訂單類別</option>
+                    {(CUSTOMERS||[]).map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
+                  </select>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    <select className="border rounded h-9 px-3 text-sm"
-                      value={nonSalesCat} onChange={e=>setNonSalesCat(e.target.value)}>
-                      <option value="" disabled>選擇訂單類別</option>
-                      {NONSALES.map(n=><option key={n.id} value={n.name}>{n.name}</option>)}
-                    </select>
-                    <input className="border rounded h-9 px-3 text-sm" placeholder="客戶 PO" value={po} onChange={e=>setPo(e.target.value)} />
-                    <input className="border rounded h-9 px-3 text-sm" placeholder="備註" value={memo} onChange={e=>setMemo(e.target.value)} />
-                  </div>
+                  <select className="border rounded h-8 px-2"
+                          value={nonSalesCat}
+                          onChange={e=>setNonSalesCat(e.target.value)}>
+                    <option value="" disabled>選擇訂單類別</option>
+                    {(NONSALES||[]).map(n=><option key={n.id} value={n.name}>{n.name}</option>)}
+                  </select>
                 )}
+
+                <input className="border rounded h-8 px-2" placeholder="PO 出貨單號" value={po} onChange={e=>setPo(e.target.value)} />
+                <input className="border rounded h-8 px-2 md:col-span-1" placeholder="備註" value={memo} onChange={e=>setMemo(e.target.value)} />
               </div>
             </section>
 
             {/* 產品選擇 */}
-            <section className="rounded border border-gray-200 bg-white shadow-sm mb-5">
-              <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
-                <div className="font-medium">產品選擇</div>
-                <div className="text-xs text-gray-500">套組 / 單品 / 禮遇 → 先加入預覽</div>
-              </div>
+            <ProductPicker
+              PRODUCTS={PRODUCTS}
+              BUNDLES={BUNDLES}
+              GIFTS={GIFTS}
+              bundleGroups={setBundleGroups && bundleGroups}
+              setBundleGroups={setBundleGroups}
+              pendingSingles={pendingSingles}
+              setPendingSingles={setPendingSingles}
+              giftChecks={giftChecks}
+              setGiftChecks={setGiftChecks}
+              selA={selA} setSelA={setSelA}
+              selB={selB} setSelB={setSelB}
+              selPid={selPid} setSelPid={setSelPid}
+              singleQty={singleQty} setSingleQty={setSingleQty}
+              catA={catA} seriesByA={seriesByA} prodsByAB={prodsByAB}
+            />
 
-              <div className="p-4 space-y-6">
-                {/* 套組 */}
-                <div>
-                  <div className="text-sm font-semibold mb-2">套組</div>
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                    {BUNDLES.map(b=>(
-                      <div key={b.id} className="rounded border border-gray-200 p-2 bg-white">
-                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-2">
-                          <span className="text-[13px] leading-snug md:flex-1"
-                                title={b.name}
-                                style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}
-                          >{b.name}</span>
-                          <div className="md:self-auto self-end md:mt-0 mt-1 flex justify-end">
-                            <Stepper small value={bundleGroups[b.id]||0} onChange={v=>setBundleGroups(s=>({...s,[b.id]:v}))}/>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    {BUNDLES.length===0 && <div className="text-xs text-gray-400">（尚無套組）</div>}
-                  </div>
-                </div>
+            {/* 預覽 */}
+            <Preview
+              previewBundles={previewBundles}
+              previewSingles={previewSingles}
+              previewGifts={previewGifts}
+              openPreview={openPreview}
+              setOpenPreview={setOpenPreview}
+              clearPreview={clearPreview}
+              confirmPreview={confirmPreview}
+            />
 
-                {/* 單品 */}
-                <div>
-                  <div className="text-sm font-semibold mb-2">單品</div>
-                  <div className="rounded border bg-gray-50 p-3 space-y-2">
-                    <div className="grid md:grid-cols-6 gap-2">
-                      <div className="md:col-span-2">
-                        <div className="text-[11px] text-gray-500 mb-1">商品類別（A）</div>
-                        <select className="w-full border rounded h-9 px-2 text-sm"
-                          value={selA}
-                          onChange={e=>{
-                            const v=e.target.value; setSelA(v);
-                            const nb=(seriesByA[v]||[])[0]||""; setSelB(nb);
-                            const first=(prodsByAB[`${v}__${nb}`]||[])[0]; setSelPid(first?first.id:"");
-                          }}>
-                          {catA.map(a=><option key={a}>{a}</option>)}
-                        </select>
-                      </div>
-                      <div className="md:col-span-2">
-                        <div className="text-[11px] text-gray-500 mb-1">系列名稱（B）</div>
-                        <select className="w-full border rounded h-9 px-2 text-sm"
-                          value={selB}
-                          onChange={e=>{
-                            const v=e.target.value; setSelB(v);
-                            const first=(prodsByAB[`${selA}__${v}`]||[])[0]; setSelPid(first?first.id:"");
-                          }}>
-                          {(seriesByA[selA]||[]).map(b=><option key={b}>{b}</option>)}
-                        </select>
-                      </div>
-                      <div className="md:col-span-2">
-                        <div className="text-[11px] text-gray-500 mb-1">產品名稱（C／唯一 ID）</div>
-                        <select className="w-full border rounded h-9 px-2 text-sm"
-                          value={selPid} onChange={e=>setSelPid(e.target.value)}
-                          title="若下拉文字過長將自動截斷，點開可見完整名稱。">
-                          {((prodsByAB[`${selA}__${selB}`])||[]).map(p=><option key={p.id} value={p.id}>{p.C}</option>)}
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* 數量＋加：手機窄寬自動另起一行 */}
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 justify-end">
-                      <Stepper small value={singleQty} min={1} onChange={setSingleQty}/>
-                      <button className="h-9 px-3 border border-gray-300 rounded text-sm"
-                        onClick={()=> selPid && setPendingSingles(prev=>({...prev,[selPid]:(prev[selPid]||0)+singleQty}))}>加</button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 禮遇 */}
-                <div>
-                  <div className="text-sm font-semibold mb-2">禮遇</div>
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                    {GIFTS.map(g=>(
-                      <label key={g.id} className="flex items-center gap-2 rounded border border-gray-200 bg-white p-2 cursor-pointer">
-                        <input type="checkbox" checked={!!giftChecks[g.id]} onChange={e=>setGiftChecks(s=>({...s,[g.id]:e.target.checked}))}/>
-                        <span className="text-xs leading-snug"
-                              style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}
-                              title={g.name}>{g.name}</span>
-                      </label>
-                    ))}
-                    {GIFTS.length===0 && <div className="text-xs text-gray-400">（尚無禮遇）</div>}
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* 庫存更新預覽 */}
-            <section className="rounded border border-gray-200 bg-white shadow-sm mb-5">
-              <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
-                <div className="font-medium">庫存更新預覽</div>
-                <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>setOpenPreview(o=>!o)}>{openPreview?"收":"展"}</button>
-              </div>
-
-              {openPreview && (
-                <div className="p-4">
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    <Card title="套組">
-                      {previewBundles.length===0 ? <Empty/> : (
-                        <ul className="space-y-2 text-xs">
-                          {previewBundles.map(b=>(
-                            <li key={b.id} className="border-b border-dashed border-gray-200 pb-1">
-                              <div className="font-medium mb-1">{b.title} × {b.count}</div>
-                              <ul className="ml-3 list-disc text-[11px] text-gray-600">
-                                {b.details.map((d,i)=><li key={i}>{d.name} × {d.qty}</li>)}
-                              </ul>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </Card>
-
-                    <Card title="單品">
-                      {previewSingles.length===0 ? <Empty/> : (
-                        <ul className="space-y-2 text-xs">
-                          {previewSingles.map(s=>(
-                            <li key={s.productId} className="flex items-center justify-between gap-2">
-                              <div className="text-[11px] leading-snug">{s.name}</div>
-                              <Stepper small value={s.qty} min={0}
-                                onChange={(v)=>setPendingSingles(prev=>{
-                                  const nxt={...prev,[s.productId]:v};
-                                  if(v===0) delete nxt[s.productId];
-                                  return nxt;
-                                })}/>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </Card>
-
-                    <Card title="禮遇">
-                      {previewGifts.length===0 ? <Empty/> : (
-                        <ul className="space-y-2 text-xs">
-                          {previewGifts.map(g=>(
-                            <li key={g.id} className="border-b border-dashed border-gray-200 pb-1">
-                              <div className="font-medium mb-1">{g.title}</div>
-                              <ul className="ml-3 list-disc text-[11px] text-gray-600">
-                                {g.details.map((d,i)=><li key={i}>{d.name} × {d.qty}</li>)}
-                              </ul>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </Card>
-                  </div>
-
-                  <div className="mt-3 flex justify-end gap-2">
-                    <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={clearPreview}>全部清除</button>
-                    <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={confirmPreview}>確認加入</button>
-                  </div>
-                </div>
-              )}
-            </section>
-
-            {/* 出貨清單／庫存扣減確認 */}
+            {/* 出貨清單／庫存扣減確認（展開時再顯示 selector 以決定簽名） */}
             {rows.length>0 && (
-              <section className="rounded border border-gray-200 bg-white shadow-sm mb-5">
-                <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
-                  <div className="font-medium">出貨清單／庫存扣減確認</div>
-
-                  {/* 脫鉤的操作類型（只決定 delta 符號） */}
-                  <div className="flex items-center gap-4 text-xs">
-                    <label className="flex items-center gap-1">
-                      <input type="radio" name="op" checked={op==='ship'} onChange={()=>setOp('ship')}/>
-                      出（-）
-                    </label>
-                    <label className="flex items-center gap-1">
-                      <input type="radio" name="op" checked={op==='receive'} onChange={()=>setOp('receive')}/>
-                      進（+）
-                    </label>
-                  </div>
-                </div>
-
-                {/* header 卡：值加粗 */}
-                <div className="p-3">
-                  <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
-                      <div><div className="text-[11px] text-gray-500">類別</div><div className="text-sm font-semibold">{mode==='sales'?(salesCat||'—'):(nonSalesCat||'—')}</div></div>
-                      <div><div className="text-[11px] text-gray-500">客戶 PO</div><div className="text-sm font-semibold">{po||'—'}</div></div>
-                      <div><div className="text-[11px] text-gray-500">備註</div><div className="text-sm font-semibold">{memo||'—'}</div></div>
-                      <div><div className="text-[11px] text-gray-500">表單-日期-ID</div><div className="text-sm font-semibold font-mono">{formDateId}</div></div>
-                    </div>
-                  </div>
-
-                  <RowsList rows={rows} setRows={setRows}/>
-                </div>
-
-                <div className="px-3 pb-3 text-sm">
-                  <span>項：{rows.length}　預計：{rows.reduce((s,r)=>s+r.qty,0)}　點交：{rows.reduce((s,r)=>s+(r.picked||0),0)}</span>
-                </div>
-              </section>
+              <ListSection
+                rows={rows}
+                setRows={setRows}
+                mode={mode}
+                setMode={setMode}
+                salesCat={salesCat}
+                nonSalesCat={nonSalesCat}
+                po={po}
+                memo={memo}
+                formDateId={formDateId}
+              />
             )}
 
-            {/* Sticky actions */}
-            {rows.length>0 && (
-              <div className="fixed bottom-0 left-0 right-0 bg-white/95 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] p-2">
-                <div className="max-w-6xl mx-auto flex justify-end gap-2">
-                  <button className="h-9 px-3 border border-gray-300 rounded text-xs"
-                          onClick={()=>setRows(prev=>prev.map(x=>({...x,picked:x.qty})))}>全部帶入</button>
-                  <button className="h-9 px-3 border border-gray-300 rounded text-xs"
-                          onClick={()=>setRows([])}>全部清除</button>
-                  <SubmitButton rows={rows} op={op}
-                    category={mode==='sales'?salesCat:nonSalesCat}
-                    po={po} memo={memo} formDateId={formDateId}/>
-                </div>
-              </div>
-            )}
-
-            {/* 系統用面板（PIN 開啟） */}
-            <section className="mt-8 rounded border border-gray-200 bg-white shadow-sm">
-              <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
-                <div className="font-medium">匯入資料（系統用）</div>
-                <button className="h-8 px-3 border border-gray-300 rounded text-xs"
-                        onClick={()=>setSysOpen(o=>!o)}>{sysOpen?"收":"展"}</button>
-              </div>
-
-              {sysOpen && (
-                <div className="p-4">
-                  {!pinOK ? (
-                    <PinGate onOk={()=>setPinOK(true)} />
-                  ) : (
-                    <SystemPanel
-                      setPRODUCTS={setPRODUCTS} setCUSTOMERS={setCUSTOMERS}
-                      setBUNDLES={setBUNDLES} setGIFTS={setGIFTS} setNONSALES={setNONSALES}
-                      reload={loadFromGitHub}
-                    />
-                  )}
-                </div>
-              )}
-            </section>
+            {/* 系統用（PIN）面板：預設關閉 */}
+            <AdminPanel
+              open={adminOpen}
+              setOpen={setAdminOpen}
+              authed={adminAuthed}
+              setAuthed={setAdminAuthed}
+              pinInput={pinInput}
+              setPinInput={setPinInput}
+            />
           </div>
         );
       }
 
       /* -------------------------- Subcomponents -------------------------- */
 
+      function ProductPicker({
+        PRODUCTS,BUNDLES,GIFTS,
+        bundleGroups,setBundleGroups,
+        pendingSingles,setPendingSingles,
+        giftChecks,setGiftChecks,
+        selA,setSelA,selB,setSelB,selPid,setSelPid,
+        singleQty,setSingleQty,
+        catA,seriesByA,prodsByAB
+      }){
+        return (
+          <section className="rounded border border-gray-300 bg-gray-50 p-4">
+            <h2 className="text-sm font-medium mb-3">產品選擇</h2>
+
+            {/* 套組：手機兩欄；名稱保留兩行；數量置右 */}
+            <div className="mb-4">
+              <h3 className="text-xs font-semibold mb-2">套組</h3>
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+                {(BUNDLES||[]).map(b=>(
+                  <div key={b.id} className="rounded border border-gray-200 bg-white p-2">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-2">
+                      <span
+                        className="text-[13px] leading-snug md:flex-1"
+                        style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}
+                        title={b.name}
+                      >{b.name}</span>
+                      <div className="md:self-auto self-end md:mt-0 mt-1 flex justify-end">
+                        <Stepper value={bundleGroups[b.id]||0} onChange={v=>setBundleGroups(s=>({...s,[b.id]:v}))}/>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {(BUNDLES||[]).length===0 && <div className="text-[11px] text-gray-400">（尚無套組）</div>}
+              </div>
+            </div>
+
+            {/* 單品：三個下拉有標題；RWD 不會溢出容器 */}
+            <div className="mb-4">
+              <h3 className="text-xs font-semibold mb-2">單品</h3>
+              <div className="grid gap-2 bg-white p-3 rounded border">
+                <label className="text-[11px] text-gray-600">商品類別（A）</label>
+                <select className="border rounded h-8 px-2 text-xs w-full" value={selA} onChange={e=>{setSelA(e.target.value);}}>
+                  {catA.map(a=><option key={a}>{a}</option>)}
+                </select>
+
+                <label className="text-[11px] text-gray-600 mt-1">系列名稱（B）</label>
+                <select className="border rounded h-8 px-2 text-xs w-full" value={selB} onChange={e=>{setSelB(e.target.value);}}>
+                  {(seriesByA[selA]||[]).map(b=><option key={b}>{b}</option>)}
+                </select>
+
+                <label className="text-[11px] text-gray-600 mt-1">產品名稱（C / 唯一 ID）</label>
+                <div className="grid md:grid-cols-[1fr_auto] gap-2">
+                  <select className="border rounded h-8 px-2 text-xs w-full" value={selPid} onChange={e=>setSelPid(e.target.value)}>
+                    {((prodsByAB[`${selA}__${selB}`])||[]).map(p=><option key={p.id} value={p.id}>{p.C}</option>)}
+                  </select>
+                  <div className="flex items-center gap-2 justify-end">
+                    <Stepper value={singleQty} min={1} onChange={setSingleQty}/>
+                    <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>{
+                      if(!selPid) return;
+                      setPendingSingles(prev=>({...prev,[selPid]:(prev[selPid]||0)+singleQty}));
+                    }}>加</button>
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-gray-500 mt-1">＊若下拉文字過長將自動截斷，點開可見完整名稱。</div>
+              </div>
+            </div>
+
+            {/* 禮遇：手機兩欄 */}
+            <div>
+              <h3 className="text-xs font-semibold mb-2">禮遇</h3>
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+                {(GIFTS||[]).map(g=>(
+                  <label key={g.id} className="flex items-center gap-2 rounded border border-gray-200 bg-white p-2 cursor-pointer">
+                    <input type="checkbox" checked={!!giftChecks[g.id]} onChange={e=>setGiftChecks(s=>({...s,[g.id]:e.target.checked}))}/>
+                    <span className="text-xs leading-snug" style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}} title={g.name}>{g.name}</span>
+                  </label>
+                ))}
+                {(GIFTS||[]).length===0 && <div className="text-[11px] text-gray-400">（尚無禮遇）</div>}
+              </div>
+            </div>
+          </section>
+        );
+      }
+
       function Card({title,children}){ return (
         <div className="rounded border border-gray-200 bg-white p-3">
-          <div className="text-sm font-semibold mb-2">{title}</div>
+          <div className="text-xs font-semibold mb-2">{title}</div>
           {children}
         </div>
       );}
       function Empty(){ return <div className="text-xs text-gray-400">（無）</div>; }
 
-      // Rows：手機兩行（第一行名稱、第二行一整組控制）
+      function Preview({previewBundles,previewSingles,previewGifts,openPreview,setOpenPreview,clearPreview,confirmPreview}){
+        return (
+          <section className="mt-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-semibold">庫存更新預覽</h3>
+              <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>setOpenPreview(o=>!o)}>{openPreview?"收":"展"}</button>
+            </div>
+            {openPreview && (
+              <div className="mt-2">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                  <Card title="套組">
+                    {previewBundles.length===0 ? <Empty/> : (
+                      <ul className="space-y-2 text-xs">
+                        {previewBundles.map(b=>(
+                          <li key={b.id} className="border-b border-dashed border-gray-200 pb-1">
+                            <div className="font-medium mb-1">{b.title}</div>
+                            <ul className="ml-3 list-disc text-[11px] text-gray-600">
+                              {b.details.map((d,i)=><li key={i}>{d.name} × {d.qty}</li>)}
+                            </ul>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </Card>
+
+                  <Card title="單品">
+                    {previewSingles.length===0 ? <Empty/> : (
+                      /* ✅ ONLY-CHANGED PART: stable right-aligned qty */
+                      <ul className="space-y-2 text-xs">
+                        {previewSingles.map(s => (
+                          <li
+                            key={s.productId}
+                            className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1 sm:gap-2"
+                          >
+                            <div
+                              className="min-w-0 text-[11px] leading-tight sm:leading-snug"
+                              style={{
+                                display: "-webkit-box",
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: "vertical",
+                                overflow: "hidden"
+                              }}
+                              title={s.name}
+                            >
+                              {s.name}
+                            </div>
+                            <span className="justify-self-end text-xs tabular-nums shrink-0">× {s.qty}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </Card>
+
+                  <Card title="禮遇">
+                    {previewGifts.length===0 ? <Empty/> : (
+                      <ul className="space-y-2 text-xs">
+                        {previewGifts.map(g=>(
+                          <li key={g.id} className="border-b border-dashed border-gray-200 pb-1">
+                            <div className="font-medium mb-1">{g.title}</div>
+                            <ul className="ml-3 list-disc text-[11px] text-gray-600">
+                              {g.details.map((d,i)=><li key={i}>{d.name} × {d.qty}</li>)}
+                            </ul>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </Card>
+                </div>
+                <div className="mt-3 flex justify-end gap-2">
+                  <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={clearPreview}>全部清除</button>
+                  <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={confirmPreview}>確認加入</button>
+                </div>
+              </div>
+            )}
+          </section>
+        );
+      }
+
       function RowsList({rows,setRows}){
         return (
           <ul className="space-y-2">
@@ -537,36 +501,32 @@
               const mismatch=(r.picked||0)!==(r.qty||0);
               return (
                 <li key={r.id} className={`rounded-md border ${mismatch?'border-red-300 bg-red-50/40':'border-gray-200 bg-white'}`}>
-                  <div className="p-2 sm:p-2.5">
-                    {/* 第一行：名稱（全寬） */}
-                    <div className="text-[15px] leading-5 md:text-[13px] break-words">{r.name}</div>
-
-                    {/* 第二行：整組控制 */}
-                    <div className="mt-2 grid grid-cols-12 items-center gap-2">
-                      {/* Picked */}
-                      <div className="col-span-6 md:col-span-3 flex items-center gap-1">
-                        <input className={`w-20 h-9 rounded border px-2 text-right tabular-nums ${mismatch?'border-red-400':'border-gray-300'}`} value={r.picked}
-                          onChange={e=>{
-                            const n=parseInt(e.target.value.replace(/[^0-9]/g,''),10);
-                            setRows(prev=>prev.map(x=>x.id===r.id?{...x,picked:Number.isFinite(n)?n:0}:x));
-                          }}/>
-                        {mismatch && (
-                          <button title="帶入預計" className="h-9 px-2 border border-gray-300 rounded text-sm text-gray-600"
-                                  onClick={()=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,picked:x.qty}:x))}>=</button>
-                        )}
+                  <div className="p-2 sm:p-2.5 grid grid-cols-1 md:grid-cols-12 md:items-center md:gap-2">
+                    <div className="md:col-span-7">
+                      <div className="text-[15px] leading-5 md:text-[13px] break-words">{r.name}</div>
+                    </div>
+                    {/* desktop controls */}
+                    <div className="hidden md:flex md:col-span-2 items-center gap-1">
+                      <input className={`w-16 h-7 rounded border px-2 text-right tabular-nums ${mismatch?'border-red-400':'border-gray-300'}`} value={r.picked}
+                        onChange={e=>{const n=parseInt(e.target.value.replace(/[^0-9]/g,''),10); setRows(prev=>prev.map(x=>x.id===r.id?{...x,picked:Number.isFinite(n)?n:0}:x));}}/>
+                      {mismatch && <button title="帶入預計" className="h-7 px-2 border border-gray-300 rounded text-xs text-gray-600" onClick={()=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,picked:x.qty}:x))}>=</button>}
+                    </div>
+                    <div className="hidden md:flex md:col-span-2 justify-end">
+                      <span className="text-xs text-gray-500 mr-2">預計</span>
+                      <Stepper value={r.qty} min={0} onChange={v=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,qty:v}:x))}/>
+                    </div>
+                    <div className="hidden md:flex md:col-span-1 justify-end">
+                      <button className="h-7 w-7 border border-gray-300 rounded text-sm text-gray-600" onClick={()=>setRows(prev=>prev.filter(x=>x.id!==r.id))}>×</button>
+                    </div>
+                    {/* mobile controls */}
+                    <div className="mt-2 md:hidden flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1">
+                        <input className={`w-16 h-9 rounded border px-2 text-right tabular-nums ${mismatch?'border-red-400':'border-gray-300'}`} value={r.picked}
+                          onChange={e=>{const n=parseInt(e.target.value.replace(/[^0-9]/g,''),10); setRows(prev=>prev.map(x=>x.id===r.id?{...x,picked:Number.isFinite(n)?n:0}:x));}}/>
+                        {mismatch && <button title="帶入預計" className="h-9 px-2 border border-gray-300 rounded text-sm text-gray-600" onClick={()=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,picked:x.qty}:x))}>=</button>}
                       </div>
-
-                      {/* Planned Stepper */}
-                      <div className="col-span-5 md:col-span-3 flex items-center justify-start md:justify-end">
-                        <span className="mr-2 text-xs text-gray-500 hidden md:inline">預計</span>
-                        <Stepper value={r.qty} min={0} small onChange={v=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,qty:v}:x))}/>
-                      </div>
-
-                      {/* 刪除 */}
-                      <div className="col-span-1 md:col-span-1 flex justify-end">
-                        <button className="h-9 w-9 border border-gray-300 rounded text-sm text-gray-600"
-                                onClick={()=>setRows(prev=>prev.filter(x=>x.id!==r.id))}>×</button>
-                      </div>
+                      <Stepper value={r.qty} min={0} onChange={v=>setRows(prev=>prev.map(x=>x.id===r.id?{...x,qty:v}:x))}/>
+                      <button className="h-9 px-3 border border-gray-300 rounded text-sm text-gray-600" onClick={()=>setRows(prev=>prev.filter(x=>x.id!==r.id))}>刪</button>
                     </div>
                   </div>
                 </li>
@@ -576,146 +536,155 @@
         );
       }
 
-      /* --------------------- Submit with Confirm Modal --------------------- */
-      function SubmitButton({rows,op,category,po,memo,formDateId}){
-        const [open,setOpen]=useState(false);
-        const [posting,setPosting]=useState(false);
-        const hasMismatch = rows.some(r=>(r.picked||0)!==(r.qty||0));
-        const sign = op==='ship' ? -1 : +1;
-        const opLabel = op==='ship' ? '出（-）' : '進（+）';
-        const items = rows.map(r=>({ productId:r.productId, name:r.name, delta:(r.picked||0)*sign }));
+      function Totals({rows}){ const v=rows.reduce((s,r)=>s+(r.picked||0),0); const eq=v===rows.reduce((s,r)=>s+r.qty,0); return <span className={eq?'':'text-red-600 font-medium'}>{v}</span> }
 
-        async function doPost(){
-          const payload = {
-            category: category || "",
-            po: po || "",
-            memo: memo || "",
-            formDateId,
-            items: items.map(({productId,delta})=>({productId,delta}))
-          };
-          try{
-            setPosting(true);
-            const res = await fetch("https://hook.us2.make.com/nbjdxrfypgoosj4qqxnzfmj9o29jq3c2", {
-              method:"POST",
-              headers:{ "Content-Type":"application/json" },
-              body: JSON.stringify(payload)
-            });
-            if(!res.ok) throw new Error("webhook failed");
-            setOpen(false);
-            alert("已送出成功！");
-          }catch(e){
-            console.error(e);
-            alert("送出失敗，請稍後重試。");
-          }finally{
-            setPosting(false);
-          }
-        }
+      function ActionsBar({rows,setRows,onSubmit}){
+        if(rows.length===0) return null;
+        return (
+          <div className="md:static fixed bottom-0 left-0 right-0 md:bg-transparent bg-white/95 md:shadow-none shadow-[0_-4px_12px_rgba(0,0,0,0.06)] md:p-0 p-2">
+            <div className="flex justify-end gap-2 max-w-6xl mx-auto">
+              <button className="h-9 px-3 border border-gray-300 rounded text-xs" onClick={()=>setRows(prev=>prev.map(x=>({...x,picked:x.qty})))}>全部帶入</button>
+              <button className="h-9 px-3 border border-gray-300 rounded text-xs" onClick={()=>setRows([])}>全部清除</button>
+              <button className="h-9 px-3 border border-gray-300 rounded text-xs disabled:opacity-50"
+                      disabled={rows.length===0}
+                      onClick={onSubmit}>庫存更新提交</button>
+            </div>
+          </div>
+        );
+      }
+
+      function ListSection({rows,setRows,mode,setMode,salesCat,nonSalesCat,po,memo,formDateId}){
+        const hasMismatch = rows.some(r=>(r.picked||0)!==(r.qty||0));
+        const opLabel = mode==='sales' ? '出貨（扣）' : '進貨（入）';
+        const plannedTotal = rows.reduce((s,r)=>s+(r.qty||0),0);
+        const pickedTotal  = rows.reduce((s,r)=>s+(r.picked||0),0);
+        const [showConfirm,setShowConfirm]=useState(false);
 
         return (
-          <>
-            <button className="h-9 px-3 border border-gray-300 rounded text-xs disabled:opacity-50"
-                    disabled={rows.length===0}
-                    onClick={()=>setOpen(true)}>庫存更新提交</button>
+          <section className="mt-6 rounded border border-gray-200 bg-white shadow-sm p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-medium text-sm">出貨清單／庫存扣減確認</h2>
+              {/* 只決定簽名（與上方類別無關） */}
+              <div className="flex items-center gap-3 text-xs">
+                <label className="flex items-center gap-1">
+                  <input type="radio" name="op2" checked={mode==='sales'} onChange={()=>setMode('sales')}/>
+                  出貨（扣）
+                </label>
+                <label className="flex items-center gap-1">
+                  <input type="radio" name="op2" checked={mode==='nonSales'} onChange={()=>setMode('nonSales')}/>
+                  進貨（入）
+                </label>
+              </div>
+            </div>
 
-            {open && (
+            <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+                <div><div className="text-[11px] text-gray-500">類別</div><div className="text-sm font-semibold">{mode==='sales'?(salesCat||'—'):(nonSalesCat||'—')}</div></div>
+                <div><div className="text-[11px] text-gray-500">客戶 PO</div><div className="text-sm font-semibold">{po||'—'}</div></div>
+                <div><div className="text-[11px] text-gray-500">備註</div><div className="text-sm font-semibold">{memo||'—'}</div></div>
+                <div><div className="text-[11px] text-gray-500">表單-日期-ID</div><div className="text-sm font-semibold font-mono">{formDateId}</div></div>
+              </div>
+            </div>
+
+            <RowsList rows={rows} setRows={setRows} />
+
+            <div className="flex justify-between items-center mt-3 text-sm">
+              <span>項：{rows.length}　預計：{plannedTotal}　點交：<Totals rows={rows}/></span>
+            </div>
+
+            <ActionsBar
+              rows={rows}
+              setRows={setRows}
+              onSubmit={()=>setShowConfirm(true)}
+            />
+
+            {/* Confirm Modal */}
+            {showConfirm && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                <div className="w-full max-w-lg rounded-lg bg-white shadow-xl overflow-hidden">
+                <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
                   <div className="px-4 py-3 border-b">
                     <div className="text-sm font-semibold">送出前確認</div>
                     <div className="mt-1 text-xs text-gray-600">操作類型：{opLabel}</div>
                   </div>
-
-                  <div className="p-4 max-h-[65vh] overflow-auto">
-                    {/* Header values */}
-                    <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        <div><span className="text-gray-500">類別：</span><span className="font-semibold">{category||'—'}</span></div>
-                        <div><span className="text-gray-500">客戶 PO：</span><span className="font-semibold">{po||'—'}</span></div>
-                        <div><span className="text-gray-500">備註：</span><span className="font-semibold">{memo||'—'}</span></div>
-                        <div><span className="text-gray-500">表單-日期-ID：</span><span className="font-semibold font-mono">{formDateId}</span></div>
-                      </div>
+                  <div className="p-4 max-h-[60vh] overflow-auto">
+                    <div className="text-xs mb-2">
+                      項：{rows.length}　預計：{plannedTotal}　點交：
+                      <span className={hasMismatch?'text-red-600 font-semibold':''}>{pickedTotal}</span>
                     </div>
-
-                    {/* Items (name + Δ) */}
-                    {hasMismatch && (
-                      <div className="mb-2 text-xs text-red-600">
-                        點交量與預計不一致，請先在清單中校對後再送出。
-                      </div>
-                    )}
+                    {hasMismatch && <div className="mb-2 text-xs text-red-600">點交量與預計不一致，請先調整至一致才能送出。</div>}
                     <ul className="space-y-2 text-xs">
-                      {items.map(it=>(
-                        <li key={it.productId} className="rounded border border-gray-200 p-2">
-                          <div className="font-medium mb-1">{it.name}</div>
-                          <div className="text-[11px] text-gray-600">Δ 更新數量：<span className="font-semibold">{it.delta>=0?`+${it.delta}`:it.delta}</span></div>
+                      {rows.map(r=>(
+                        <li key={r.id} className="rounded border border-gray-200 p-2">
+                          <div className="font-medium">{r.name}</div>
+                          <div className="mt-1 text-[11px] text-gray-600">預計：{r.qty}　|　點交：{r.picked}</div>
                         </li>
                       ))}
                     </ul>
                   </div>
-
                   <div className="px-4 py-3 border-t flex justify-end gap-2">
-                    <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>setOpen(false)}>取消</button>
+                    <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>setShowConfirm(false)}>取消</button>
                     <button className="h-8 px-3 border border-gray-300 rounded text-xs disabled:opacity-50"
-                            disabled={hasMismatch || posting}
-                            onClick={doPost}>{posting?"送出中…":"確認送出"}</button>
+                            disabled={hasMismatch}
+                            onClick={async ()=>{
+                              // Build minimal payload you requested
+                              const payload = {
+                                category: (mode==='sales'?salesCat:nonSalesCat) || "",
+                                po: po || "",
+                                memo: memo || "",
+                                formDateId,
+                                items: rows.map(r=>({
+                                  productId: r.productId,
+                                  delta: (mode==='sales' ? -1 : 1) * (r.picked||0)
+                                }))
+                              };
+                              try{
+                                const res = await fetch(WEBHOOK,{
+                                  method:"POST",
+                                  headers:{"Content-Type":"application/json"},
+                                  body: JSON.stringify(payload),
+                                });
+                                if(!res.ok) throw new Error("webhook failed");
+                                alert("已成功送出！");
+                              }catch(err){
+                                console.error(err);
+                                alert("送出失敗，請稍後再試。");
+                              }finally{
+                                setShowConfirm(false);
+                              }
+                            }}>確認送出</button>
                   </div>
                 </div>
               </div>
             )}
-          </>
+          </section>
         );
       }
 
-      /* ------------------------ 系統用：PIN & Panel ------------------------ */
-      function PinGate({onOk}){
-        const [pin,setPin]=useState("");
+      function AdminPanel({open,setOpen,authed,setAuthed,pinInput,setPinInput}){
         return (
-          <div className="max-w-sm">
-            <div className="text-sm font-medium mb-2">管理登入</div>
-            <div className="flex gap-2">
-              <input className="border rounded h-9 px-2 text-sm w-full" placeholder="輸入 8 位 PIN"
-                     value={pin} onChange={e=>setPin(e.target.value)} />
-              <button className="h-9 px-3 border border-gray-300 rounded text-sm"
-                      onClick={()=> pin==="50963212" ? onOk() : alert("PIN 錯誤")}>登入</button>
-            </div>
-          </div>
-        );
-      }
-
-      function SystemPanel({setPRODUCTS,setCUSTOMERS,setBUNDLES,setGIFTS,setNONSALES,reload}){
-        return (
-          <div className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <CsvBox title="商品 CSV（A,B,C）" setter={setPRODUCTS} parser={parseProducts}/>
-              <CsvBox title="客戶 CSV（id,name）" setter={setCUSTOMERS} parser={parsePairs}/>
-              <CsvBox title="套組 CSV（bundle_id,bundle_name,product_id,qty,active）" setter={setBUNDLES} parser={parseBundles}/>
-              <CsvBox title="禮遇 CSV（bundle_id,bundle_name,product_id,qty,active）" setter={setGIFTS} parser={parseBundles}/>
-              <CsvBox title="非銷售 CSV（id,name）" setter={setNONSALES} parser={parsePairs}/>
-            </div>
-
-            <div className="flex gap-2">
-              <button className="h-9 px-3 border border-gray-300 rounded text-xs" onClick={reload}>
-                Reset All（重抓 GitHub，並清空選擇）
+          <section className="mt-8 max-w-6xl mx-auto">
+            <div className="flex justify-end">
+              <button className="h-9 px-4 rounded bg-black text-white text-xs" onClick={()=>setOpen(v=>!v)}>
+                管理登入
               </button>
             </div>
-          </div>
-        );
-
-        function CsvBox({title,setter,parser}){
-          const [val,setVal]=useState("");
-          return (
-            <div>
-              <div className="text-sm font-medium mb-2">{title}</div>
-              <textarea className="w-full h-40 border rounded p-2 text-xs font-mono" value={val} onChange={e=>setVal(e.target.value)}></textarea>
-              <div className="mt-2">
-                <button className="h-8 px-3 border border-gray-300 rounded text-xs"
-                        onClick={()=>{
-                          try{ setter(parser(val)); alert("已載入並覆蓋。"); }
-                          catch(e){ alert("格式錯誤，請檢查 CSV。"); }
-                        }}>載入</button>
+            {open && (
+              <div className="mt-3 rounded border border-gray-200 bg-gray-50 p-4">
+                {!authed ? (
+                  <div className="flex items-center gap-2">
+                    <input className="border rounded h-8 px-2 text-sm" placeholder="輸入 PIN" value={pinInput} onChange={e=>setPinInput(e.target.value)} />
+                    <button className="h-8 px-3 border rounded text-xs" onClick={()=>{
+                      if(pinInput===ADMIN_PIN){ setAuthed(true); }
+                      else alert("PIN 錯誤");
+                    }}>確認</button>
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-600">已登入（系統用面板略）。</div>
+                )}
               </div>
-            </div>
-          );
-        }
+            )}
+          </section>
+        );
       }
 
       ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
