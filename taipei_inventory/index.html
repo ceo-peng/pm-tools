@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>PM 庫存更新系統 — Final Full (Webhook Enabled)</title>
+    <title>PM 庫存更新系統 — Final Full (Mobile-safe Singles)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -57,7 +57,7 @@
       }
       async function fetchCsv(url){ const r=await fetch(url,{cache:"no-store"}); if(!r.ok) throw new Error(url); return r.text(); }
 
-      /* -------------------------- Toast (tiny) -------------------------- */
+      /* -------------------------- Toast -------------------------- */
       function useToast(){
         const [msg,setMsg]=useState("");
         const [type,setType]=useState("info");
@@ -68,7 +68,7 @@
         return {setMsg,setType,Toast};
       }
 
-      /* -------------------- Stepper（+/- 與小輸入框） -------------------- */
+      /* -------------------- Stepper -------------------- */
       function Stepper({value,min=0,onChange}){
         return (
           <div className="inline-flex items-stretch border border-gray-300 rounded h-[30px] overflow-hidden">
@@ -103,7 +103,7 @@
         const [GIFTS,setGIFTS]=useState([]);
         const [NONSALES,setNONSALES]=useState([]);
 
-        // 模式（頂部選擇，僅決定「出貨訂單資訊」顯示哪個下拉）
+        // 模式
         const [mode,setMode]=useState("sales"); // 'sales' | 'nonSales'
 
         // 订单资讯
@@ -113,9 +113,9 @@
         const [memo,setMemo]=useState("");
 
         // 選擇暫存（預覽）
-        const [bundleGroups,setBundleGroups]=useState({});  // {bundleId: count}
-        const [giftChecks,setGiftChecks]=useState({});      // {giftId: true}
-        const [pendingSingles,setPendingSingles]=useState({}); // {productId: qty}
+        const [bundleGroups,setBundleGroups]=useState({});
+        const [giftChecks,setGiftChecks]=useState({});
+        const [pendingSingles,setPendingSingles]=useState({});
         const [openPreview,setOpenPreview]=useState(true);
 
         // 最終清單
@@ -176,6 +176,11 @@
           const first=(prodsByAB[`${a0}__${b0}`]||[])[0];
           setSelPid(first?first.id:"");
         },[PRODUCTS]);
+        useEffect(()=>{ setSelB((seriesByA[selA]||[])[0] || ""); },[selA]);
+        useEffect(()=>{
+          const first=(prodsByAB[`${selA}__${selB}`]||[])[0];
+          setSelPid(first?first.id:"");
+        },[selB,selA,prodsByAB]);
 
         /* ---------- 預覽資料 ---------- */
         const previewBundles = useMemo(()=> Object.entries(bundleGroups)
@@ -224,7 +229,6 @@
             });
             return next;
           });
-          // 保留預覽作參考
         }
 
         const formDateId = useMemo(()=> genDocId(mode==='sales'?(salesCat||''): (nonSalesCat||'')),[mode,salesCat,nonSalesCat]);
@@ -255,7 +259,7 @@
               <button className="h-9 px-3 border border-gray-300 rounded text-xs" onClick={resetAll}>Reset All</button>
             </div>
 
-            {/* ★★ 銷售 / 非銷售 切換 */}
+            {/* 銷售 / 非銷售 切換 */}
             <div className="mb-3">
               <div className="inline-flex items-center gap-4 text-xs">
                 <label className="flex items-center gap-1">
@@ -301,7 +305,7 @@
               PRODUCTS={PRODUCTS}
               BUNDLES={BUNDLES}
               GIFTS={GIFTS}
-              bundleGroups={setBundleGroups?bundleGroups:{}}
+              bundleGroups={bundleGroups}
               setBundleGroups={setBundleGroups}
               pendingSingles={pendingSingles}
               setPendingSingles={setPendingSingles}
@@ -373,15 +377,8 @@
           catA, seriesByA, prodsByAB
         } = props;
 
-        // 切換 A/B 時重置下游
-        useEffect(()=>{ setSelB((seriesByA[selA]||[])[0] || ""); },[selA]);
-        useEffect(()=>{
-          const first=(prodsByAB[`${selA}__${selB}`]||[])[0];
-          setSelPid(first?first.id:"");
-        },[selB,selA,prodsByAB]);
-
         return (
-          <section className="rounded border border-gray-300 bg-gray-50 p-4 overflow-visible">
+          <section className="rounded border border-gray-300 bg-gray-50 p-4">
             <h2 className="text-sm font-medium mb-3">產品選擇</h2>
 
             {/* 套組：手機兩欄 */}
@@ -397,7 +394,7 @@
                         title={b.name}
                       >{b.name}</span>
                       <div className="md:self-auto self-end md:mt-0 mt-1 flex justify-end">
-                        <Stepper value={bundleGroups?.[b.id]||0} onChange={v=>setBundleGroups(s=>({...s,[b.id]:v}))}/>
+                        <Stepper value={bundleGroups[b.id]||0} onChange={v=>setBundleGroups(s=>({...s,[b.id]:v}))}/>
                       </div>
                     </div>
                   </div>
@@ -406,10 +403,10 @@
               </div>
             </div>
 
-            {/* 單品（有三個標題） */}
+            {/* 單品（★改版：手機時 Stepper+加 在第二行，避免撐出容器） */}
             <div className="mb-4">
               <h3 className="text-xs font-semibold mb-2">單品</h3>
-              <div className="grid md:grid-cols-6 gap-2 items-start bg-white p-2 rounded border overflow-visible">
+              <div className="grid md:grid-cols-6 gap-2 items-start bg-white p-2 rounded border">
                 <div className="md:col-span-2 min-w-0">
                   <div className="text-[11px] text-gray-500 mb-1">商品類別</div>
                   <select className="w-full border rounded h-8 px-2 text-xs truncate" value={selA} onChange={e=>setSelA(e.target.value)}>
@@ -422,12 +419,27 @@
                     {(seriesByA[selA]||[]).map(b=><option key={b}>{b}</option>)}
                   </select>
                 </div>
+
+                {/* 產品名稱 + 控制列（手機第二行） */}
                 <div className="md:col-span-2 min-w-0">
                   <div className="text-[11px] text-gray-500 mb-1">產品名稱</div>
-                  <div className="flex items-center gap-2 min-w-0">
-                    <select className="flex-1 border rounded h-8 px-2 text-xs truncate" value={selPid} onChange={e=>setSelPid(e.target.value)}>
-                      {((prodsByAB[`${selA}__${selB}`])||[]).map(p=><option key={p.id} value={p.id}>{p.C}</option>)}
-                    </select>
+
+                  {/* 第一行：名稱下拉，保持不溢出 */}
+                  <select className="w-full border rounded h-8 px-2 text-xs truncate" value={selPid} onChange={e=>setSelPid(e.target.value)}>
+                    {((prodsByAB[`${selA}__${selB}`])||[]).map(p=><option key={p.id} value={p.id}>{p.C}</option>)}
+                  </select>
+
+                  {/* 第二行（僅手機顯示）：Stepper + 加入靠右，防溢出 */}
+                  <div className="flex items-center justify-end gap-2 mt-2 md:hidden">
+                    <Stepper value={singleQty} min={1} onChange={setSingleQty}/>
+                    <button
+                      className="h-8 px-3 border border-gray-300 rounded text-xs"
+                      onClick={()=> selPid && setPendingSingles(prev=>({...prev,[selPid]:(prev[selPid]||0)+singleQty}))}
+                    >加</button>
+                  </div>
+
+                  {/* 桌機：維持同一列（名稱右邊） */}
+                  <div className="hidden md:flex items-center justify-end gap-2 mt-2">
                     <Stepper value={singleQty} min={1} onChange={setSingleQty}/>
                     <button
                       className="h-8 px-3 border border-gray-300 rounded text-xs"
@@ -436,7 +448,7 @@
                   </div>
                 </div>
               </div>
-              <p className="text-[11px] text-gray-500 mt-1">* 若下拉文字過長將自動截斷，點開可見完整名稱。</p>
+              <p className="text-[11px] text-gray-500 mt-1">* 若下拉文字過長將自動截斷；手機尺寸時控制列會自動換到下一行，避免擠出容器。</p>
             </div>
 
             {/* 禮遇：手機兩欄 */}
@@ -617,8 +629,7 @@
             if(!res.ok){ throw new Error("Webhook 回應非 2xx"); }
             setShowConfirm(false);
             setType("info"); setMsg("已送出到 Webhook");
-            // 送出後清空列（視作一次交易）
-            setRows([]);
+            setRows([]); // 送出後清空一次交易
           }catch(err){
             console.error(err);
             setType("error"); setMsg("送出失敗（Webhook）");
@@ -643,7 +654,7 @@
               </div>
             </div>
 
-            {/* header 卡：值加粗 */}
+            {/* header 卡 */}
             <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
                 <div><div className="text-[11px] text-gray-500">類別</div><div className="text-sm font-semibold">{mode==='sales'?(salesCat||'—'):(nonSalesCat||'—')}</div></div>
@@ -666,7 +677,7 @@
               </div>
             </div>
 
-            {/* 確認對話框（含抬頭資訊） */}
+            {/* 確認對話框 */}
             {showConfirm && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
                 <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
@@ -710,7 +721,7 @@
 
       /* ---------------------- Admin (系統用面板) ---------------------- */
       function AdminPanel({onClose,reloadAll,resetAll,onPasteLoad,onFileLoad}){
-        const Row = ({title,kind,placeholder})=>(
+        const Row = ({title,kind})=>(
           <div className="space-y-1">
             <div className="text-xs font-medium">{title}</div>
             <div className="flex items-center gap-2">
@@ -718,7 +729,7 @@
                 onChange={e=>e.target.files?.[0] && onFileLoad(kind, e.target.files[0])}/>
               <button className="h-8 px-3 border border-gray-300 rounded text-xs"
                 onClick={()=>{
-                  const txt=prompt(`請貼上 ${title} CSV 內容（純文字）`, placeholder||"");
+                  const txt=prompt(`請貼上 ${title} CSV 內容（純文字）`, "");
                   if(txt!=null) onPasteLoad(kind,txt);
                 }}>手貼匯入</button>
             </div>
