@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>PM 庫存更新系統 — Final</title>
+    <title>PM 庫存更新系統 — Final (with Confirm Modal)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -124,9 +124,9 @@
         const [op,setOp]=useState("ship"); // 'ship'(扣) | 'receive'(入)
 
         // selections preview
-        const [bundleGroups,setBundleGroups]=useState({}); // {bundleId: count}
-        const [giftChecks,setGiftChecks]=useState({});      // {giftId: true}
-        const [pendingSingles,setPendingSingles]=useState({}); // {productId: qty}
+        const [bundleGroups,setBundleGroups]=useState({});
+        const [giftChecks,setGiftChecks]=useState({});
+        const [pendingSingles,setPendingSingles]=useState({});
         const [openPreview,setOpenPreview]=useState(false);
 
         // final rows
@@ -153,7 +153,6 @@
           setBundleGroups({}); setGiftChecks({}); setPendingSingles({});
           setRows([]);
 
-          // 預設類別提示為空（必須選）
           setSalesCat(""); setNonSalesCat("");
           setMsg("已自動載入 GitHub CSV 並重置。");
         }
@@ -225,7 +224,7 @@
             });
             return next;
           });
-          setOpenPreview(false); // 確認加入後展開下段清單
+          setOpenPreview(false);
         }
 
         const formDateId = useMemo(()=> genDocId(mode==='sales'?(salesCat||''): (nonSalesCat||'')),[mode,salesCat,nonSalesCat]);
@@ -287,7 +286,7 @@
               </div>
 
               <div className="p-4 space-y-6">
-                {/* 套組：手機兩欄；步進器靠右，字可截兩行 */}
+                {/* 套組 */}
                 <div>
                   <div className="text-sm font-semibold mb-2">套組</div>
                   <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
@@ -308,7 +307,7 @@
                   </div>
                 </div>
 
-                {/* 單品：三標題＋RWD；溢出則數量與加號自動換到下一行 */}
+                {/* 單品 */}
                 <div>
                   <div className="text-sm font-semibold mb-2">單品</div>
                   <div className="rounded border bg-gray-50 p-3 space-y-2">
@@ -346,7 +345,7 @@
                       </div>
                     </div>
 
-                    {/* 數量＋加：在手機窄寬時自動另起一行 */}
+                    {/* 數量＋加：手機窄寬自動另起一行 */}
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 justify-end">
                       <Stepper small value={singleQty} min={1} onChange={setSingleQty}/>
                       <button className="h-9 px-3 border border-gray-300 rounded text-sm"
@@ -355,7 +354,7 @@
                   </div>
                 </div>
 
-                {/* 禮遇：手機兩欄 */}
+                {/* 禮遇 */}
                 <div>
                   <div className="text-sm font-semibold mb-2">禮遇</div>
                   <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
@@ -377,9 +376,7 @@
             <section className="rounded border border-gray-200 bg-white shadow-sm mb-5">
               <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
                 <div className="font-medium">庫存更新預覽</div>
-                <div className="flex items-center gap-2">
-                  <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>setOpenPreview(o=>!o)}>{openPreview?"收":"展"}</button>
-                </div>
+                <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>setOpenPreview(o=>!o)}>{openPreview?"收":"展"}</button>
               </div>
 
               {openPreview && (
@@ -510,8 +507,8 @@
                     <PinGate onOk={()=>setPinOK(true)} />
                   ) : (
                     <SystemPanel
-                      PRODUCTS={PRODUCTS} CUSTOMERS={CUSTOMERS} BUNDLES={BUNDLES} GIFTS={GIFTS} NONSALES={NONSALES}
-                      setPRODUCTS={setPRODUCTS} setCUSTOMERS={setCUSTOMERS} setBUNDLES={setBUNDLES} setGIFTS={setGIFTS} setNONSALES={setNONSALES}
+                      setPRODUCTS={setPRODUCTS} setCUSTOMERS={setCUSTOMERS}
+                      setBUNDLES={setBUNDLES} setGIFTS={setGIFTS} setNONSALES={setNONSALES}
                       reload={loadFromGitHub}
                     />
                   )}
@@ -532,7 +529,7 @@
       );}
       function Empty(){ return <div className="text-xs text-gray-400">（無）</div>; }
 
-      // Rows：手機兩行（第一行名稱、第二行一整組控制）— 你要求的改動
+      // Rows：手機兩行（第一行名稱、第二行一整組控制）
       function RowsList({rows,setRows}){
         return (
           <ul className="space-y-2">
@@ -544,7 +541,7 @@
                     {/* 第一行：名稱（全寬） */}
                     <div className="text-[15px] leading-5 md:text-[13px] break-words">{r.name}</div>
 
-                    {/* 第二行：整組控制（手機）；桌機維持單行右側對齊 */}
+                    {/* 第二行：整組控制 */}
                     <div className="mt-2 grid grid-cols-12 items-center gap-2">
                       {/* Picked */}
                       <div className="col-span-6 md:col-span-3 flex items-center gap-1">
@@ -579,19 +576,22 @@
         );
       }
 
+      /* --------------------- Submit with Confirm Modal --------------------- */
       function SubmitButton({rows,op,category,po,memo,formDateId}){
+        const [open,setOpen]=useState(false);
         const [posting,setPosting]=useState(false);
         const hasMismatch = rows.some(r=>(r.picked||0)!==(r.qty||0));
         const sign = op==='ship' ? -1 : +1;
+        const opLabel = op==='ship' ? '出貨（扣）' : '進貨（入）';
+        const items = rows.map(r=>({ productId:r.productId, name:r.name, delta:(r.picked||0)*sign }));
 
         async function doPost(){
-          if(hasMismatch){ alert("點交量與預計不一致，請先調整至一致再送出。"); return; }
           const payload = {
             category: category || "",
             po: po || "",
             memo: memo || "",
             formDateId,
-            items: rows.map(r=>({ productId:r.productId, delta: (r.picked||0) * sign })),
+            items: items.map(({productId,delta})=>({productId,delta}))
           };
           try{
             setPosting(true);
@@ -601,6 +601,7 @@
               body: JSON.stringify(payload)
             });
             if(!res.ok) throw new Error("webhook failed");
+            setOpen(false);
             alert("已送出成功！");
           }catch(e){
             console.error(e);
@@ -611,9 +612,56 @@
         }
 
         return (
-          <button className="h-9 px-3 border border-gray-300 rounded text-xs disabled:opacity-50"
-                  disabled={rows.length===0 || posting}
-                  onClick={doPost}>{posting?"送出中…":"庫存更新提交"}</button>
+          <>
+            <button className="h-9 px-3 border border-gray-300 rounded text-xs disabled:opacity-50"
+                    disabled={rows.length===0}
+                    onClick={()=>setOpen(true)}>庫存更新提交</button>
+
+            {open && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                <div className="w-full max-w-lg rounded-lg bg-white shadow-xl overflow-hidden">
+                  <div className="px-4 py-3 border-b">
+                    <div className="text-sm font-semibold">送出前確認</div>
+                    <div className="mt-1 text-xs text-gray-600">操作類型：{opLabel}</div>
+                  </div>
+
+                  <div className="p-4 max-h-[65vh] overflow-auto">
+                    {/* Header values */}
+                    <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div><span className="text-gray-500">類別：</span><span className="font-semibold">{category||'—'}</span></div>
+                        <div><span className="text-gray-500">客戶 PO：</span><span className="font-semibold">{po||'—'}</span></div>
+                        <div><span className="text-gray-500">備註：</span><span className="font-semibold">{memo||'—'}</span></div>
+                        <div><span className="text-gray-500">表單-日期-ID：</span><span className="font-semibold font-mono">{formDateId}</span></div>
+                      </div>
+                    </div>
+
+                    {/* Items (name + Δ) */}
+                    {hasMismatch && (
+                      <div className="mb-2 text-xs text-red-600">
+                        點交量與預計不一致，請先在清單中校對後再送出。
+                      </div>
+                    )}
+                    <ul className="space-y-2 text-xs">
+                      {items.map(it=>(
+                        <li key={it.productId} className="rounded border border-gray-200 p-2">
+                          <div className="font-medium mb-1">{it.name}</div>
+                          <div className="text-[11px] text-gray-600">Δ 更新數量：<span className="font-semibold">{it.delta>=0?`+${it.delta}`:it.delta}</span></div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="px-4 py-3 border-t flex justify-end gap-2">
+                    <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>setOpen(false)}>取消</button>
+                    <button className="h-8 px-3 border border-gray-300 rounded text-xs disabled:opacity-50"
+                            disabled={hasMismatch || posting}
+                            onClick={doPost}>{posting?"送出中…":"確認送出"}</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         );
       }
 
@@ -633,28 +681,26 @@
         );
       }
 
-      function SystemPanel(props){
-        const {setPRODUCTS,setCUSTOMERS,setBUNDLES,setGIFTS,setNONSALES,reload} = props;
-        const [p,c,b,g,n] = [useState(""),useState(""),useState(""),useState(""),useState("")].map(s=>s[0]);
-        const [setP,setC,setB,setG,setN] = [useState,setState=>{},useState,useState,useState]; // dummy to please linter (babel in browser)
-
+      function SystemPanel({setPRODUCTS,setCUSTOMERS,setBUNDLES,setGIFTS,setNONSALES,reload}){
         return (
           <div className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
-              <CsvBox title="商品 CSV（A,B,C）" stateKey="p"/>
-              <CsvBox title="客戶 CSV（id,name）" stateKey="c"/>
-              <CsvBox title="套組 CSV（bundle_id,bundle_name,product_id,qty,active）" stateKey="b"/>
-              <CsvBox title="禮遇 CSV（bundle_id,bundle_name,product_id,qty,active）" stateKey="g"/>
-              <CsvBox title="非銷售 CSV（id,name）" stateKey="n"/>
+              <CsvBox title="商品 CSV（A,B,C）" setter={setPRODUCTS} parser={parseProducts}/>
+              <CsvBox title="客戶 CSV（id,name）" setter={setCUSTOMERS} parser={parsePairs}/>
+              <CsvBox title="套組 CSV（bundle_id,bundle_name,product_id,qty,active）" setter={setBUNDLES} parser={parseBundles}/>
+              <CsvBox title="禮遇 CSV（bundle_id,bundle_name,product_id,qty,active）" setter={setGIFTS} parser={parseBundles}/>
+              <CsvBox title="非銷售 CSV（id,name）" setter={setNONSALES} parser={parsePairs}/>
             </div>
 
             <div className="flex gap-2">
-              <button className="h-9 px-3 border border-gray-300 rounded text-xs" onClick={reload}>Reset All（重抓 GitHub，並清空選擇）</button>
+              <button className="h-9 px-3 border border-gray-300 rounded text-xs" onClick={reload}>
+                Reset All（重抓 GitHub，並清空選擇）
+              </button>
             </div>
           </div>
         );
 
-        function CsvBox({title,stateKey}){
+        function CsvBox({title,setter,parser}){
           const [val,setVal]=useState("");
           return (
             <div>
@@ -663,14 +709,8 @@
               <div className="mt-2">
                 <button className="h-8 px-3 border border-gray-300 rounded text-xs"
                         onClick={()=>{
-                          try{
-                            if(stateKey==='p') setPRODUCTS(parseProducts(val));
-                            if(stateKey==='c') setCUSTOMERS(parsePairs(val));
-                            if(stateKey==='b') setBUNDLES(parseBundles(val));
-                            if(stateKey==='g') setGIFTS(parseBundles(val));
-                            if(stateKey==='n') setNONSALES(parsePairs(val));
-                            alert("已載入並覆蓋。");
-                          }catch(e){ alert("格式錯誤，請檢查 CSV。"); }
+                          try{ setter(parser(val)); alert("已載入並覆蓋。"); }
+                          catch(e){ alert("格式錯誤，請檢查 CSV。"); }
                         }}>載入</button>
               </div>
             </div>
