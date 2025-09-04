@@ -17,13 +17,13 @@
 
       /* -------------------- GitHub RAW URLs (hard-coded) -------------------- */
       const URLS = {
-        products :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/products.csv",
-        customers:"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/customers.csv",
-        bundles  :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/bundle_items.csv",
-        gifts    :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/gifts.csv",
-        nonsales :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/non_sales_application.csv",
-        /* 新增：基礎包材內容（若你之後換路徑，只需改這一行） */
-        materials:"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/materials.csv",
+        products  :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/products.csv",
+        customers :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/customers.csv",
+        bundles   :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/bundle_items.csv",
+        gifts     :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/gifts.csv",
+        nonsales  :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/non_sales_application.csv",
+        /* 新增：基礎包材內容 (packaging.csv) */
+        materials :"https://raw.githubusercontent.com/ceo-peng/pm-tools/refs/heads/main/data/packaging.csv",
       };
 
       /* ----------------------------- CSV helpers ---------------------------- */
@@ -117,7 +117,7 @@
         const [BUNDLES,setBUNDLES]=useState([]);
         const [GIFTS,setGIFTS]=useState([]);
         const [NONSALES,setNONSALES]=useState([]);
-        const [MATERIALS,setMATERIALS]=useState([]); // 新增：包材
+        const [MATERIALS,setMATERIALS]=useState([]); // 包材（packaging.csv）
 
         // 上方「銷售／非銷售」只決定 category 與表單 ID
         const [mode,setMode]=useState("sales"); // 'sales' | 'nonSales'
@@ -131,7 +131,7 @@
 
         // selections preview
         const [bundleGroups,setBundleGroups]=useState({});
-        const [materialGroups,setMaterialGroups]=useState({}); // 新增：包材
+        const [materialGroups,setMaterialGroups]=useState({});
         const [giftChecks,setGiftChecks]=useState({});
         const [pendingSingles,setPendingSingles]=useState({});
         const [openPreview,setOpenPreview]=useState(false);
@@ -148,14 +148,14 @@
           const [p,c,b,g,n,m] = await Promise.all([
             fetchCsv(URLS.products),   fetchCsv(URLS.customers),
             fetchCsv(URLS.bundles),    fetchCsv(URLS.gifts),
-            fetchCsv(URLS.nonsales),   tryFetchCsv(URLS.materials) // 包材可能尚未建立，失敗時忽略
+            fetchCsv(URLS.nonsales),   tryFetchCsv(URLS.materials) // 包材
           ]);
           setPRODUCTS(parseProducts(p));
           setCUSTOMERS(parsePairs(c));
           setBUNDLES(parseBundles(b));
           setGIFTS(parseBundles(g));
           setNONSALES(parsePairs(n));
-          setMATERIALS(m ? parseBundles(m) : []); // 包材沿用 bundles 格式
+          setMATERIALS(m ? parseBundles(m) : []);
 
           // 重置選擇與清單
           setBundleGroups({}); setMaterialGroups({}); setGiftChecks({}); setPendingSingles({});
@@ -231,7 +231,7 @@
           const addMap=new Map();
           const add=(pid,qty)=>addMap.set(pid,(addMap.get(pid)||0)+qty);
           previewBundles.forEach(b=>b.details.forEach(d=>add(d.productId,d.qty)));
-          previewMaterials.forEach(m=>m.details.forEach(d=>add(d.productId,d.qty))); // 新增：包材
+          previewMaterials.forEach(m=>m.details.forEach(d=>add(d.productId,d.qty)));
           previewSingles.forEach(s=>add(s.productId,s.qty));
           previewGifts.forEach(g=>g.details.forEach(d=>add(d.productId,d.qty)));
           if(addMap.size===0){ setOpenPreview(false); return; }
@@ -303,11 +303,11 @@
             <section className="rounded border border-gray-200 bg-white shadow-sm mb-5">
               <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
                 <div className="font-medium">產品選擇</div>
-                <div className="text-xs text-gray-500">套組 / 單品 / 禮遇 → 先加入預覽</div>
+                <div className="text-xs text-gray-500">套組 / 單品 / 禮遇 / 包材 → 先加入預覽</div>
               </div>
 
               <div className="p-4 space-y-6">
-                {/* 套組（非銷售時隱藏） */}
+                {/* ① 套組（非銷售時隱藏） */}
                 {mode==='sales' && (
                   <div>
                     <div className="text-sm font-semibold mb-2">套組</div>
@@ -330,28 +330,7 @@
                   </div>
                 )}
 
-                {/* 基礎包材內容（新） */}
-                <div>
-                  <div className="text-sm font-semibold mb-2">基礎包材內容</div>
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                    {MATERIALS.map(m=>(
-                      <div key={m.id} className="rounded border border-gray-200 p-2 bg-white">
-                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-2">
-                          <span className="text-[13px] leading-snug md:flex-1"
-                                title={m.name}
-                                style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}
-                          >{m.name}</span>
-                          <div className="md:self-auto self-end md:mt-0 mt-1 flex justify-end">
-                            <Stepper small value={materialGroups[m.id]||0} onChange={v=>setMaterialGroups(s=>({...s,[m.id]:v}))}/>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    {MATERIALS.length===0 && <div className="text-xs text-gray-400">（尚無包材）</div>}
-                  </div>
-                </div>
-
-                {/* 單品（一直顯示） */}
+                {/* ② 單品（一直顯示） */}
                 <div>
                   <div className="text-sm font-semibold mb-2">單品</div>
                   <div className="rounded border bg-gray-50 p-3 space-y-2">
@@ -398,7 +377,7 @@
                   </div>
                 </div>
 
-                {/* 禮遇（非銷售時隱藏） */}
+                {/* ③ 禮遇（非銷售時隱藏） */}
                 {mode==='sales' && (
                   <div>
                     <div className="text-sm font-semibold mb-2">禮遇</div>
@@ -415,80 +394,114 @@
                     </div>
                   </div>
                 )}
+
+                {/* ④ 包材（一直顯示） */}
+                <div>
+                  <div className="text-sm font-semibold mb-2">基礎包材內容</div>
+                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                    {MATERIALS.map(m=>(
+                      <div key={m.id} className="rounded border border-gray-200 p-2 bg-white">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-2">
+                          <span className="text-[13px] leading-snug md:flex-1"
+                                title={m.name}
+                                style={{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}
+                          >{m.name}</span>
+                          <div className="md:self-auto self-end md:mt-0 mt-1 flex justify-end">
+                            <Stepper small value={materialGroups[m.id]||0} onChange={v=>setMaterialGroups(s=>({...s,[m.id]:v}))}/>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {MATERIALS.length===0 && <div className="text-xs text-gray-400">（尚無包材）</div>}
+                  </div>
+                </div>
               </div>
             </section>
 
-            {/* 庫存更新預覽（非銷售時整段隱藏） */}
-            {mode==='sales' && (
-              <section className="rounded border border-gray-200 bg-white shadow-sm mb-5">
-                <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
-                  <div className="font-medium">庫存更新預覽</div>
-                  <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>setOpenPreview(o=>!o)}>{openPreview?"收":"展"}</button>
-                </div>
+            {/* 庫存更新預覽 —— 兩種模式都顯示 */}
+            <section className="rounded border border-gray-200 bg-white shadow-sm mb-5">
+              <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
+                <div className="font-medium">庫存更新預覽</div>
+                <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>setOpenPreview(o=>!o)}>{openPreview?"收":"展"}</button>
+              </div>
 
-                {openPreview && (
-                  <div className="p-4">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                      <Card title="套組">
-                        {previewBundles.length===0 ? <Empty/> : (
-                          <ul className="space-y-2 text-xs">
-                            {previewBundles.map(b=>(
-                              <li key={b.id} className="border-b border-dashed border-gray-200 pb-1">
-                                <div className="font-medium mb-1">{b.title} × {b.count}</div>
-                                <ul className="ml-3 list-disc text-[11px] text-gray-600">
-                                  {b.details.map((d,i)=><li key={i}>{d.name} × {d.qty}</li>)}
-                                </ul>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </Card>
+              {openPreview && (
+                <div className="p-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                    <Card title="套組">
+                      {previewBundles.length===0 ? <Empty/> : (
+                        <ul className="space-y-2 text-xs">
+                          {previewBundles.map(b=>(
+                            <li key={b.id} className="border-b border-dashed border-gray-200 pb-1">
+                              <div className="font-medium mb-1">{b.title} × {b.count}</div>
+                              <ul className="ml-3 list-disc text-[11px] text-gray-600">
+                                {b.details.map((d,i)=><li key={i}>{d.name} × {d.qty}</li>)}
+                              </ul>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </Card>
 
-                      <Card title="基礎包材">
-                        {previewMaterials.length===0 ? <Empty/> : (
-                          <ul className="space-y-2 text-xs">
-                            {previewMaterials.map(m=>(
-                              <li key={m.id} className="border-b border-dashed border-gray-200 pb-1">
-                                <div className="font-medium mb-1">{m.title} × {m.count}</div>
-                                <ul className="ml-3 list-disc text-[11px] text-gray-600">
-                                  {m.details.map((d,i)=><li key={i}>{d.name} × {d.qty}</li>)}
-                                </ul>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </Card>
+                    <Card title="單品">
+                      {previewSingles.length===0 ? <Empty/> : (
+                        <ul className="space-y-2 text-xs">
+                          {previewSingles.map(s=>(
+                            <li key={s.productId}
+                                className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-1 items-start">
+                              <div className="text-[11px] leading-snug break-words">{s.name}</div>
+                              <div className="md:justify-self-end">
+                                <Stepper small value={s.qty} min={0}
+                                  onChange={(v)=>setPendingSingles(prev=>{
+                                    const nxt={...prev,[s.productId]:v};
+                                    if(v===0) delete nxt[s.productId];
+                                    return nxt;
+                                  })}/>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </Card>
 
-                      <Card title="單品">
-                        {previewSingles.length===0 ? <Empty/> : (
-                          <ul className="space-y-2 text-xs">
-                            {previewSingles.map(s=>(
-                              <li key={s.productId}
-                                  className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-1 items-start">
-                                <div className="text-[11px] leading-snug break-words">{s.name}</div>
-                                <div className="md:justify-self-end">
-                                  <Stepper small value={s.qty} min={0}
-                                    onChange={(v)=>setPendingSingles(prev=>{
-                                      const nxt={...prev,[s.productId]:v};
-                                      if(v===0) delete nxt[s.productId];
-                                      return nxt;
-                                    })}/>
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </Card>
-                    </div>
+                    <Card title="禮遇">
+                      {previewGifts.length===0 ? <Empty/> : (
+                        <ul className="space-y-2 text-xs">
+                          {previewGifts.map(g=>(
+                            <li key={g.id} className="border-b border-dashed border-gray-200 pb-1">
+                              <div className="font-medium mb-1">{g.title}</div>
+                              <ul className="ml-3 list-disc text-[11px] text-gray-600">
+                                {g.details.map((d,i)=><li key={i}>{d.name} × {d.qty}</li>)}
+                              </ul>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </Card>
 
-                    <div className="mt-3 flex justify-end gap-2">
-                      <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={clearPreview}>全部清除</button>
-                      <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={confirmPreview}>確認加入</button>
-                    </div>
+                    <Card title="基礎包材">
+                      {previewMaterials.length===0 ? <Empty/> : (
+                        <ul className="space-y-2 text-xs">
+                          {previewMaterials.map(m=>(
+                            <li key={m.id} className="border-b border-dashed border-gray-200 pb-1">
+                              <div className="font-medium mb-1">{m.title} × {m.count}</div>
+                              <ul className="ml-3 list-disc text-[11px] text-gray-600">
+                                {m.details.map((d,i)=><li key={i}>{d.name} × {d.qty}</li>)}
+                              </ul>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </Card>
                   </div>
-                )}
-              </section>
-            )}
+
+                  <div className="mt-3 flex justify-end gap-2">
+                    <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={clearPreview}>全部清除</button>
+                    <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={confirmPreview}>確認加入</button>
+                  </div>
+                </div>
+              )}
+            </section>
 
             {/* 出貨清單／庫存扣減確認 */}
             {rows.length>0 && (
@@ -741,7 +754,7 @@
               <CsvBox title="套組 CSV（bundle_id,bundle_name,product_id,qty,active）" setter={setBUNDLES} parser={parseBundles}/>
               <CsvBox title="禮遇 CSV（bundle_id,bundle_name,product_id,qty,active）" setter={setGIFTS} parser={parseBundles}/>
               <CsvBox title="非銷售 CSV（id,name）" setter={setNONSALES} parser={parsePairs}/>
-              {/* 新增：包材 CSV */}
+              {/* 新增：包材 CSV（packaging.csv 結構同 bundle/gifts） */}
               <CsvBox title="包材 CSV（bundle_id,bundle_name,product_id,qty,active）" setter={setMATERIALS} parser={parseBundles}/>
             </div>
 
