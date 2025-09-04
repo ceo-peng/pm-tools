@@ -449,11 +449,11 @@
                   <div className="flex items-center gap-4 text-xs">
                     <label className="flex items-center gap-1">
                       <input type="radio" name="op" checked={op==='ship'} onChange={()=>setOp('ship')}/>
-                      出貨（扣）
+                      出（-）
                     </label>
                     <label className="flex items-center gap-1">
                       <input type="radio" name="op" checked={op==='receive'} onChange={()=>setOp('receive')}/>
-                      進貨（入）
+                      進（+）
                     </label>
                   </div>
                 </div>
@@ -582,7 +582,7 @@
         const [posting,setPosting]=useState(false);
         const hasMismatch = rows.some(r=>(r.picked||0)!==(r.qty||0));
         const sign = op==='ship' ? -1 : +1;
-        const opLabel = op==='ship' ? '出貨（扣）' : '進貨（入）';
+        const opLabel = op==='ship' ? '出（-）' : '進（+）';
         const items = rows.map(r=>({ productId:r.productId, name:r.name, delta:(r.picked||0)*sign }));
 
         async function doPost(){
