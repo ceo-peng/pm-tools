@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PM Inventory · Expiry Dashboard</title>
   <style>
-    :root{ --bg:#0b0b0c; --card:#121214; --muted:#a7a7b3; --fg:#f5f5f7; --accent:#d4af37; --accent-2:#9c7e2a; --danger:#d9534f; --ok:#2ecc71; --warn:#f0ad4e; }
+    :root{ --bg:#0b0b0c; --card:#121214; --muted:#a7a7b3; --fg:#f5f5f7; --accent:#d4af37; --danger:#d9534f; --ok:#2ecc71; --warn:#f0ad4e; }
     *{box-sizing:border-box}
     html,body{height:100%}
     body{margin:0;background:linear-gradient(180deg,#0b0b0c,#0f0f12);color:var(--fg);font:14px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
@@ -55,6 +55,21 @@
     .pill-src[data-mode="mock"]{border-color:#555}
 
     @media (max-width:760px){.kpis{grid-template-columns:1fr} header{gap:6px}}
+
+/* New compact stat strip */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}
+.stat{background:#111114;border:1px solid #24242a;border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.stat .label{color:var(--muted);font-size:11px;letter-spacing:.3px}
+.stat .value{font-size:16px;font-weight:800}
+.dist{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px}
+.dist .chip{background:#121217;border:1px solid #26262b;border-radius:999px;padding:6px 10px;font-weight:600;font-size:12px;cursor:pointer}
+.dist .chip:hover{background:#17171c}
+.mono{font-variant-numeric:tabular-nums}
+@media (max-width:760px){
+  .stats{grid-template-columns:repeat(2,1fr)}
+  th,td{padding:8px 10px}
+  .stat .value{font-size:15px}
+}
   </style>
 </head>
 <body>
@@ -67,22 +82,58 @@
 
     <section class="card">
       <div class="toolbar">
-        <button data-range="365" class="active">到期 ≤ 1 年</button>
-        <button data-range="548">到期 ≤ 1.5 年</button>
-        <button data-range="730">到期 ≤ 2 年</button>
+        <button data-range="expired">已過期</button>
+        <button data-range="30">到期 ≤ 30 天</button>
+        <button data-range="60">到期 ≤ 60 天</button>
+        <button data-range="90" class="active">到期 ≤ 90 天</button>
         <button data-range="all">全部</button>
         <label class="pill" style="display:flex;align-items:center;gap:6px">
           <input id="expiredToggle" type="checkbox" style="accent-color:#d4af37"> 含已過期
         </label>
         <input id="search" class="input" placeholder="搜尋 Product / Note…" />
+        <button id="btnCSV" title="匯出目前檢視 (CSV)">CSV</button>
+        <button id="btnICS" title="下載提醒 (.ics)">ICS</button>
+        <button id="btnEmail" title="產生郵件草稿">Email</button>
         <span class="pill pill-src right sub" id="srcPill" data-mode="mock">資料來源：Mock</span>
       </div>
 
-      <div class="kpis">
-        <div class="card"><h3>篩選後產品數</h3><div class="num" id="kpiProducts">–</div></div>
-        <div class="card"><h3>庫存合計</h3><div class="num" id="kpiQty">–</div></div>
-        <div class="card"><h3>平均到期天數</h3><div class="num" id="kpiAge">–</div></div>
+      <div id="customRange" class="row" style="margin:6px 0 4px">
+        <details style="width:100%">
+          <summary class="sub">自訂期間篩選（以「到期天數」為單位，今天=0；負值=已過期）</summary>
+          <div class="row" style="margin-top:8px">
+            <input id="minDays" type="number" class="input" placeholder="最小天數（空=不限）" />
+            <input id="maxDays" type="number" class="input" placeholder="最大天數（空=不限）" />
+            <button id="applyCustom">套用自訂</button>
+            <span class="sub">快速鍵：1年≈365、1.5年≈548、2年≈730</span>
+          </div>
+          <div class="row" style="margin-top:6px">
+            <button class="preset" data-min="365" data-max="">≥ 365 天（≥1年）</button>
+            <button class="preset" data-min="548" data-max="">≥ 548 天（≥1.5年）</button>
+            <button class="preset" data-min="365" data-max="548">365–548 天（1–1.5年）</button>
+            <button class="preset" data-min="365" data-max="730">365–730 天（1–2年）</button>
+            <button class="preset" data-min="" data-max="30">≤ 30 天</button>
+            <button class="preset" data-min="" data-max="60">≤ 60 天</button>
+            <button class="preset" data-min="" data-max="90">≤ 90 天</button>
+          </div>
+        </details>
       </div>
+
+      <div id="stats" class="stats">
+        <div class="stat"><span class="label">SKU</span><span class="value" id="statSku">–</span></div>
+        <div class="stat"><span class="label">Qty</span><span class="value" id="statQty">–</span></div>
+        <div class="stat"><span class="label">最早到期</span><span class="value" id="statEarliest">–</span></div>
+        <div class="stat"><span class="label">≤90天庫存</span><span class="value" id="statRiskQty">–</span></div>
+      </div>
+      <div id="dist" class="dist">
+        <button class="chip" data-min="" data-max="0">已過期</button>
+        <button class="chip" data-min="0" data-max="30">≤30</button>
+        <button class="chip" data-min="31" data-max="60">31–60</button>
+        <button class="chip" data-min="61" data-max="90">61–90</button>
+        <button class="chip" data-min="365" data-max="">≥365</button>
+        <button class="chip" data-min="548" data-max="">≥548</button>
+      </div>
+
+      <div id="meta" class="sub" style="margin:2px 0 10px"></div>
 
       <div class="table"><table id="tbl">
         <thead>
@@ -99,6 +150,8 @@
 
       <div class="footer">Tips：點欄位標題可排序；上方按鈕以「到期天數」篩選；可切換「含已過期」。</div>
     </section>
+
+    
 
     <details>
       <summary class="sub">資料來源設定 & 測試</summary>
@@ -127,7 +180,26 @@
         <span class="sub">＊若遇 CORS，請在 Google Sheet 內：<b>檔案 → 發佈到網路</b>，只發佈該工作表。</span>
       </div>
 
+      <hr style="border-color:#232328;opacity:.4;margin:12px 0"/>
+      <div class="row" style="margin:4px 0 6px">
+        <input id="tCritical" type="number" class="input" placeholder="Critical：≤30 天" min="1" />
+        <input id="tUrgent" type="number" class="input" placeholder="Urgent：≤60 天" min="1" />
+        <input id="tSoon" type="number" class="input" placeholder="Soon：≤90 天" min="1" />
+        <input id="tLead" type="number" class="input" placeholder="提醒提前：14 天" min="0" />
+        <button id="saveThresholds">儲存臨界值</button>
+      </div>
+
+      <div class="row" style="margin:4px 0 6px">
+        <label class="pill">彙總模式
+          <select id="groupModeSel" class="input" style="margin-left:8px">
+            <option value="product">同商品彙總（保留最早到期）</option>
+            <option value="batch">保留批次（商品+到期日）</option>
+          </select>
+        </label>
+      </div>
+
       <div id="testArea" class="sub"></div>
+      <div id="diagArea" class="sub" style="margin-top:8px"></div>
     </details>
   </div>
 
@@ -144,7 +216,7 @@ const CONFIG = {
   }
 };
 
-// GViz local config
+// GViz local config (defaults to your sheet)
 const DEFAULT_GVIZ = { sheetId:'14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI', sheetName:'inventory_tracking', headerRow:4, nameCol:'D', expiryCol:'E', qtyCol:'F', noteCol:'' };
 let GVIZ_CONF = loadGVizConf();
 
@@ -176,26 +248,42 @@ function letterToIndex(L){ L=String(L||'').trim().toUpperCase(); let n=0; for(le
 // State
 let RAW = [], DATA = [], VIEW = [];
 let sortKey = 'DaysToExpiry', sortAsc = true;
-let currentRange = 365; // default
+let currentRange = 90; // default: ≤90 天；可為數字(≤N) | 'all' | 'expired' | {mode:'custom', min?:number, max?:number}
 let sourceMode = 'mock'; // 'mock' | 'web' | 'gviz'
+let GROUP_MODE = (localStorage.getItem('pm_group_mode')||'product'); // 'product' | 'batch'
+
+// Diagnostics state
+let DIAG = { raw:0, included:0, skipNoName:0, skipNoDate:0, uniqueAfterGroup:0, aggregatedFrom:0 };
 
 function normalizeRows(rows){
+  DIAG = { raw: rows.length, included:0, skipNoName:0, skipNoDate:0, uniqueAfterGroup:0, aggregatedFrom:0 };
   const m = CONFIG.columnMap;
-  const buckets = new Map();
+  const included = [];
   for (const r of rows){
     const name = String(r[m.ProductName] ?? '').trim();
     const rawExpiry = r[m.ExpiryDate] ?? r['Expiration Date'] ?? r['Expiry Date'];
     const d = parseDate(rawExpiry);
-    if (!name || !d) continue;
+    if (!name){ DIAG.skipNoName++; continue; }
+    if (!d){ DIAG.skipNoDate++; continue; }
     const qty = Number(r[m.Quantity] ?? 0) || 0;
-    const key = name; // unique key is ProductName (per your spec)
+    included.push({ name, d, qty, note:String(r[m.Note] ?? '').trim() });
+  }
+  DIAG.included = included.length;
+
+  const buckets = new Map();
+  for (const r of included){
+    const iso = r.d.toISOString().slice(0,10);
+    const key = (GROUP_MODE==='batch') ? `${r.name}||${iso}` : r.name;
     if (!buckets.has(key)){
-      buckets.set(key, { ProductName:name, Quantity:0, ExpiryDate:d, Note:String(r[m.Note] ?? '').trim() });
+      buckets.set(key, { ProductName:r.name, Quantity:0, ExpiryDate:r.d, Note:r.note });
     }
     const o = buckets.get(key);
-    o.Quantity += qty;
-    if (d < o.ExpiryDate) o.ExpiryDate = d; // keep earliest expiry
+    o.Quantity += r.qty;
+    if (GROUP_MODE==='product'){ if (r.d < o.ExpiryDate) o.ExpiryDate = r.d; }
   }
+  DIAG.uniqueAfterGroup = buckets.size;
+  DIAG.aggregatedFrom = DIAG.included - DIAG.uniqueAfterGroup;
+
   const today = new Date();
   return Array.from(buckets.values()).map(o=>({ ...o, DaysToExpiry: daysForward(today, o.ExpiryDate) }));
 }
@@ -221,14 +309,13 @@ async function fetchFromGViz(){
   try{
     const c = GVIZ_CONF; if(!c.sheetId) throw new Error('NO_SHEET_ID');
     const id = c.sheetId; const sheet = c.sheetName || 'inventory_tracking';
-    const startRow = Number(c.headerRow||4); // include header row in range; we'll skip it below
+    const startRow = Number(c.headerRow||4);
     const url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?sheet=${encodeURIComponent(sheet)}&range=A${startRow}:Z&tqx=out:csv`;
     const res = await fetch(url, { cache:'no-store' });
     if(!res.ok) throw new Error(`HTTP ${res.status}`);
     const csv = await res.text();
     const rows = parseCSV(csv);
     if (!rows.length) throw new Error('EMPTY');
-    // First row is header (row startRow). Data starts from next row.
     const dataRows = rows.slice(1);
     const idxName   = letterToIndex(c.nameCol||'D');
     const idxExpiry = letterToIndex(c.expiryCol||'E');
@@ -261,7 +348,15 @@ function render(){
   const includeExpired = $('#expiredToggle')?.checked;
 
   VIEW = DATA.filter(r=>{
-    const inRange = currentRange === 'all' ? true : (r.DaysToExpiry >= 0 && r.DaysToExpiry <= Number(currentRange));
+    let inRange = true;
+    const cr = currentRange;
+    if (typeof cr === 'object' && cr && cr.mode==='custom'){
+      if (cr.min != null && r.DaysToExpiry < cr.min) inRange = false;
+      if (cr.max != null && r.DaysToExpiry > cr.max) inRange = false;
+    } else if (cr === 'all') inRange = true;
+    else if (cr === 'expired') inRange = r.DaysToExpiry < 0;
+    else inRange = (r.DaysToExpiry >= 0 && r.DaysToExpiry <= Number(cr));
+
     const expiredOK = includeExpired ? (r.DaysToExpiry < 0 || inRange) : inRange;
     if (!expiredOK) return false;
     if (!q) return true;
@@ -270,19 +365,23 @@ function render(){
   }).sort((a,b)=>{ const va=a[sortKey], vb=b[sortKey]; if (va===vb) return 0; return (va>vb?1:-1) * (sortAsc?1:-1); });
 
   const totalQty = VIEW.reduce((s,r)=>s+(Number.isFinite(r.Quantity)?r.Quantity:0),0);
-  const avgDays = VIEW.length? Math.round(VIEW.reduce((s,r)=>s+r.DaysToExpiry,0)/VIEW.length): 0;
-  $('#kpiProducts').textContent = fmtInt(VIEW.length);
-  $('#kpiQty').textContent = fmtInt(totalQty);
-  $('#kpiAge').textContent = fmtInt(avgDays);
+  const earliestItem = VIEW.slice().sort((a,b)=>a.ExpiryDate-b.ExpiryDate)[0];
+  const earliestStr = earliestItem? `${earliestItem.ExpiryDate.toISOString().slice(0,10)} (${earliestItem.DaysToExpiry}天)` : '–';
+  const riskQty = DATA.filter(r=> r.DaysToExpiry>=0 && r.DaysToExpiry<=THRESHOLDS.soon)
+                      .reduce((s,r)=>s+(Number(r.Quantity)||0),0);
+  $('#statSku').textContent = fmtInt(VIEW.length);
+  $('#statQty').textContent = fmtInt(totalQty);
+  $('#statEarliest').textContent = earliestStr;
+  $('#statRiskQty').textContent = fmtInt(riskQty);
 
   const tbody = $('#tbl tbody'); tbody.innerHTML = '';
   const frag = document.createDocumentFragment();
   for (const r of VIEW){
-    const dayBadgeClass = r.DaysToExpiry < 0 ? 'danger' : (r.DaysToExpiry <= 90 ? 'warn' : 'ok');
+    const dayBadgeClass = r.DaysToExpiry < 0 ? 'danger' : (r.DaysToExpiry <= THRESHOLDS.urgent ? 'warn' : 'ok');
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${escapeHTML(r.ProductName||'')}</td>
-      <td><span class="badge ${qtyBadge(r.Quantity)}">${fmtInt(r.Quantity)}</span></td>
+      <td><span class="mono">${fmtInt(r.Quantity)}</span></td>
       <td>${r.ExpiryDate.toISOString().slice(0,10)}</td>
       <td><span class="badge ${dayBadgeClass}">${fmtInt(r.DaysToExpiry)}</span></td>
       <td>${escapeHTML(r.Note||'')}</td>
@@ -292,17 +391,63 @@ function render(){
   tbody.appendChild(frag);
 
   const expiredCnt = VIEW.filter(r=>r.DaysToExpiry<0).length;
-  const rangeLabel = currentRange==='all' ? '全部' : `到期 ≤ ${currentRange} 天`;
-  $('#meta').textContent = `${rangeLabel} · ${VIEW.length} 筆 · 已過期 ${expiredCnt} 筆`; 
+  const cr = currentRange;
+  let rangeLabel;
+  if (typeof cr === 'object' && cr && cr.mode==='custom'){
+    const minLabel = (cr.min!=null)? cr.min : '-∞';
+    const maxLabel = (cr.max!=null)? cr.max : '+∞';
+    rangeLabel = `自訂 ${minLabel}–${maxLabel} 天`;
+  } else {
+    rangeLabel = cr==='all' ? '全部' : (cr==='expired' ? '已過期' : `到期 ≤ ${cr} 天`);
+  }
+  $('#meta').textContent = `${rangeLabel} · ${VIEW.length} 筆 · 已過期 ${expiredCnt} 筆`;
+
+  
+  renderDiagnostics();
 }
 
-function escapeHTML(s){ return (s||'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
+function escapeHTML(s){ return (s||'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
 function qtyBadge(q){ if (q <= 0) return 'danger'; if (q < 10) return 'warn'; return 'ok'; }
 function toggleSpinner(on){ $('#spinner').classList.toggle('show', !!on); }
 
 // Toolbar events
-$$('.toolbar button').forEach(btn=>{ btn.addEventListener('click',()=>{ $$('.toolbar button').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); currentRange = btn.dataset.range === 'all' ? 'all' : Number(btn.dataset.range); render(); }); });
+$$('.toolbar button').forEach(btn=>{ btn.addEventListener('click',()=>{ $$('.toolbar button').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); const r = btn.dataset.range; currentRange = (r==='all'||r==='expired') ? r : Number(r); render(); }); });
 $('#search').addEventListener('input',()=>render());
+// Export & reminder buttons
+$('#btnCSV').addEventListener('click', exportCSV);
+$('#btnICS').addEventListener('click', downloadICS);
+$('#btnEmail').addEventListener('click', emailDraft);
+
+// Custom range handlers
+function toNullableNumber(v){ if (v===''||v==null) return null; const n=Number(v); return Number.isFinite(n)? n : null; }
+$('#applyCustom').addEventListener('click', ()=>{
+  const min = toNullableNumber($('#minDays').value);
+  const max = toNullableNumber($('#maxDays').value);
+  currentRange = {mode:'custom', min, max};
+  $$('.toolbar button').forEach(b=>b.classList.remove('active'));
+  render();
+});
+$$('#customRange .preset').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const min = btn.dataset.min === '' ? null : Number(btn.dataset.min);
+    const max = btn.dataset.max === '' ? null : Number(btn.dataset.max);
+    $('#minDays').value = (min==null? '' : min);
+    $('#maxDays').value = (max==null? '' : max);
+    currentRange = {mode:'custom', min, max};
+    $$('.toolbar button').forEach(b=>b.classList.remove('active'));
+    render();
+  });
+});
+// Distribution chips quick filters
+$$('#dist .chip').forEach(ch=>{
+  ch.addEventListener('click', ()=>{
+    const min = ch.dataset.min === '' ? null : Number(ch.dataset.min);
+    const max = ch.dataset.max === '' ? null : Number(ch.dataset.max);
+    currentRange = {mode:'custom', min, max};
+    $$('.toolbar button').forEach(b=>b.classList.remove('active'));
+    render();
+  });
+});
 $$('#tbl thead th.sortable').forEach(th=>{ th.addEventListener('click',()=>{ const key = th.dataset.key; if (sortKey === key){ sortAsc = !sortAsc; } else { sortKey = key; sortAsc = (key!=='Quantity'); } render(); }); });
 
 // Source controls — Web App
@@ -310,7 +455,7 @@ $('#webAppUrl').value = CONFIG.WEB_APP_URL.startsWith('REPLACE_')? '' : CONFIG.W
 $('#saveUrl').addEventListener('click',()=>{ const v=$('#webAppUrl').value.trim(); if(!v){ alert('請輸入 URL'); return; } localStorage.setItem('pm_web_app_url', v); CONFIG.WEB_APP_URL=v; alert('已儲存 URL'); });
 $('#loadWeb').addEventListener('click', async()=>{ try{ await fetchFromWeb(); setSourcePill(); render(); }catch{ /* keep state */ } });
 $('#loadMock').addEventListener('click', ()=>{ RAW = MOCK_DATA; DATA = normalizeRows(MOCK_DATA); sourceMode='mock'; setSourcePill(); render(); });
-$('#reload').addEventListener('click', async()=>{ if (sourceMode==='web'){ try{ await fetchFromWeb(); }catch{ /* ignore */ } } else if (sourceMode==='gviz'){ try{ await fetchFromGViz(); }catch{ /* ignore */ } } render(); });
+$('#reload').addEventListener('click', async()=>{ if (sourceMode==='web'){ try{ await fetchFromWeb(); }catch{} } else if (sourceMode==='gviz'){ try{ await fetchFromGViz(); }catch{} } render(); });
 
 // GViz controls
 function loadGVizConf(){
@@ -337,12 +482,96 @@ function hydrateGVizInputs(){
   $('#gvizQtyCol').value = GVIZ_CONF.qtyCol || 'F';
   $('#gvizNoteCol').value = GVIZ_CONF.noteCol || '';
 }
-$('#saveGViz').addEventListener('click',()=>{ saveGVizInputsToConf(); alert('已儲存 GViz 設定'); });
-$('#loadGViz').addEventListener('click', async()=>{ saveGVizInputsToConf(); try{ await fetchFromGViz(); render(); }catch{ /* ignored; alert already shown */ } });
+$('#saveGViz').addEventListener('click',()=>{ saveGVizInputsToConf(); alert('已儲存 GViz 設定'); renderDiagnostics(); });
+$('#loadGViz').addEventListener('click', async()=>{ saveGVizInputsToConf(); try{ await fetchFromGViz(); render(); }catch{ /* ignored; alert already shown */ } renderDiagnostics(); });
 function extractSheetId(linkOrId){
   if (!linkOrId) return '';
   const m = linkOrId.match(/\/d\/([a-zA-Z0-9-_]+)/); return m? m[1] : linkOrId;
 }
+function gvizTestUrl(){
+  const c = GVIZ_CONF; if (!c.sheetId) return '';
+  return `https://docs.google.com/spreadsheets/d/${c.sheetId}/gviz/tq?sheet=${encodeURIComponent(c.sheetName||'inventory_tracking')}&range=A${c.headerRow||4}:Z&tqx=out:csv`;
+}
+function renderDiagnostics(){
+  const link = gvizTestUrl();
+  const qSum = DATA.reduce((s,r)=>s+(Number(r.Quantity)||0),0);
+  const html = [
+    `<div>資料診斷 · 來源：<b>${sourceMode.toUpperCase()}</b>${link?` · <a href="${link}" target="_blank" rel="noopener">GViz測試連結</a>`:''}</div>`,
+    `<div>原始列 ${DIAG.raw} · 有效列 ${DIAG.included} · 分組後 ${DIAG.uniqueAfterGroup}（彙總自 ${DIAG.aggregatedFrom} 列）</div>`,
+    `<div>略過：無產品名 ${DIAG.skipNoName}、無法解析日期 ${DIAG.skipNoDate}</div>`,
+    `<div>目前彙總模式：<b>${GROUP_MODE==='product'?'同商品彙總（保留最早到期）':'保留批次（商品+到期日）'}</b> · 目前總庫存（視圖）：<b>${fmtInt(qSum)}</b></div>`
+  ].join('');
+  $('#diagArea').innerHTML = html;
+}
+
+// Threshold settings
+const THRESHOLDS = loadThresholds();
+function loadThresholds(){
+  try{ const s = JSON.parse(localStorage.getItem('pm_thresholds')||'null'); return { critical:30, urgent:60, soon:90, lead:14, ...(s||{}) }; }catch{ return { critical:30, urgent:60, soon:90, lead:14 }; }
+}
+function saveThresholds(){ localStorage.setItem('pm_thresholds', JSON.stringify(THRESHOLDS)); }
+function bucketOf(d){ if (d<0) return 'expired'; if (d<=THRESHOLDS.critical) return 'critical'; if (d<=THRESHOLDS.urgent) return 'urgent'; if (d<=THRESHOLDS.soon) return 'soon'; return 'healthy'; }
+
+function recommend(r){
+  const d = r.DaysToExpiry, q=r.Quantity; const actions=[];
+  const many = q>=10;
+  if (d<0){ actions.push('下架/報廢處理'); if (many) actions.push('員購/捐贈消化'); actions.push('財務提列'); return actions; }
+  if (d<=THRESHOLDS.critical){ actions.push('強折/加價購/贈品組合'); actions.push('優先派送至高周轉通路'); if (many) actions.push('與熱銷品綁售清倉'); actions.push('暫停/減少同品補貨'); return actions; }
+  if (d<=THRESHOLDS.urgent){ actions.push('中度促銷(10–20%)'); actions.push('KOL/會員快閃活動'); if (many) actions.push('跨倉移撥至高需求地區'); actions.push('採購下期量調整'); return actions; }
+  if (d<=THRESHOLDS.soon){ actions.push('預備檔期與內容'); actions.push('檢視通路動銷與補貨節奏'); return actions; }
+  actions.push('健康；維持現況'); return actions;
+}
+
+function downloadICS(){
+  const now = new Date();
+  const target = DATA.filter(r=> r.DaysToExpiry <= THRESHOLDS.soon);
+  if (!target.length){ alert('沒有需要建立提醒的品項（≤Soon 臨界值）。'); return; }
+  const pad = n => String(n).padStart(2,'0');
+  const toICSDate = dt => dt.getUTCFullYear()+pad(dt.getUTCMonth()+1)+pad(dt.getUTCDate())+'T'+pad(dt.getUTCHours())+pad(dt.getUTCMinutes())+'00Z';
+  const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//PM Expiry//EN'];
+  for (const r of target){
+    const exp = new Date(r.ExpiryDate);
+    const remind = new Date(exp); remind.setDate(remind.getDate()-THRESHOLDS.lead);
+    if (remind < now){ remind.setDate(now.getDate()+1); }
+    const uid = btoa(r.ProductName+exp.toISOString()).replace(/=/g,'');
+    lines.push('BEGIN:VEVENT');
+    lines.push('UID:'+uid+'@pm-expiry');
+    lines.push('DTSTAMP:'+toICSDate(now));
+    lines.push('DTSTART:'+toICSDate(remind));
+    lines.push('SUMMARY:到期風險提醒 · '+r.ProductName);
+    lines.push('DESCRIPTION:到期日 '+exp.toISOString().slice(0,10)+'\\n數量 '+r.Quantity+'\\n建議:'+recommend(r).join('、'));
+    lines.push('END:VEVENT');
+  }
+  lines.push('END:VCALENDAR');
+  const blob = new Blob([lines.join('\n')], {type:'text/calendar'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'pm-expiry-reminders.ics'; a.click(); URL.revokeObjectURL(a.href);
+}
+
+function exportCSV(){
+  const header = ['ProductName','ExpiryDate','DaysToExpiry','Quantity','Note'];
+  const rows = VIEW.map(r=>[r.ProductName, r.ExpiryDate.toISOString().slice(0,10), r.DaysToExpiry, r.Quantity, r.Note||'']);
+  const csv = [header.join(','), ...rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','))].join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'pm-expiry-view.csv'; a.click(); URL.revokeObjectURL(a.href);
+}
+
+function emailDraft(){
+  const counts = {expired:0, critical:0, urgent:0, soon:0};
+  const risky = DATA.filter(r=> r.DaysToExpiry <= THRESHOLDS.soon);
+  for (const r of risky) counts[bucketOf(r.DaysToExpiry)]++;
+  const top = risky.sort((a,b)=>a.DaysToExpiry-b.DaysToExpiry).slice(0,10)
+    .map(r=>`- ${r.ProductName} · 到期 ${r.ExpiryDate.toISOString().slice(0,10)} · ${r.DaysToExpiry}天 · Qty ${r.Quantity}`)
+    .join('%0A');
+  const subject = encodeURIComponent('到期風險報告（行動建議）');
+  const body = `重點：已過期 ${counts.expired}、≤${THRESHOLDS.critical}天 ${counts.critical}、≤${THRESHOLDS.urgent}天 ${counts.urgent}、≤${THRESHOLDS.soon}天 ${counts.soon}%0A%0ATop 10 風險品項：%0A${top}%0A%0A建議：%0A- Critical：強折/綁售/優先派送%0A- Urgent：中度促銷/活動%0A- Soon：預備檔期與補貨節奏調整%0A%0A(由 PM Inventory · Expiry Dashboard 產生)`;
+  window.location.href = `mailto:?subject=${subject}&body=${body}`;
+}
+
+// Threshold inputs & group mode
+$('#tCritical').value = THRESHOLDS.critical; $('#tUrgent').value = THRESHOLDS.urgent; $('#tSoon').value = THRESHOLDS.soon; $('#tLead').value = THRESHOLDS.lead;
+$('#saveThresholds').addEventListener('click',()=>{ THRESHOLDS.critical=Number($('#tCritical').value||30); THRESHOLDS.urgent=Number($('#tUrgent').value||60); THRESHOLDS.soon=Number($('#tSoon').value||90); THRESHOLDS.lead=Number($('#tLead').value||14); saveThresholds(); render(); renderDiagnostics(); alert('已儲存臨界值'); });
+$('#groupModeSel').value = GROUP_MODE;
+$('#groupModeSel').addEventListener('change',()=>{ GROUP_MODE = $('#groupModeSel').value; localStorage.setItem('pm_group_mode', GROUP_MODE); DATA = normalizeRows(RAW); render(); renderDiagnostics(); });
 
 // CSV parser (handles quotes)
 function parseCSV(text){
@@ -380,22 +609,18 @@ function runTests(){
   hydrateGVizInputs();
   try{
     if (GVIZ_CONF.sheetId){
-      // Try GViz first (single-file, no backend)
-      await fetchFromGViz();
+      await fetchFromGViz(); // single-file, preferred
     } else if (CONFIG.WEB_APP_URL && !CONFIG.WEB_APP_URL.startsWith('REPLACE_')){
-      // Try Web App if configured
       await fetchFromWeb();
     } else {
-      // Fallback to Mock
       RAW = MOCK_DATA; DATA = normalizeRows(MOCK_DATA); sourceMode='mock'; setSourcePill();
     }
   }catch(e){
-    // Any failure → mock so UI still works
     console.warn('[init] Falling back to Mock:', e.message);
     RAW = MOCK_DATA; DATA = normalizeRows(MOCK_DATA); sourceMode='mock'; setSourcePill('（來源失敗，已切換 Mock）');
   }
+  const tgl=$('#expiredToggle'); if (tgl) tgl.addEventListener('change', ()=>{ render(); renderDiagnostics(); });
   render();
-  const tgl=$('#expiredToggle'); if (tgl) tgl.addEventListener('change', render);
   runTests();
 })();
 </script>
