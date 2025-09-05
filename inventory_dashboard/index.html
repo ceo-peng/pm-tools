@@ -145,7 +145,7 @@ const CONFIG = {
 };
 
 // GViz local config
-const DEFAULT_GVIZ = { sheetId:'', sheetName:'inventory_tracking', headerRow:4, nameCol:'D', expiryCol:'E', qtyCol:'F', noteCol:'' };
+const DEFAULT_GVIZ = { sheetId:'14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI', sheetName:'inventory_tracking', headerRow:4, nameCol:'D', expiryCol:'E', qtyCol:'F', noteCol:'' };
 let GVIZ_CONF = loadGVizConf();
 
 // Mock data
@@ -378,8 +378,23 @@ function runTests(){
 // Boot
 (async function init(){
   hydrateGVizInputs();
-  // Start in Mock; user can switch to Web App or GViz
-  RAW = MOCK_DATA; DATA = normalizeRows(MOCK_DATA); sourceMode='mock'; setSourcePill(); render();
+  try{
+    if (GVIZ_CONF.sheetId){
+      // Try GViz first (single-file, no backend)
+      await fetchFromGViz();
+    } else if (CONFIG.WEB_APP_URL && !CONFIG.WEB_APP_URL.startsWith('REPLACE_')){
+      // Try Web App if configured
+      await fetchFromWeb();
+    } else {
+      // Fallback to Mock
+      RAW = MOCK_DATA; DATA = normalizeRows(MOCK_DATA); sourceMode='mock'; setSourcePill();
+    }
+  }catch(e){
+    // Any failure → mock so UI still works
+    console.warn('[init] Falling back to Mock:', e.message);
+    RAW = MOCK_DATA; DATA = normalizeRows(MOCK_DATA); sourceMode='mock'; setSourcePill('（來源失敗，已切換 Mock）');
+  }
+  render();
   const tgl=$('#expiredToggle'); if (tgl) tgl.addEventListener('change', render);
   runTests();
 })();
