@@ -344,7 +344,7 @@
             {/* 產品選擇（可收合；順序：套組 → 單品 → 禮遇 → 包材；非銷售時隱藏 套組/禮遇） */}
             <section className="rounded border border-gray-200 bg-white shadow-sm mb-5">
               <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
-                <div className="font-medium">產品選擇</div>
+                <div className="font-bold">產品選擇</div>
                 <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>setOpenProducts(o=>!o)}>{openProducts?"收":"展"}</button>
               </div>
 
@@ -464,7 +464,7 @@
             {/* 庫存更新預覽（可收合；Sales/Non-sales 都顯示） */}
             <section className="rounded border border-gray-200 bg-white shadow-sm mb-5">
               <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
-                <div className="font-medium">庫存更新預覽</div>
+                <div className="font-bold">庫存更新預覽</div>
                 <button className="h-8 px-3 border border-gray-300 rounded text-xs" onClick={()=>setOpenPreview(o=>!o)}>{openPreview?"收":"展"}</button>
               </div>
 
@@ -549,7 +549,7 @@
             {rows.length>0 && (
               <section className="rounded border border-gray-200 bg-white shadow-sm mb-5">
                 <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
-                  <div className="font-medium">出貨清單／庫存扣減確認</div>
+                  <div className="font-bold">庫存扣減確認</div>
 
                   {/* 操作類型（只決定 delta 符號） */}
                   <div className="flex items-center gap-4 text-xs">
@@ -601,7 +601,7 @@
             {/* 系統用面板（PIN 開啟） */}
             <section className="mt-8 rounded border border-gray-200 bg-white shadow-sm">
               <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
-                <div className="font-medium">匯入資料（系統用）</div>
+                <div className="font-bold">匯入資料（管理員）</div>
                 <button className="h-8 px-3 border border-gray-300 rounded text-xs"
                         onClick={()=>setSysOpen(o=>!o)}>{sysOpen?"收":"展"}</button>
               </div>
@@ -768,7 +768,7 @@
               <input className="border rounded h-9 px-2 text-sm w-full" placeholder="輸入 8 位 PIN"
                      value={pin} onChange={e=>setPin(e.target.value)} />
               <button className="h-9 px-3 border border-gray-300 rounded text-sm"
-                      onClick={()=> pin==="50963212" ? onOk() : alert("PIN 錯誤")}>登入</button>
+                      onClick={()=> pin==="50963212" ? onOk() : alert("PIN 錯誤")}>GO</button>
             </div>
           </div>
         );
@@ -788,7 +788,7 @@
 
             <div className="flex gap-2">
               <button className="h-9 px-3 border border-gray-300 rounded text-xs" onClick={reload}>
-                Reset All（重抓 GitHub，並清空選擇）
+                Reset All Data
               </button>
             </div>
           </div>
