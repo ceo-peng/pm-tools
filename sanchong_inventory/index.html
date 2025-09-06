@@ -288,7 +288,7 @@
 
             {/* 頁首 + Reset All */}
             <div className="mb-4 flex items-center justify-between">
-              <h1 className="text-xl font-semibold">PM 庫存更新系統</h1>
+              <h1 className="text-xl font-semibold">三重倉庫存更新系統</h1>
               <button className="h-9 px-3 border border-gray-300 rounded text-xs"
                       onClick={loadFromGitHub}>Reset All Data</button>
             </div>
@@ -691,7 +691,7 @@
           };
           try{
             setPosting(true);
-            const res = await fetch("https://hook.us2.make.com/nbjdxrfypgoosj4qqxnzfmj9o29jq3c2", {
+            const res = await fetch("https://hook.us2.make.com/pu1rskzq10r927b8orjw5ohxyhq3p5hp", {
               method:"POST",
               headers:{ "Content-Type":"application/json" },
               body: JSON.stringify(payload)
