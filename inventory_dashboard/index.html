@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PM Inventory Dashboard</title>
+  <title>PM Inventory · Expiry Dashboard</title>
   <style>
     :root{ --bg:#0b0b0c; --card:#121214; --muted:#a7a7b3; --fg:#f5f5f7; --accent:#d4af37; --danger:#d9534f; --warn:#f0ad4e; }
     *{box-sizing:border-box}
@@ -15,11 +15,11 @@
     .sub{color:var(--muted);font-size:12px}
 
     .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
-    button,.pill{background:#1a1a1f;border:1px solid #26262b;color:var(--fg);border-radius:999px;padding:8px 12px;cursor:pointer;transition:background .2s ease,border-color .2s ease; font-weight:600; font-size:13px}
+    .input, select, button{background:#111114;border:1px solid #26262b;border-radius:10px;color:var(--fg);padding:8px 10px}
+    .input{flex:1 1 260px;min-width:160px}
+    select{flex:0 0 220px}
+    button{cursor:pointer;font-weight:600}
     button:hover{background:#1f1f25}
-    button.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
-    .right{margin-left:auto}
-    .input{background:#111114;border:1px solid #26262b;border-radius:10px;color:var(--fg);padding:8px 10px}
 
     .table{overflow:auto;border-radius:14px;border:1px solid #232328}
     table{width:100%;border-collapse:separate;border-spacing:0;background:var(--card);table-layout:fixed}
@@ -34,9 +34,6 @@
     .stat{background:#111114;border:1px solid #24242a;border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
     .stat .label{color:var(--muted);font-size:11px;letter-spacing:.3px}
     .stat .value{font-size:16px;font-weight:800}
-    .dist{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px}
-    .dist .chip{background:#121217;border:1px solid #26262b;border-radius:999px;padding:6px 10px;font-weight:600;font-size:12px;cursor:pointer}
-    .dist .chip:hover{background:#17171c}
 
     .mono{font-variant-numeric:tabular-nums}
     .col-idx{width:44px}
@@ -58,20 +55,16 @@
     .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
     .row input[type="text"],.row input[type="number"],.row select{flex:1 1 220px}
 
+    /* RWD tweaks */
     @media (max-width:760px){
       th,td{padding:8px 10px}
       .stats{grid-template-columns:repeat(2,1fr)}
       .product-name{font-size:13px;line-height:1.3}
       .col-qty,.col-exp,.col-dte{white-space:nowrap}
-    }
-  @media (max-width:760px){
       /* Hide Expiry column on mobile for compactness */
       th.col-exp, td.col-exp{display:none}
-      /* tighter buttons/inputs */
       .toolbar{gap:6px}
-      button,.pill{padding:6px 10px;font-size:12px}
-      .input{padding:6px 8px}
-      /* narrower numeric columns */
+      .input, select, button{padding:6px 8px}
       .col-idx{width:36px}
       .col-qty{width:72px}
       .col-dte{width:64px}
@@ -88,56 +81,41 @@
 <body>
   <div class="wrap">
     <header>
-      <h1>PM Inventory Dashboard</h1>
+      <h1>PM Inventory · Expiry Dashboard</h1>
+      <span class="sub">Golden Minimalism — expiry‑aware, fast, clear.</span>
       <span class="right spinner" id="spinner"></span>
     </header>
 
     <section class="card">
+      <!-- Single, concise control bar -->
       <div class="toolbar">
-        <button data-range="expired">已過期</button>
-        <button data-range="30">≤ 30 天</button>
-        <button data-range="60">≤ 60 天</button>
-        <button data-range="90" class="active">≤ 90 天</button>
-        <button data-range="all">全部</button>
-        <label class="pill" style="display:flex;align-items:center;gap:6px">
-          <input id="expiredToggle" type="checkbox" style="accent-color:#d4af37"> 含已過期
-        </label>
         <input id="search" class="input" placeholder="搜尋 Item…" />
+        <select id="rangeSel" class="input" style="max-width:220px">
+          <option value="expired">已過期</option>
+          <option value="30">≤ 30 天</option>
+          <option value="60">≤ 60 天</option>
+          <option value="90" selected>≤ 90 天</option>
+          <option value="365+">≥ 365 天 (1y)</option>
+          <option value="548+">≥ 548 天 (1.5y)</option>
+          <option value="730+">≥ 730 天 (2y)</option>
+          <option value="913+">≥ 913 天 (2.5y)</option>
+          <option value="365-548">365–548 天 (1–1.5y)</option>
+          <option value="365-730">365–730 天 (1–2y)</option>
+          <option value="all">全部</option>
+          <option value="custom">自訂區間…</option>
+        </select>
+        <span class="sub">1y=365 · 1.5y=548 · 2y=730 · 2.5y=913</span>
       </div>
-
-      <div id="customRange" class="row" style="margin:6px 0 4px">
-        <details style="width:100%">
-          <summary class="sub">自訂期間篩選（以「到期天數」為單位，今天=0；負值=已過期）</summary>
-          <div class="row" style="margin-top:8px">
-            <input id="minDays" type="number" class="input" placeholder="最小天數（空=不限）" />
-            <input id="maxDays" type="number" class="input" placeholder="最大天數（空=不限）" />
-            <button id="applyCustom">套用自訂</button>
-            <span class="sub">快捷：1y≈365、1.5y≈548、2y≈730</span>
-          </div>
-          <div class="row" style="margin-top:6px">
-            <button class="preset" data-min="365" data-max="">≥365天</button>
-            <button class="preset" data-min="548" data-max="">≥548天</button>
-            <button class="preset" data-min="365" data-max="548">365–548天</button>
-            <button class="preset" data-min="365" data-max="730">365–730天</button>
-            <button class="preset" data-min="" data-max="30">≤30天</button>
-            <button class="preset" data-min="" data-max="60">≤60天</button>
-            <button class="preset" data-min="" data-max="90">≤90天</button>
-          </div>
-        </details>
+      <div id="customBar" class="row" style="display:none; margin:6px 0 4px">
+        <input id="minDays" type="number" class="input" placeholder="最小天數（空=不限）" />
+        <input id="maxDays" type="number" class="input" placeholder="最大天數（空=不限）" />
+        <button id="applyCustom">套用自訂</button>
       </div>
 
       <div id="stats" class="stats">
         <div class="stat"><span class="label">SKU</span><span class="value" id="statSku">–</span></div>
         <div class="stat"><span class="label">Qty</span><span class="value" id="statQty">–</span></div>
         <div class="stat"><span class="label">最早到期</span><span class="value" id="statEarliest">–</span></div>
-      </div>
-      <div id="dist" class="dist">
-        <button class="chip" data-min="" data-max="0">已過期</button>
-        <button class="chip" data-min="0" data-max="30">≤30</button>
-        <button class="chip" data-min="31" data-max="60">31–60</button>
-        <button class="chip" data-min="61" data-max="90">61–90</button>
-        <button class="chip" data-min="365" data-max="">≥365</button>
-        <button class="chip" data-min="548" data-max="">≥548</button>
       </div>
 
       <div id="meta" class="sub" style="margin:2px 0 10px"></div>
@@ -155,7 +133,7 @@
         <tbody></tbody>
       </table></div>
 
-      <div class="footer">Tips：點欄位標題可排序；按鈕可用「到期天數」篩選；可切換「含已過期」。</div>
+      <div class="footer">Tips：搜尋、選區間、點標題排序；手機上自動隱藏 Expiry，僅顯示 DTE。</div>
     </section>
 
     <details>
@@ -294,7 +272,6 @@ function normalizeRows(rows){
 // ---------- render ----------
 function render(){
   const q=$('#search').value.trim().toLowerCase();
-  const includeExpired=$('#expiredToggle')?.checked;
 
   VIEW = DATA.filter(r=>{
     let inRange=true; const cr=currentRange;
@@ -304,8 +281,7 @@ function render(){
     }else if(cr==='all'){ inRange=true; }
     else if(cr==='expired'){ inRange = r.DaysToExpiry < 0; }
     else{ inRange = (r.DaysToExpiry >= 0 && r.DaysToExpiry <= Number(cr)); }
-    const expiredOK = includeExpired ? (r.DaysToExpiry < 0 || inRange) : inRange;
-    if(!expiredOK) return false;
+    if(!inRange) return false;
     if(!q) return true; return `${r.ProductName}`.toLowerCase().includes(q);
   }).sort((a,b)=>{ const va=a[sortKey], vb=b[sortKey]; if(va===vb) return 0; return (va>vb?1:-1) * (sortAsc?1:-1); });
 
@@ -336,8 +312,7 @@ function render(){
     const minLabel=(cr.min!=null)?cr.min:'-∞'; const maxLabel=(cr.max!=null)?cr.max:'+∞';
     rangeLabel=`自訂 ${minLabel}–${maxLabel} 天`;
   }else{ rangeLabel = cr==='all'? '全部' : (cr==='expired'? '已過期' : `到期 ≤ ${cr} 天`); }
-  const expiredCnt = VIEW.filter(r=>r.DaysToExpiry<0).length;
-  $('#meta').textContent = `${rangeLabel} · ${VIEW.length} 筆 · 已過期 ${expiredCnt} 筆`;
+  $('#meta').textContent = `${rangeLabel} · ${VIEW.length} 筆`;
 
   renderDiagnostics();
 }
@@ -355,19 +330,37 @@ function renderDiagnostics(){
 }
 
 // ---------- events ----------
-$$('.toolbar button').forEach(btn=>{ btn.addEventListener('click',()=>{ $$('.toolbar button').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); const r=btn.dataset.range; currentRange=(r==='all'||r==='expired')? r : Number(r); render(); }); });
 $('#search').addEventListener('input',()=>render());
 $$('#tbl thead th.sortable').forEach(th=>{ th.addEventListener('click',()=>{ const key=th.dataset.key; if(sortKey===key){ sortAsc=!sortAsc; } else { sortKey=key; sortAsc=(key!=='Quantity'); } render(); }); });
+
+function applyRangeFromSelect(){
+  const v = $('#rangeSel').value;
+  if (v==='custom'){
+    $('#customBar').style.display='flex';
+    return;
+  }
+  $('#customBar').style.display='none';
+  if (v==='all' || v==='expired'){
+    currentRange = v;
+  } else if (/\+$/.test(v)){
+    const n = Number(v.replace('+',''));
+    currentRange = {mode:'custom', min:n, max:null};
+  } else if (/^\d+-\d+$/.test(v)){
+    const [a,b] = v.split('-').map(n=>Number(n));
+    currentRange = {mode:'custom', min:a, max:b};
+  } else {
+    currentRange = Number(v);
+  }
+  render();
+}
+$('#rangeSel').addEventListener('change', applyRangeFromSelect);
 
 $('#applyCustom').addEventListener('click',()=>{
   const toNum=v=> (v===''||v==null)? null : Number(v);
   currentRange={mode:'custom', min:toNum($('#minDays').value), max:toNum($('#maxDays').value)};
-  $$('.toolbar button').forEach(b=>b.classList.remove('active'));
+  $('#customBar').style.display='none';
   render();
 });
-$$('#customRange .preset').forEach(btn=>{ btn.addEventListener('click',()=>{ const min = btn.dataset.min===''? null:Number(btn.dataset.min); const max = btn.dataset.max===''? null:Number(btn.dataset.max); $('#minDays').value=min??''; $('#maxDays').value=max??''; currentRange={mode:'custom',min,max}; $$('.toolbar button').forEach(b=>b.classList.remove('active')); render(); }); });
-$$('#dist .chip').forEach(ch=>{ ch.addEventListener('click',()=>{ const min = ch.dataset.min===''? null:Number(ch.dataset.min); const max = ch.dataset.max===''? null:Number(ch.dataset.max); currentRange={mode:'custom',min,max}; $$('.toolbar button').forEach(b=>b.classList.remove('active')); render(); }); });
-const tgl=$('#expiredToggle'); if(tgl) tgl.addEventListener('change',()=>render());
 
 $('#saveGViz').addEventListener('click', async()=>{ saveGVizInputsToConf(); try{ await fetchFromGViz(); render(); renderDiagnostics(); alert('已儲存並重新載入'); }catch(e){ alert('重新載入失敗：'+e.message); } });
 $('#groupModeSel').value = GROUP_MODE; $('#groupModeSel').addEventListener('change',()=>{ GROUP_MODE=$('#groupModeSel').value; localStorage.setItem('pm_group_mode',GROUP_MODE); DATA=normalizeRows(RAW); render(); renderDiagnostics(); });
