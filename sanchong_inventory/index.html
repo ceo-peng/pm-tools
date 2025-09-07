@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>鉑翡斯 三重倉庫存更新系統</title>
+    <title>鉑翡斯 三重倉庫存更新系統 — Final</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -14,6 +14,9 @@
 
     <script type="text/babel">
       const {useState,useEffect,useMemo} = React;
+
+      /* -------------------- Access code (simple gate) -------------------- */
+      const ACCESS_CODE = "pm2025"; // 可自行更改
 
       /* -------------------- GitHub RAW URLs -------------------- */
       const URLS = {
@@ -76,9 +79,39 @@
         return `${prefix||'待選'}-${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
       }
 
+      /* ---------------------------- Access Gate ---------------------------- */
+      function AccessGate({onOk}){
+        const [val,setVal]=useState("");
+        function submit(){
+          if(val.trim()===ACCESS_CODE) onOk();
+          else alert("Access code 錯誤");
+        }
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg黑/30">
+            <div className="w-full max-w-sm rounded-lg bg-white p-4 shadow-xl">
+              <div className="text-sm font-semibold mb-2">輸入存取代碼</div>
+              <input
+                className="w-full h-10 border rounded px-3 text-sm"
+                placeholder="Access code"
+                value={val}
+                onChange={(e)=>setVal(e.target.value)}
+                onKeyDown={(e)=>{ if(e.key==='Enter') submit(); }}
+                autoFocus
+              />
+              <div className="mt-3 flex justify-end">
+                <button className="h-9 px-3 border border-gray-300 rounded text-sm" onClick={submit}>進入</button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
       /* ================================ App ================================= */
       function App(){
         const {setMsg,Toast}=useToast();
+
+        // gate
+        const [authOK,setAuthOK]=useState(false);
 
         // data (only products & nonsales)
         const [PRODUCTS,setPRODUCTS]=useState([]);
@@ -92,7 +125,7 @@
         // collapsibles
         const [openOrder,setOpenOrder]=useState(true);
         const [openProducts,setOpenProducts]=useState(true);
-        const [openPreview,setOpenPreview]=useState(false);
+        const [openPreview,setOpenPreview]=useState(true);
 
         // operation (plus/minus)
         const [op,setOp]=useState("ship"); // 'ship' | 'receive'
@@ -123,7 +156,7 @@
           setNonSalesCat(""); setPo(""); setMemo("");
           setMsg("已自動載入 GitHub CSV 並重置。");
         }
-        useEffect(()=>{ loadFromGitHub().catch(()=>setMsg("載入失敗，請檢查 RAW URL")); },[]);
+        useEffect(()=>{ if(authOK){ loadFromGitHub().catch(()=>setMsg("載入失敗，請檢查 RAW URL")); } },[authOK]);
 
         /* ---------- dropdown options for 單品 ---------- */
         const catA = useMemo(()=> [...new Set(PRODUCTS.map(x=>x.A))], [PRODUCTS]);
@@ -174,6 +207,8 @@
         }
 
         const formDateId = useMemo(()=> genDocId(nonSalesCat||''),[nonSalesCat]);
+
+        if(!authOK) return <AccessGate onOk={()=>setAuthOK(true)} />;
 
         /* ------------------------------- UI ------------------------------- */
         return (
@@ -239,7 +274,7 @@
                           </select>
                         </div>
                         <div className="md:col-span-2">
-                          <div className="text=[11px] text-gray-500 mb-1">系列名稱（B）</div>
+                          <div className="text-[11px] text-gray-500 mb-1">系列名稱（B）</div>
                           <select className="w-full border rounded h-9 px-2 text-sm"
                             value={selB}
                             onChange={e=>{
