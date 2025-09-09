@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PM Inventory Dashboard</title>
+  <title>PM Inventory Dashboard — TTQ (TPE/SC/MOMO)</title>
   <style>
     :root{ --bg:#0b0b0c; --card:#121214; --muted:#a7a7b3; --fg:#f5f5f7; --accent:#d4af37; --danger:#d9534f; --warn:#f0ad4e; }
     *{box-sizing:border-box}
@@ -15,11 +15,13 @@
     .sub{color:var(--muted);font-size:12px}
 
     .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
-    .input, select, button{background:#111114;border:1px solid #26262b;border-radius:10px;color:var(--fg);padding:8px 10px}
+    .input, select, button, label.switch{background:#111114;border:1px solid #26262b;border-radius:10px;color:var(--fg);padding:8px 10px}
     .input{flex:1 1 260px;min-width:160px}
     select{flex:0 0 220px}
     button{cursor:pointer;font-weight:600}
     button:hover{background:#1f1f25}
+    label.switch{display:flex;align-items:center;gap:6px;cursor:pointer;padding:6px 10px}
+    label.switch input{accent-color:#caa94a}
 
     .table{overflow:auto;border-radius:14px;border:1px solid #232328}
     table{width:100%;border-collapse:separate;border-spacing:0;background:var(--card);table-layout:fixed}
@@ -37,8 +39,8 @@
 
     .mono{font-variant-numeric:tabular-nums}
     .col-idx{width:44px}
-    .col-qty{width:80px}
-    .col-exp{width:110px}
+    .col-qty{width:84px}
+    .col-src{width:84px}
     .col-dte{width:76px}
     .col-dte.warn{color:var(--warn)}
     .col-dte.danger{color:var(--danger)}
@@ -60,9 +62,9 @@
       th,td{padding:8px 10px}
       .stats{grid-template-columns:repeat(2,1fr)}
       .product-name{font-size:13px;line-height:1.3}
-      .col-qty,.col-exp,.col-dte{white-space:nowrap}
-      /* Hide Expiry column on mobile for compactness */
-      th.col-exp, td.col-exp{display:none}
+      .col-qty,.col-dte{white-space:nowrap}
+      /* 預設隱藏來源欄位（手機）；切換開關可展開 */
+      body:not(.show-sources) th.col-src, body:not(.show-sources) td.col-src{display:none}
       .toolbar{gap:6px}
       .input, select, button{padding:6px 8px}
       .col-idx{width:36px}
@@ -76,13 +78,16 @@
       .col-qty{width:64px}
       .col-dte{width:58px}
     }
+
+    /* Default: hide source columns until toggled */
+    body:not(.show-sources) th.col-src, body:not(.show-sources) td.col-src{display:none}
   </style>
 </head>
 <body>
   <div class="wrap">
     <header>
       <h1>PM Inventory Dashboard</h1>
-           <span class="right spinner" id="spinner"></span>
+      <span class="right spinner" id="spinner"></span>
     </header>
 
     <section class="card">
@@ -103,6 +108,7 @@
           <option value="all">全部</option>
           <option value="custom">自訂區間…</option>
         </select>
+        <label class="switch"><input type="checkbox" id="toggleSources"/> 顯示來源明細（三重/台北/MOMO）</label>
         <span class="sub">1y=365 · 1.5y=548 · 2y=730 · 2.5y=913</span>
       </div>
       <div id="customBar" class="row" style="display:none; margin:6px 0 4px">
@@ -113,7 +119,7 @@
 
       <div id="stats" class="stats">
         <div class="stat"><span class="label">SKU</span><span class="value" id="statSku">–</span></div>
-        <div class="stat"><span class="label">Qty</span><span class="value" id="statQty">–</span></div>
+        <div class="stat"><span class="label">Qty (TTQ)</span><span class="value" id="statQty">–</span></div>
         <div class="stat"><span class="label">最早到期</span><span class="value" id="statEarliest">–</span></div>
       </div>
 
@@ -124,50 +130,71 @@
           <tr>
             <th class="col-idx">#</th>
             <th class="sortable col-product" data-key="ProductName">Item</th>
-            <th class="sortable col-qty" data-key="Quantity">Qty</th>
-            <th class="sortable col-exp" data-key="ExpiryDate">Expiry</th>
+            <th class="sortable col-qty" data-key="Quantity">TTQ</th>
+            <th class="sortable col-src" data-key="Qty_TPE">台北</th>
+            <th class="sortable col-src" data-key="Qty_SC">三重</th>
+            <th class="sortable col-src" data-key="Qty_MOMO">MOMO</th>
             <th class="sortable col-dte" data-key="DaysToExpiry">DTE</th>
           </tr>
         </thead>
         <tbody></tbody>
       </table></div>
 
-      <div class="footer">Tips：搜尋、選區間、點標題排序；手機上自動隱藏 Expiry，僅顯示 DTE。</div>
+      <div class="footer">Tips：搜尋、選區間、點標題排序；預設僅顯示 TTQ，勾選「顯示來源明細」後可看三重/台北/MOMO。</div>
     </section>
 
     <details>
-      <summary class="sub">資料來源設定 & 測試</summary>
+      <summary class="sub">資料來源設定 & 測試（多來源彙總）</summary>
+      <div class="sub" style="margin:6px 0 8px">請將三個清單（台北/三重/MOMO）各自「發佈到網路」。若某來源未提供，系統以 0 計。</div>
+
       <div class="row" style="margin:8px 0 6px">
-        <input id="gvizLink" type="text" class="input" placeholder="貼上 Google Sheet 連結 或 ID（已預設為你的檔案）" />
-        <input id="gvizSheet" type="text" class="input" placeholder="工作表名稱（例如：inventory_tracking）" />
+        <strong class="sub">台北（TPE）</strong>
+        <input id="gvizLink_TPE" type="text" class="input" value="https://docs.google.com/spreadsheets/d/14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI/edit" />
+        <input id="gvizSheet_TPE" type="text" class="input" value="inventory_tracking" />
       </div>
       <div class="row" style="margin:0 0 6px">
-        <input id="gvizHeader" type="number" class="input" placeholder="標題列：4" min="1" />
-        <input id="gvizNameCol" type="text" class="input" placeholder="Item 欄位字母：D" />
-        <input id="gvizExpiryCol" type="text" class="input" placeholder="Expiry 欄位字母：E" />
-        <input id="gvizQtyCol" type="text" class="input" placeholder="Qty 欄位字母：J" />
+        <input id="gvizHeader_TPE" type="number" class="input" value="4" min="1" />
+        <input id="gvizNameCol_TPE" type="text" class="input" value="D" />
+        <input id="gvizExpiryCol_TPE" type="text" class="input" value="E" />
+        <input id="gvizQtyCol_TPE" type="text" class="input" value="J" />
       </div>
+
+      <div class="row" style="margin:8px 0 6px">
+        <strong class="sub">三重（SC）</strong>
+        <input id="gvizLink_SC" type="text" class="input" value="https://docs.google.com/spreadsheets/d/12C25rcfSEMtSkkARzLtxlW9Wmhu64m6eSP_KoK8M-js/edit" />
+        <input id="gvizSheet_SC" type="text" class="input" value="inventory_tracking" />
+      </div>
+      <div class="row" style="margin:0 0 6px">
+        <input id="gvizHeader_SC" type="number" class="input" value="4" min="1" />
+        <input id="gvizNameCol_SC" type="text" class="input" value="D" />
+        <input id="gvizExpiryCol_SC" type="text" class="input" value="E" />
+        <input id="gvizQtyCol_SC" type="text" class="input" value="J" />
+      </div>
+
+      <div class="row" style="margin:8px 0 6px">
+        <strong class="sub">MOMO</strong>
+        <input id="gvizLink_MOMO" type="text" class="input" value="" />
+        <input id="gvizSheet_MOMO" type="text" class="input" value="inventory_tracking" />
+      </div>
+      <div class="row" style="margin:0 0 6px">
+        <input id="gvizHeader_MOMO" type="number" class="input" value="4" min="1" />
+        <input id="gvizNameCol_MOMO" type="text" class="input" value="D" />
+        <input id="gvizExpiryCol_MOMO" type="text" class="input" value="E" />
+        <input id="gvizQtyCol_MOMO" type="text" class="input" value="J" />
+      </div>
+
       <div class="row" style="margin:0 0 12px">
-        <button id="saveGViz">儲存GViz設定（會立即重新載入）</button>
-        <span class="sub">＊若遇 CORS，請在 Google Sheet：<b>檔案 → 發佈到網路</b>（只發佈該工作表）。</span>
+        <button id="saveGViz">儲存全部來源（立即重新載入）</button>
+        <span class="sub">＊遇 CORS：Google Sheet → <b>檔案 → 發佈到網路</b>（各別工作表）。</span>
       </div>
-      <div class="row" style="margin:4px 0 6px">
-        <label class="pill">彙總模式
-          <select id="groupModeSel" class="input" style="margin-left:8px">
-            <option value="product">同商品彙總（保留最早到期）</option>
-            <option value="batch">保留批次（商品+到期日）</option>
-          </select>
-        </label>
-      </div>
+
       <div id="testArea" class="sub"></div>
       <div id="diagArea" class="sub" style="margin-top:8px"></div>
     </details>
   </div>
 
 <script>
-// ====== Minimal GViz-only single-file dashboard ======
-// Defaults wired to your Sheet (auto-load on open)
-const DEFAULT_GVIZ = {
+const DEFAULT_TPE = {
   sheetId:'14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI',
   sheetName:'inventory_tracking',
   headerRow:4,
@@ -175,13 +202,25 @@ const DEFAULT_GVIZ = {
   expiryCol:'E',
   qtyCol:'J'
 };
+const DEFAULT_SC = {
+  sheetId:'12C25rcfSEMtSkkARzLtxlW9Wmhu64m6eSP_KoK8M-js',
+  sheetName:'inventory_tracking', // 留空=第一個工作表
+  headerRow:4,
+  nameCol:'D',
+  expiryCol:'E',
+  qtyCol:'J'
+};
+const DEFAULT_MOMO = { sheetId:'', sheetName:'inventory_tracking', headerRow:4, nameCol:'D', expiryCol:'E', qtyCol:'J' };
 
-let GVIZ_CONF = loadGVizConf();
-let RAW=[], DATA=[], VIEW=[];
+let CONF_TPE = loadConf('TPE', DEFAULT_TPE);
+let CONF_SC  = loadConf('SC',  DEFAULT_SC);
+let CONF_MOMO= loadConf('MOMO',DEFAULT_MOMO);
+
+let RAW_ALL=[], DATA=[], VIEW=[];
 let sortKey='DaysToExpiry', sortAsc=true;
-let currentRange=90; // number | 'all' | 'expired' | {mode:'custom',min?,max?}
-let GROUP_MODE = (localStorage.getItem('pm_group_mode')||'product'); // 'product' | 'batch'
-let DIAG = { raw:0,included:0,skipNoName:0,skipNoDate:0,uniqueAfterGroup:0,aggregatedFrom:0 };
+let currentRange=90;
+let GROUP_MODE = (localStorage.getItem('pm_group_mode')||'product');
+let DIAG = { raw:0,included:0,skipNoName:0,skipNoDate:0,uniqueAfterGroup:0,aggregatedFrom:0, sources:{} };
 
 // ---------- helpers ----------
 const $=(q,r=document)=>r.querySelector(q); const $$=(q,r=document)=>Array.from(r.querySelectorAll(q));
@@ -191,81 +230,126 @@ function letterToIndex(L){ L=String(L||'').trim().toUpperCase(); let n=0; for(le
 function parseDate(v){ if(v instanceof Date) return v; if(typeof v==='number') return new Date(Math.round((v-25569)*86400*1000)); const t=(v||'').toString().trim().replace(/\./g,'/').replace(/-/g,'/'); const d=new Date(t); return isNaN(d)?null:d; }
 const daysForward=(a,b)=>Math.round((b-a)/(1000*60*60*24));
 function addDays(base,n){const d=new Date(base); d.setDate(d.getDate()+n); return d;}
-function escapeHTML(s){ return (s||'').replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
+function escapeHTML(s){ return (s||'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]||c)); }
 
-function loadGVizConf(){
-  try{ const saved=JSON.parse(localStorage.getItem('pm_gviz_config')||'null'); return { ...DEFAULT_GVIZ, ...(saved||{}) }; }catch{ return { ...DEFAULT_GVIZ }; }
+function loadConf(tag, def){
+  try{
+    if(tag==='TPE' && !localStorage.getItem('pm_gviz_config_TPE') && localStorage.getItem('pm_gviz_config')){
+      const old = JSON.parse(localStorage.getItem('pm_gviz_config'));
+      localStorage.setItem('pm_gviz_config_TPE', JSON.stringify({ ...def, ...old }));
+    }
+    const raw = localStorage.getItem('pm_gviz_config_'+tag);
+    const saved = raw ? JSON.parse(raw) : {};
+    const merged = { ...def };
+    const keys = ['sheetId','sheetName','headerRow','nameCol','expiryCol','qtyCol'];
+    for(const k of keys){
+      const v = saved[k];
+      if(v !== undefined && v !== null && String(v).trim() !== ''){
+        merged[k] = (k==='headerRow') ? Number(v) : v;
+      }
+    }
+    return merged;
+  }catch(e){ return { ...def }; }
 }
-function saveGVizInputsToConf(){
-  const linkOrId=$('#gvizLink').value.trim();
-  GVIZ_CONF.sheetId = extractSheetId(linkOrId) || DEFAULT_GVIZ.sheetId;
-  GVIZ_CONF.sheetName = $('#gvizSheet').value.trim() || DEFAULT_GVIZ.sheetName;
-  GVIZ_CONF.headerRow = Number($('#gvizHeader').value.trim()||DEFAULT_GVIZ.headerRow);
-  GVIZ_CONF.nameCol = ($('#gvizNameCol').value.trim()||DEFAULT_GVIZ.nameCol).toUpperCase();
-  GVIZ_CONF.expiryCol = ($('#gvizExpiryCol').value.trim()||DEFAULT_GVIZ.expiryCol).toUpperCase();
-  GVIZ_CONF.qtyCol = ($('#gvizQtyCol').value.trim()||DEFAULT_GVIZ.qtyCol).toUpperCase();
-  localStorage.setItem('pm_gviz_config', JSON.stringify(GVIZ_CONF));
+function saveConfFromInputs(tag){
+  const get=(id)=>($('#'+id+'_'+tag)?.value||'').trim();
+  function extractSheetId(linkOrId){ if(!linkOrId) return ''; const token='/d/'; const i=linkOrId.indexOf(token); if(i<0) return linkOrId; const start=i+token.length; let end=linkOrId.indexOf('/',start); if(end<0) end=linkOrId.length; return linkOrId.slice(start,end); }
+  const c={
+    sheetId: extractSheetId(get('gvizLink')) || (tag==='TPE'?DEFAULT_TPE.sheetId: (tag==='SC'?DEFAULT_SC.sheetId:'')),
+    sheetName: get('gvizSheet') || (tag==='TPE'?DEFAULT_TPE.sheetName:''),
+    headerRow: Number(get('gvizHeader')|| (tag==='TPE'?DEFAULT_TPE.headerRow:4)),
+    nameCol: (get('gvizNameCol')|| (tag==='TPE'?DEFAULT_TPE.nameCol:'D')).toUpperCase(),
+    expiryCol: (get('gvizExpiryCol')|| (tag==='TPE'?DEFAULT_TPE.expiryCol:'E')).toUpperCase(),
+    qtyCol: (get('gvizQtyCol')|| (tag==='TPE'?DEFAULT_TPE.qtyCol:'J')).toUpperCase(),
+  };
+  localStorage.setItem('pm_gviz_config_'+tag, JSON.stringify(c));
+  if(tag==='TPE') CONF_TPE=c; if(tag==='SC') CONF_SC=c; if(tag==='MOMO') CONF_MOMO=c;
 }
-function hydrateGVizInputs(){
-  $('#gvizLink').value = GVIZ_CONF.sheetId ? `https://docs.google.com/spreadsheets/d/${GVIZ_CONF.sheetId}/edit` : '';
-  $('#gvizSheet').value = GVIZ_CONF.sheetName || '';
-  $('#gvizHeader').value = GVIZ_CONF.headerRow || 4;
-  $('#gvizNameCol').value = GVIZ_CONF.nameCol || 'D';
-  $('#gvizExpiryCol').value = GVIZ_CONF.expiryCol || 'E';
-  $('#gvizQtyCol').value = GVIZ_CONF.qtyCol || 'J';
+function hydrateInputs(tag, conf){
+  const set=(sel,val)=>{ const el=$('#'+sel+'_'+tag); if(el){ el.value = val==null? '' : String(val); } };
+  set('gvizLink', conf.sheetId ? `https://docs.google.com/spreadsheets/d/${conf.sheetId}/edit` : '');
+  set('gvizSheet', conf.sheetName || '');
+  set('gvizHeader', conf.headerRow || 4);
+  set('gvizNameCol', conf.nameCol || 'D');
+  set('gvizExpiryCol', conf.expiryCol || 'E');
+  set('gvizQtyCol', conf.qtyCol || 'J');
 }
-function extractSheetId(linkOrId){ if(!linkOrId) return ''; const m = linkOrId.match(/\/d\/([a-zA-Z0-9-_]+)/); return m? m[1] : linkOrId; }
-function gvizTestUrl(){ const c=GVIZ_CONF; if(!c.sheetId) return ''; return `https://docs.google.com/spreadsheets/d/${c.sheetId}/gviz/tq?sheet=${encodeURIComponent(c.sheetName)}&range=A${c.headerRow}:Z&tqx=out:csv`; }
+function gvizTestUrl(conf){
+  if(!conf.sheetId) return '';
+  const base = `https://docs.google.com/spreadsheets/d/${conf.sheetId}/gviz/tq?`;
+  const parts=[];
+  if(conf.sheetName) parts.push(`sheet=${encodeURIComponent(conf.sheetName)}`);
+  parts.push(`range=A${conf.headerRow}:Z`);
+  parts.push('tqx=out:csv');
+  return base + parts.join('&');
+}
 
 // ---------- data ----------
-async function fetchFromGViz(){
-  toggleSpinner(true);
-  try{
-    const c=GVIZ_CONF; if(!c.sheetId) throw new Error('NO_SHEET_ID');
-    const url = gvizTestUrl();
-    const res = await fetch(url,{cache:'no-store'});
-    if(!res.ok) throw new Error(`HTTP ${res.status}`);
-    const csv = await res.text();
-    const rows = parseCSV(csv); if(!rows.length) throw new Error('EMPTY');
-    const dataRows = rows.slice(1); // first row is header from GViz
-    const idxName   = letterToIndex(c.nameCol||'D');
-    const idxExpiry = letterToIndex(c.expiryCol||'E');
-    const idxQty    = letterToIndex(c.qtyCol||'J');
-
-    const objs=[];
-    for(const arr of dataRows){
-      const name=(arr[idxName]||'').toString().trim();
-      const expiry=arr[idxExpiry];
-      const qty=Number(arr[idxQty]||0);
-      if(!name && !expiry && !qty) continue;
-      objs.push({ ProductName:name, 'Expiry Date':expiry, Quantity:qty });
-    }
-    RAW=objs; DATA=normalizeRows(objs);
-  }finally{ toggleSpinner(false); }
+async function fetchOne(conf, tag){
+  if(!conf.sheetId) return [];
+  const url = gvizTestUrl(conf);
+  const res = await fetch(url,{cache:'no-store'});
+  if(!res.ok) throw new Error(`[${tag}] HTTP ${res.status}`);
+  const csv = await res.text();
+  const rows = parseCSV(csv); if(!rows.length) return [];
+  const dataRows = rows.slice(1);
+  const idxName   = letterToIndex(conf.nameCol||'D');
+  const idxExpiry = letterToIndex(conf.expiryCol||'E');
+  const idxQty    = letterToIndex(conf.qtyCol||'J');
+  const out=[];
+  for(const arr of dataRows){
+    const name=(arr[idxName]||'').toString().trim();
+    const expiry=arr[idxExpiry];
+    const qty=Number(arr[idxQty]||0);
+    if(!name && !expiry && !qty) continue;
+    out.push({ ProductName:name, 'Expiry Date':expiry, Quantity:qty, Source:tag });
+  }
+  return out;
 }
 
-function normalizeRows(rows){
-  DIAG={ raw:rows.length,included:0,skipNoName:0,skipNoDate:0,uniqueAfterGroup:0,aggregatedFrom:0 };
+async function fetchAll(){
+  toggleSpinner(true);
+  try{
+    const parts = await Promise.all([
+      fetchOne(CONF_TPE,'TPE').catch(e=>{console.warn(e); return []; }),
+      fetchOne(CONF_SC,'SC').catch(e=>{console.warn(e); return []; }),
+      fetchOne(CONF_MOMO,'MOMO').catch(e=>{console.warn(e); return []; }),
+    ]);
+    RAW_ALL = parts.flat();
+    DATA = normalizeRowsMulti(RAW_ALL);
+  } finally { toggleSpinner(false); }
+}
+
+function normalizeRowsMulti(rows){
+  DIAG={ raw:rows.length,included:0,skipNoName:0,skipNoDate:0,uniqueAfterGroup:0,aggregatedFrom:0, sources:{TPE:0,SC:0,MOMO:0} };
   const included=[];
   for(const r of rows){
     const name=String(r.ProductName||'').trim();
     const d=parseDate(r['Expiry Date']||r['ExpiryDate']||r['Expiration Date']);
+    const src=r.Source||'TPE';
     if(!name){ DIAG.skipNoName++; continue; }
     if(!d){ DIAG.skipNoDate++; continue; }
     const qty=Number(r.Quantity||0)||0;
-    included.push({ name,d,qty });
+    included.push({ name,d,qty,src });
   }
   DIAG.included=included.length;
   const buckets=new Map();
   for(const r of included){
     const iso=r.d.toISOString().slice(0,10);
     const key=(GROUP_MODE==='batch')? `${r.name}||${iso}` : r.name;
-    if(!buckets.has(key)) buckets.set(key,{ ProductName:r.name, Quantity:0, ExpiryDate:r.d });
-    const o=buckets.get(key); o.Quantity += r.qty; if(GROUP_MODE==='product'){ if(r.d < o.ExpiryDate) o.ExpiryDate=r.d; }
+    if(!buckets.has(key)) buckets.set(key,{ ProductName:r.name, Qty_TPE:0, Qty_SC:0, Qty_MOMO:0, ExpiryDate:r.d });
+    const o=buckets.get(key);
+    if(r.src==='TPE') o.Qty_TPE += r.qty; else if(r.src==='SC') o.Qty_SC += r.qty; else if(r.src==='MOMO') o.Qty_MOMO += r.qty;
+    if(GROUP_MODE==='product'){ if(r.d < o.ExpiryDate) o.ExpiryDate=r.d; }
   }
-  DIAG.uniqueAfterGroup=buckets.size; DIAG.aggregatedFrom=DIAG.included-DIAG.uniqueAfterGroup;
   const today=new Date();
-  return Array.from(buckets.values()).map(o=>({ ...o, DaysToExpiry:daysForward(today,o.ExpiryDate) }));
+  const out = Array.from(buckets.values()).map(o=>{
+    const TTQ = (o.Qty_TPE||0) + (o.Qty_SC||0) + (o.Qty_MOMO||0);
+    return { ...o, Quantity:TTQ, Qty_TTQ:TTQ, DaysToExpiry:daysForward(today,o.ExpiryDate) };
+  });
+  DIAG.uniqueAfterGroup=out.length; DIAG.aggregatedFrom=DIAG.included-DIAG.uniqueAfterGroup;
+  out.forEach(o=>{ DIAG.sources.TPE+=(o.Qty_TPE||0); DIAG.sources.SC+=(o.Qty_SC||0); DIAG.sources.MOMO+=(o.Qty_MOMO||0); });
+  return out;
 }
 
 // ---------- render ----------
@@ -298,14 +382,15 @@ function render(){
     tr.innerHTML = `
       <td class="mono col-idx">${i+1}</td>
       <td class="col-product"><span class="product-name">${escapeHTML(r.ProductName||'')}</span></td>
-      <td class="mono col-qty">${fmtInt(r.Quantity)}</td>
-      <td class="mono col-exp">${r.ExpiryDate.toISOString().slice(0,10)}</td>
+      <td class="mono col-qty">${fmtInt(r.Qty_TTQ||r.Quantity||0)}</td>
+      <td class="mono col-src">${fmtInt(r.Qty_TPE||0)}</td>
+      <td class="mono col-src">${fmtInt(r.Qty_SC||0)}</td>
+      <td class="mono col-src">${fmtInt(r.Qty_MOMO||0)}</td>
       <td class="mono col-dte ${cls}">${fmtInt(r.DaysToExpiry)}</td>`;
     frag.appendChild(tr);
   });
   tbody.appendChild(frag);
 
-  // meta label
   const cr=currentRange; let rangeLabel;
   if(typeof cr==='object' && cr && cr.mode==='custom'){
     const minLabel=(cr.min!=null)?cr.min:'-∞'; const maxLabel=(cr.max!=null)?cr.max:'+∞';
@@ -317,13 +402,18 @@ function render(){
 }
 
 function renderDiagnostics(){
-  const link=gvizTestUrl();
+  const links = [
+    ['台北', gvizTestUrl(CONF_TPE)],
+    ['三重', gvizTestUrl(CONF_SC)],
+    ['MOMO', gvizTestUrl(CONF_MOMO)],
+  ].filter(x=>x[1]);
   const qSum = DATA.reduce((s,r)=>s+(Number(r.Quantity)||0),0);
   const html=[
-    `<div>資料診斷${link?` · <a href="${link}" target="_blank" rel="noopener">GViz測試連結</a>`:''}</div>`,
+    `<div>資料診斷${links.length? ' · ' + links.map(([n,u])=>`<a href="${u}" target="_blank" rel="noopener">${n}測試</a>`).join(' · ') : ''}</div>`,
     `<div>原始列 ${DIAG.raw} · 有效列 ${DIAG.included} · 分組後 ${DIAG.uniqueAfterGroup}（彙總自 ${DIAG.aggregatedFrom} 列）</div>`,
     `<div>略過：無商品名 ${DIAG.skipNoName}、無法解析日期 ${DIAG.skipNoDate}</div>`,
-    `<div>彙總模式：<b>${GROUP_MODE==='product'?'同商品彙總（保留最早到期）':'保留批次（商品+到期日）'}</b> · 目前總庫存（視圖）：<b>${fmtInt(qSum)}</b></div>`
+    `<div>來源合計：台北 ${fmtInt(DIAG.sources.TPE||0)} · 三重 ${fmtInt(DIAG.sources.SC||0)} · MOMO ${fmtInt(DIAG.sources.MOMO||0)} · 視圖 TTQ ${fmtInt(qSum)}</div>`,
+    `<div>彙總模式：<b>${GROUP_MODE==='product'?'同商品彙總（保留最早到期）':'保留批次（商品+到期日）'}</b></div>`
   ].join('');
   $('#diagArea').innerHTML=html;
 }
@@ -341,12 +431,15 @@ function applyRangeFromSelect(){
   $('#customBar').style.display='none';
   if (v==='all' || v==='expired'){
     currentRange = v;
-  } else if (/\+$/.test(v)){
-    const n = Number(v.replace('+',''));
+  } else if (v.endsWith('+')){
+    const n = Number(v.slice(0,-1));
     currentRange = {mode:'custom', min:n, max:null};
-  } else if (/^\d+-\d+$/.test(v)){
-    const [a,b] = v.split('-').map(n=>Number(n));
-    currentRange = {mode:'custom', min:a, max:b};
+  } else if (v.includes('-')){
+    const parts=v.split('-');
+    if(parts.length===2){
+      const a=Number(parts[0]); const b=Number(parts[1]);
+      if(Number.isFinite(a) && Number.isFinite(b)) currentRange = {mode:'custom', min:a, max:b};
+    }
   } else {
     currentRange = Number(v);
   }
@@ -361,27 +454,68 @@ $('#applyCustom').addEventListener('click',()=>{
   render();
 });
 
-$('#saveGViz').addEventListener('click', async()=>{ saveGVizInputsToConf(); try{ await fetchFromGViz(); render(); renderDiagnostics(); alert('已儲存並重新載入'); }catch(e){ alert('重新載入失敗：'+e.message); } });
-$('#groupModeSel').value = GROUP_MODE; $('#groupModeSel').addEventListener('change',()=>{ GROUP_MODE=$('#groupModeSel').value; localStorage.setItem('pm_group_mode',GROUP_MODE); DATA=normalizeRows(RAW); render(); renderDiagnostics(); });
+$('#toggleSources').addEventListener('change', (e)=>{
+  document.body.classList.toggle('show-sources', e.target.checked);
+});
 
-// ---------- CSV parser ----------
+$('#saveGViz').addEventListener('click', async()=>{
+  ['TPE','SC','MOMO'].forEach(tag=>saveConfFromInputs(tag));
+  try{ await fetchAll(); render(); renderDiagnostics(); alert('已儲存並重新載入'); }catch(e){
+    alert('讀取 Google Sheet 失敗：'+e.message+'\n\n請確認：\n1) 三個工作表皆「發佈到網路」\n2) 名稱/欄位字母正確 (D/E/J)\n3) 權限為任何持有連結者可檢視');
+  }
+});
+
+// hydrate inputs
+(function(){
+  hydrateInputs('TPE', CONF_TPE);
+  hydrateInputs('SC',  CONF_SC);
+  hydrateInputs('MOMO',CONF_MOMO);
+})();
+
+// ---------- CSV parser (fixed) ----------
 function parseCSV(text){
-  const rows=[]; let i=0,cur='',row=[],inQ=false; while(i<text.length){ const ch=text[i++]; if(inQ){ if(ch==='"'){ if(text[i]==='"'){ cur+='"'; i++; } else { inQ=false; } } else { cur+=ch; } } else { if(ch==='"'){ inQ=true; } else if(ch===','){ row.push(cur); cur=''; } else if(ch==='\n'){ row.push(cur); rows.push(row); row=[]; cur=''; } else if(ch==='\r'){ } else { cur+=ch; } } } if(cur.length>0||row.length){ row.push(cur); rows.push(row); } return rows; }
+  const rows=[]; let cur='', row=[], inQ=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(inQ){
+      if(ch === '"'){
+        if(text[i+1] === '"'){ cur+='"'; i++; } else { inQ=false; }
+      } else {
+        cur += ch;
+      }
+    } else {
+      if(ch === '"'){ inQ = true; }
+      else if(ch === ','){ row.push(cur); cur=''; }
+      else if(ch === '\n'){ row.push(cur); rows.push(row); row=[]; cur=''; }
+      else if(ch === '\r'){ /* ignore CR */ }
+      else { cur += ch; }
+    }
+  }
+  if(cur.length>0 || row.length){ row.push(cur); rows.push(row); }
+  return rows;
+}
 
 // ---------- tests ----------
 function runTests(){
   const results=[]; const today=new Date();
   const ten=daysForward(today,addDays(today,10)); results.push(['T1 daysForward +10',ten===10,ten]);
   const known=new Date('2025-01-15T00:00:00'); const serial=Math.floor(known.getTime()/(86400*1000))+25569; const parsed=parseDate(serial); const sameDay=parsed && parsed.getUTCFullYear()===known.getUTCFullYear() && parsed.getUTCMonth()===known.getUTCMonth() && parsed.getUTCDate()===known.getUTCDate(); results.push(['T2 parse Excel serial',!!sameDay,parsed?.toISOString()?.slice(0,10)]);
-  const demo=[ {ProductName:'Demo','Expiry Date':addDays(today,50),Quantity:5}, {ProductName:'Demo','Expiry Date':addDays(today,20),Quantity:7} ];
-  const norm=normalizeRows(demo); results.push(['T3 aggregate qty', norm[0]?.Quantity===12, norm[0]?.Quantity]); results.push(['T3 earliest kept', norm[0]?.DaysToExpiry===20, norm[0]?.DaysToExpiry]);
+  const demo=[
+    {ProductName:'Demo','Expiry Date':addDays(today,50),Quantity:5,Source:'TPE'},
+    {ProductName:'Demo','Expiry Date':addDays(today,20),Quantity:7,Source:'SC'},
+    {ProductName:'Demo','Expiry Date':addDays(today,30),Quantity:3,Source:'MOMO'},
+  ];
+  const norm=normalizeRowsMulti(demo);
+  results.push(['T3 TTQ sum', norm[0]?.Qty_TTQ===15, norm[0]?.Qty_TTQ]);
+  results.push(['T3 earliest kept', norm[0]?.DaysToExpiry===20, norm[0]?.DaysToExpiry]);
   const ok=results.filter(r=>r[1]).length; $('#testArea').innerHTML=[`<div>測試通過 ${ok}/${results.length}</div>`, '<ul>', ...results.map(([n,p,i])=>`<li>${p?'✅':'❌'} ${n} <span class="sub">(${i??''})</span></li>`), '</ul>'].join('');
 }
 
 // ---------- boot ----------
 (async function init(){
-  hydrateGVizInputs();
-  try{ await fetchFromGViz(); } catch(e){ alert('讀取 Google Sheet 失敗：'+e.message+'\n\n請確認：\n1) 該工作表已「發佈到網路」\n2) 工作表名稱/欄位字母正確 (D/E/J)\n3) 權限為任何持有連結者可檢視'); }
+  try{ await fetchAll(); } catch(e){
+    alert('讀取 Google Sheet 失敗：'+e.message+'\n\n請確認：\n1) 三個工作表皆「發佈到網路」\n2) 名稱/欄位字母正確 (D/E/J)\n3) 權限為任何持有連結者可檢視');
+  }
   render(); runTests();
 })();
 </script>
