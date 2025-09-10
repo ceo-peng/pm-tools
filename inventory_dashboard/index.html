@@ -1,523 +1,991 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PM Inventory Dashboard — TTQ (TPE/SC/MOMO)</title>
-  <style>
-    :root{ --bg:#0b0b0c; --card:#121214; --muted:#a7a7b3; --fg:#f5f5f7; --accent:#d4af37; --danger:#d9534f; --warn:#f0ad4e; }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{margin:0;background:linear-gradient(180deg,#0b0b0c,#0f0f12);color:var(--fg);font:14px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-    .wrap{max-width:1140px;margin:0 auto;padding:20px}
-    header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
-    h1{font-size:20px;font-weight:700;letter-spacing:.2px;margin:0}
-    .sub{color:var(--muted);font-size:12px}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PM Inventory Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        /* PM Inventory Dashboard - Clean Design System */
+        :root {
+            --background: 0 0% 100%;
+            --foreground: 222.2 84% 4.9%;
+            --card: 0 0% 100%;
+            --card-foreground: 222.2 84% 4.9%;
+            --popover: 0 0% 100%;
+            --popover-foreground: 222.2 84% 4.9%;
+            --primary: 221.2 83.2% 53.3%;
+            --primary-foreground: 210 40% 98%;
+            --secondary: 210 40% 96%;
+            --secondary-foreground: 222.2 47.4% 11.2%;
+            --muted: 210 40% 96%;
+            --muted-foreground: 215.4 16.3% 46.9%;
+            --accent: 210 40% 96%;
+            --accent-foreground: 222.2 47.4% 11.2%;
+            --destructive: 0 84.2% 60.2%;
+            --destructive-foreground: 210 40% 98%;
+            --warning: 38 92% 50%;
+            --warning-foreground: 222.2 84% 4.9%;
+            --success: 142.1 76.2% 36.3%;
+            --success-foreground: 355.7 100% 97.3%;
+            --border: 214.3 31.8% 91.4%;
+            --input: 214.3 31.8% 91.4%;
+            --ring: 221.2 83.2% 53.3%;
+            --radius: 0.5rem;
+        }
 
-    .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
-    .input, select, button, label.switch{background:#111114;border:1px solid #26262b;border-radius:10px;color:var(--fg);padding:8px 10px}
-    .input{flex:1 1 260px;min-width:160px}
-    select{flex:0 0 220px}
-    button{cursor:pointer;font-weight:600}
-    button:hover{background:#1f1f25}
-    label.switch{display:flex;align-items:center;gap:6px;cursor:pointer;padding:6px 10px}
-    label.switch input{accent-color:#caa94a}
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --background: 222.2 84% 4.9%;
+                --foreground: 210 40% 98%;
+                --card: 222.2 84% 4.9%;
+                --card-foreground: 210 40% 98%;
+                --popover: 222.2 84% 4.9%;
+                --popover-foreground: 210 40% 98%;
+                --primary: 217.2 91.2% 59.8%;
+                --primary-foreground: 222.2 47.4% 11.2%;
+                --secondary: 217.2 32.6% 17.5%;
+                --secondary-foreground: 210 40% 98%;
+                --muted: 217.2 32.6% 17.5%;
+                --muted-foreground: 215 20.2% 65.1%;
+                --accent: 217.2 32.6% 17.5%;
+                --accent-foreground: 210 40% 98%;
+                --destructive: 0 62.8% 30.6%;
+                --destructive-foreground: 210 40% 98%;
+                --warning: 54 91% 50%;
+                --warning-foreground: 222.2 84% 4.9%;
+                --success: 142.1 70.6% 45.3%;
+                --success-foreground: 144.9 80.4% 10%;
+                --border: 217.2 32.6% 17.5%;
+                --input: 217.2 32.6% 17.5%;
+                --ring: 217.2 91.2% 59.8%;
+            }
+        }
 
-    .table{overflow:auto;border-radius:14px;border:1px solid #232328}
-    table{width:100%;border-collapse:separate;border-spacing:0;background:var(--card);table-layout:fixed}
-    thead th{position:sticky;top:0;background:#16161a;z-index:2}
-    th,td{padding:10px 12px;border-bottom:1px solid #1f1f24;text-align:left;vertical-align:top}
-    tr:hover td{background:#141418}
-    th.sortable{cursor:pointer}
-    th.sortable:after{content:"⇅";opacity:.4;margin-left:6px;font-size:11px}
+        body {
+            background-color: hsl(var(--background));
+            color: hsl(var(--foreground));
+            font-family: system-ui, -apple-system, sans-serif;
+        }
 
-    /* Stats */
-    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
-    .stat{background:#111114;border:1px solid #24242a;border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
-    .stat .label{color:var(--muted);font-size:11px;letter-spacing:.3px}
-    .stat .value{font-size:16px;font-weight:800}
+        .card {
+            background-color: hsl(var(--card));
+            color: hsl(var(--card-foreground));
+            border: 1px solid hsl(var(--border));
+            border-radius: var(--radius);
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        }
 
-    .mono{font-variant-numeric:tabular-nums}
-    .col-idx{width:44px}
-    .col-qty{width:84px}
-    .col-src{width:84px}
-    .col-dte{width:76px}
-    .col-dte.warn{color:var(--warn)}
-    .col-dte.danger{color:var(--danger)}
-    .product-name{font-weight:600}
+        .button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: 1px solid transparent;
+            padding: 0.5rem 1rem;
+            height: 2.25rem;
+        }
 
-    .footer{color:var(--muted);font-size:12px;margin-top:12px}
-    .spinner{display:none}
-    .spinner.show{display:inline-block;width:16px;height:16px;border-radius:50%;border:2px solid #333;border-top-color:var(--accent);animation:spin 1s linear infinite;vertical-align:middle}
-    @keyframes spin{to{transform:rotate(360deg)}}
+        .button-outline {
+            border: 1px solid hsl(var(--border));
+            background-color: hsl(var(--background));
+            color: hsl(var(--foreground));
+        }
 
-    details{background:#111114;border:1px solid #232328;border-radius:12px;padding:10px;margin:12px 0}
-    details>summary{cursor:pointer;list-style:none}
-    details>summary::-webkit-details-marker{display:none}
-    .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-    .row input[type="text"],.row input[type="number"],.row select{flex:1 1 220px}
+        .button-outline:hover {
+            background-color: hsl(var(--accent));
+        }
 
-    /* RWD tweaks */
-    @media (max-width:760px){
-      th,td{padding:8px 10px}
-      .stats{grid-template-columns:repeat(2,1fr)}
-      .product-name{font-size:13px;line-height:1.3}
-      .col-qty,.col-dte{white-space:nowrap}
-      /* 預設隱藏來源欄位（手機）；切換開關可展開 */
-      body:not(.show-sources) th.col-src, body:not(.show-sources) td.col-src{display:none}
-      .toolbar{gap:6px}
-      .input, select, button{padding:6px 8px}
-      .col-idx{width:36px}
-      .col-qty{width:72px}
-      .col-dte{width:64px}
-    }
-    @media (max-width:420px){
-      body{font-size:13px}
-      th,td{padding:6px 8px}
-      .product-name{font-size:12.5px;line-height:1.25}
-      .col-qty{width:64px}
-      .col-dte{width:58px}
-    }
+        .button-sm {
+            height: 2rem;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.75rem;
+        }
 
-    /* Default: hide source columns until toggled */
-    body:not(.show-sources) th.col-src, body:not(.show-sources) td.col-src{display:none}
-  </style>
+        .input {
+            display: flex;
+            height: 2.25rem;
+            width: 100%;
+            border-radius: var(--radius);
+            border: 1px solid hsl(var(--border));
+            background-color: hsl(var(--background));
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            transition: border-color 0.2s;
+        }
+
+        .input:focus {
+            outline: none;
+            border-color: hsl(var(--ring));
+        }
+
+        .checkbox {
+            height: 1rem;
+            width: 1rem;
+            border: 1px solid hsl(var(--border));
+            border-radius: 0.25rem;
+            background-color: hsl(var(--background));
+        }
+
+        .select {
+            display: flex;
+            height: 2.25rem;
+            width: 100%;
+            border-radius: var(--radius);
+            border: 1px solid hsl(var(--border));
+            background-color: hsl(var(--background));
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+
+        .tabular-nums {
+            font-variant-numeric: tabular-nums;
+            font-feature-settings: "tnum";
+        }
+
+        .status-expired {
+            color: hsl(var(--destructive));
+            background-color: hsl(var(--destructive) / 0.1);
+            border: 1px solid hsl(var(--destructive) / 0.2);
+            border-radius: 9999px;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-warning {
+            color: hsl(var(--warning-foreground));
+            background-color: hsl(var(--warning) / 0.1);
+            border: 1px solid hsl(var(--warning) / 0.2);
+            border-radius: 9999px;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .line-clamp-2 {
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+            line-height: 1.3;
+            max-height: 2.6em;
+        }
+
+        .table-header-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: inherit;
+            font-size: inherit;
+        }
+
+        .table-header-btn:hover {
+            color: hsl(var(--primary));
+        }
+
+        .muted-text {
+            color: hsl(var(--muted-foreground));
+        }
+
+        .primary-text {
+            color: hsl(var(--primary));
+        }
+
+        .hidden { display: none; }
+        .block { display: block; }
+        .flex { display: flex; }
+        .grid { display: grid; }
+        .inline-flex { display: inline-flex; }
+    </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>PM Inventory Dashboard</h1>
-      <span class="right spinner" id="spinner"></span>
-    </header>
+    <div class="min-h-screen bg-white p-4" style="background-color: hsl(var(--background));">
+        <div class="max-w-7xl mx-auto space-y-6">
+            <!-- Header -->
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <h1 class="text-xl sm:text-2xl font-bold">PM Inventory Dashboard</h1>
+                <div class="flex items-center gap-2 text-xs sm:text-sm">
+                    <span id="last-fetch" class="muted-text"></span>
+                    <button id="refresh-btn" class="button button-outline button-sm">
+                        <i data-lucide="refresh-cw" class="h-3 w-3 sm:h-4 sm:w-4"></i>
+                    </button>
+                    <button id="settings-btn" class="button button-outline button-sm">
+                        <i data-lucide="settings" class="h-3 w-3 sm:h-4 sm:w-4"></i>
+                    </button>
+                </div>
+            </div>
 
-    <section class="card">
-      <!-- Single, concise control bar -->
-      <div class="toolbar">
-        <input id="search" class="input" placeholder="搜尋 Item…" />
-        <select id="rangeSel" class="input" style="max-width:220px">
-          <option value="expired">已過期</option>
-          <option value="30">≤ 30 天</option>
-          <option value="60">≤ 60 天</option>
-          <option value="90" selected>≤ 90 天</option>
-          <option value="365+">≥ 365 天 (1y)</option>
-          <option value="548+">≥ 548 天 (1.5y)</option>
-          <option value="730+">≥ 730 天 (2y)</option>
-          <option value="913+">≥ 913 天 (2.5y)</option>
-          <option value="365-548">365–548 天 (1–1.5y)</option>
-          <option value="365-730">365–730 天 (1–2y)</option>
-          <option value="all">全部</option>
-          <option value="custom">自訂區間…</option>
-        </select>
-        <label class="switch"><input type="checkbox" id="toggleSources"/> 顯示來源明細（三重/台北/MOMO）</label>
-        <span class="sub">1y=365 · 1.5y=548 · 2y=730 · 2.5y=913</span>
-      </div>
-      <div id="customBar" class="row" style="display:none; margin:6px 0 4px">
-        <input id="minDays" type="number" class="input" placeholder="最小天數（空=不限）" />
-        <input id="maxDays" type="number" class="input" placeholder="最大天數（空=不限）" />
-        <button id="applyCustom">套用自訂</button>
-      </div>
+            <!-- Settings Panel -->
+            <div id="settings-panel" class="card p-6 hidden">
+                <h2 class="text-lg font-semibold mb-4">Data Source Settings</h2>
+                <div id="sources-config" class="space-y-6"></div>
+                <button id="save-settings-btn" class="button w-full mt-4" style="background-color: hsl(var(--primary)); color: hsl(var(--primary-foreground));">
+                    Save All Sources (Reload Now)
+                </button>
+                <p class="text-sm muted-text mt-4">
+                    <strong>Note:</strong> If data cannot be fetched due to permissions, ensure you've used "File → Publish to the web" for each tab in Google Sheets.
+                </p>
+            </div>
 
-      <div id="stats" class="stats">
-        <div class="stat"><span class="label">SKU</span><span class="value" id="statSku">–</span></div>
-        <div class="stat"><span class="label">Qty (TTQ)</span><span class="value" id="statQty">–</span></div>
-        <div class="stat"><span class="label">最早到期</span><span class="value" id="statEarliest">–</span></div>
-      </div>
+            <!-- Toolbar -->
+            <div class="card p-2 sm:p-4">
+                <div class="flex flex-col sm:flex-row gap-2 sm:gap-4 items-start sm:items-center">
+                    <div class="flex-1 relative w-full sm:w-auto">
+                        <i data-lucide="search" class="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 sm:h-4 sm:w-4 muted-text"></i>
+                        <input id="search-input" type="text" placeholder="搜索產品..." class="input pl-8 sm:pl-10 text-sm sm:text-base h-8 sm:h-10">
+                    </div>
+                    
+                    <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                        <!-- Location Checkboxes -->
+                        <div id="location-checkboxes" class="flex gap-1 sm:gap-2 items-center">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                        
+                        <select id="dte-filter" class="select w-20 sm:w-32 text-xs sm:text-sm h-8 sm:h-10">
+                            <option value="all">全部</option>
+                            <option value="expired">過期</option>
+                            <option value="≤30">≤30天</option>
+                            <option value="≤60">≤60天</option>
+                            <option value="≤90" selected>≤90天</option>
+                            <option value="≥365">≥365天</option>
+                            <option value="≥548">≥548天</option>
+                            <option value="≥730">≥730天</option>
+                            <option value="≥913">≥913天</option>
+                            <option value="365-548">365-548天</option>
+                            <option value="365-730">365-730天</option>
+                            <option value="custom">自定義</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
 
-      <div id="meta" class="sub" style="margin:2px 0 10px"></div>
+            <!-- Stats -->
+            <div class="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
+                <div class="card p-2 sm:p-3">
+                    <div id="stats-sku" class="text-lg sm:text-xl font-bold tabular-nums">0</div>
+                    <div class="text-xs sm:text-sm muted-text">SKU</div>
+                </div>
+                <div class="card p-2 sm:p-3">
+                    <div id="stats-qty" class="text-lg sm:text-xl font-bold tabular-nums">0</div>
+                    <div class="text-xs sm:text-sm muted-text">總量</div>
+                </div>
+                <div class="card col-span-2 lg:col-span-1 p-2 sm:p-3">
+                    <div id="stats-earliest-date" class="text-sm sm:text-base font-bold">N/A</div>
+                    <div id="stats-earliest-days" class="text-xs sm:text-sm muted-text">最早到期</div>
+                </div>
+            </div>
 
-      <div class="table"><table id="tbl">
-        <thead>
-          <tr>
-            <th class="col-idx">#</th>
-            <th class="sortable col-product" data-key="ProductName">Item</th>
-            <th class="sortable col-qty" data-key="Quantity">TTQ</th>
-            <th class="sortable col-src" data-key="Qty_TPE">台北</th>
-            <th class="sortable col-src" data-key="Qty_SC">三重</th>
-            <th class="sortable col-src" data-key="Qty_MOMO">MOMO</th>
-            <th class="sortable col-dte" data-key="DaysToExpiry">DTE</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table></div>
+            <!-- Data Table -->
+            <div class="card">
+                <div class="overflow-x-auto">
+                    <table class="w-full tabular-nums text-sm">
+                        <thead style="background-color: hsl(var(--muted) / 0.5);">
+                            <tr>
+                                <th class="p-2 sm:p-3 text-left font-medium" style="width: auto; min-width: 40%;">
+                                    <button class="table-header-btn text-xs sm:text-sm" onclick="handleSort('name')">
+                                        物品 <span id="sort-name"></span>
+                                    </button>
+                                </th>
+                                <th class="p-2 sm:p-3 text-right font-medium w-12 sm:w-16">
+                                    <button class="table-header-btn text-xs sm:text-sm" onclick="handleSort('dte')">
+                                        天 <span id="sort-dte"></span>
+                                    </button>
+                                </th>
+                                <th class="p-2 sm:p-3 text-right font-medium w-12 sm:w-16">
+                                    <button class="table-header-btn text-xs sm:text-sm flex items-center justify-end gap-1" onclick="handleSort('qty_TTQ')">
+                                        總 <span id="sort-qty_TTQ"></span>
+                                        <button id="toggle-columns-btn" onclick="toggleSourceColumns(event)" class="ml-1 p-0.5 rounded hover:bg-gray-200">
+                                            <i data-lucide="chevron-right" class="h-3 w-3"></i>
+                                        </button>
+                                    </button>
+                                </th>
+                                <th id="source-col-tpe" class="p-2 sm:p-3 text-right font-medium w-12 sm:w-16 hidden">
+                                    <button class="table-header-btn text-xs sm:text-sm" onclick="handleSort('qty_TPE')">
+                                        北 <span id="sort-qty_TPE"></span>
+                                    </button>
+                                </th>
+                                <th id="source-col-sc" class="p-2 sm:p-3 text-right font-medium w-12 sm:w-16 hidden">
+                                    <button class="table-header-btn text-xs sm:text-sm" onclick="handleSort('qty_SC')">
+                                        重 <span id="sort-qty_SC"></span>
+                                    </button>
+                                </th>
+                                <th id="source-col-momo" class="p-2 sm:p-3 text-right font-medium w-12 sm:w-16 hidden">
+                                    <button class="table-header-btn text-xs sm:text-sm" onclick="handleSort('qty_MOMO')">
+                                        M <span id="sort-qty_MOMO"></span>
+                                    </button>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="data-table-body">
+                            <!-- Will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 
-      <div class="footer">Tips：搜尋、選區間、點標題排序；預設僅顯示 TTQ，勾選「顯示來源明細」後可看三重/台北/MOMO。</div>
-    </section>
+    <script>
+        // Global state
+        let data = [];
+        let filteredData = [];
+        let loading = false;
+        let lastFetch = null;
+        let searchTerm = '';
+        let dteFilter = '≤90';
+        let locationFilter = ['ALL'];
+        let sortField = 'dte';
+        let sortDirection = 'asc';
+        let showSettings = false;
+        let sourceColumnsExpanded = false;
 
-    <details>
-      <summary class="sub">資料來源設定 & 測試（多來源彙總）</summary>
-      <div class="sub" style="margin:6px 0 8px">請將三個清單（台北/三重/MOMO）各自「發佈到網路」。若某來源未提供，系統以 0 計。</div>
+        // Default data sources
+        const defaultSources = [
+            {
+                name: 'TPE',
+                sheetId: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI',
+                sheetName: 'inventory_tracking',
+                headerRow: 4,
+                nameCol: 'D',
+                expiryCol: 'E',
+                qtyCol: 'J'
+            },
+            {
+                name: 'SC',
+                sheetId: '12C25rcfSEMtSkkARzLtxlW9Wmhu64m6eSP_KoK8M-js',
+                sheetName: 'inventory_tracking',
+                headerRow: 4,
+                nameCol: 'D',
+                expiryCol: 'E',
+                qtyCol: 'J'
+            },
+            {
+                name: 'MOMO',
+                sheetId: '1j04xLITImSX6WgtXkaGQfs0IZ5E8r3UEOrT2CKKGAxE',
+                sheetName: 'inventory_tracking',
+                headerRow: 4,
+                nameCol: 'D',
+                expiryCol: 'E',
+                qtyCol: 'J'
+            }
+        ];
 
-      <div class="row" style="margin:8px 0 6px">
-        <strong class="sub">台北（TPE）</strong>
-        <input id="gvizLink_TPE" type="text" class="input" value="https://docs.google.com/spreadsheets/d/14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI/edit" />
-        <input id="gvizSheet_TPE" type="text" class="input" value="inventory_tracking" />
-      </div>
-      <div class="row" style="margin:0 0 6px">
-        <input id="gvizHeader_TPE" type="number" class="input" value="4" min="1" />
-        <input id="gvizNameCol_TPE" type="text" class="input" value="D" />
-        <input id="gvizExpiryCol_TPE" type="text" class="input" value="E" />
-        <input id="gvizQtyCol_TPE" type="text" class="input" value="J" />
-      </div>
+        let sources = [...defaultSources];
 
-      <div class="row" style="margin:8px 0 6px">
-        <strong class="sub">三重（SC）</strong>
-        <input id="gvizLink_SC" type="text" class="input" value="https://docs.google.com/spreadsheets/d/12C25rcfSEMtSkkARzLtxlW9Wmhu64m6eSP_KoK8M-js/edit" />
-        <input id="gvizSheet_SC" type="text" class="input" value="inventory_tracking" />
-      </div>
-      <div class="row" style="margin:0 0 6px">
-        <input id="gvizHeader_SC" type="number" class="input" value="4" min="1" />
-        <input id="gvizNameCol_SC" type="text" class="input" value="D" />
-        <input id="gvizExpiryCol_SC" type="text" class="input" value="E" />
-        <input id="gvizQtyCol_SC" type="text" class="input" value="J" />
-      </div>
+        // Utility functions
+        function parseCSV(csv) {
+            const rows = [];
+            let currentRow = [];
+            let currentField = '';
+            let inQuotes = false;
+            let i = 0;
 
-      <div class="row" style="margin:8px 0 6px">
-        <strong class="sub">MOMO</strong>
-        <input id="gvizLink_MOMO" type="text" class="input" value="" />
-        <input id="gvizSheet_MOMO" type="text" class="input" value="inventory_tracking" />
-      </div>
-      <div class="row" style="margin:0 0 6px">
-        <input id="gvizHeader_MOMO" type="number" class="input" value="4" min="1" />
-        <input id="gvizNameCol_MOMO" type="text" class="input" value="D" />
-        <input id="gvizExpiryCol_MOMO" type="text" class="input" value="E" />
-        <input id="gvizQtyCol_MOMO" type="text" class="input" value="J" />
-      </div>
+            while (i < csv.length) {
+                const char = csv[i];
+                const nextChar = csv[i + 1];
 
-      <div class="row" style="margin:0 0 12px">
-        <button id="saveGViz">儲存全部來源（立即重新載入）</button>
-        <span class="sub">＊遇 CORS：Google Sheet → <b>檔案 → 發佈到網路</b>（各別工作表）。</span>
-      </div>
+                if (char === '"') {
+                    if (inQuotes && nextChar === '"') {
+                        currentField += '"';
+                        i += 2;
+                        continue;
+                    }
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    currentRow.push(currentField.trim());
+                    currentField = '';
+                } else if ((char === '\n' || char === '\r') && !inQuotes) {
+                    if (char === '\r' && nextChar === '\n') i++;
+                    currentRow.push(currentField.trim());
+                    if (currentRow.some(field => field.length > 0)) {
+                        rows.push(currentRow);
+                    }
+                    currentRow = [];
+                    currentField = '';
+                } else {
+                    currentField += char;
+                }
+                i++;
+            }
 
-      <div id="testArea" class="sub"></div>
-      <div id="diagArea" class="sub" style="margin-top:8px"></div>
-    </details>
-  </div>
+            if (currentField || currentRow.length > 0) {
+                currentRow.push(currentField.trim());
+                if (currentRow.some(field => field.length > 0)) {
+                    rows.push(currentRow);
+                }
+            }
 
-<script>
-const DEFAULT_TPE = {
-  sheetId:'14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI',
-  sheetName:'inventory_tracking',
-  headerRow:4,
-  nameCol:'D',
-  expiryCol:'E',
-  qtyCol:'J'
-};
-const DEFAULT_SC = {
-  sheetId:'12C25rcfSEMtSkkARzLtxlW9Wmhu64m6eSP_KoK8M-js',
-  sheetName:'inventory_tracking', // 留空=第一個工作表
-  headerRow:4,
-  nameCol:'D',
-  expiryCol:'E',
-  qtyCol:'J'
-};
-const DEFAULT_MOMO = { sheetId:'', sheetName:'inventory_tracking', headerRow:4, nameCol:'D', expiryCol:'E', qtyCol:'J' };
+            return rows;
+        }
 
-let CONF_TPE = loadConf('TPE', DEFAULT_TPE);
-let CONF_SC  = loadConf('SC',  DEFAULT_SC);
-let CONF_MOMO= loadConf('MOMO',DEFAULT_MOMO);
+        function parseDate(dateStr) {
+            if (!dateStr) return null;
 
-let RAW_ALL=[], DATA=[], VIEW=[];
-let sortKey='DaysToExpiry', sortAsc=true;
-let currentRange=90;
-let GROUP_MODE = (localStorage.getItem('pm_group_mode')||'product');
-let DIAG = { raw:0,included:0,skipNoName:0,skipNoDate:0,uniqueAfterGroup:0,aggregatedFrom:0, sources:{} };
+            // Try YYYY-MM-DD format
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                const date = new Date(dateStr + 'T00:00:00');
+                return isNaN(date.getTime()) ? null : date;
+            }
 
-// ---------- helpers ----------
-const $=(q,r=document)=>r.querySelector(q); const $$=(q,r=document)=>Array.from(r.querySelectorAll(q));
-const fmtInt=n=>Number(n).toLocaleString();
-function toggleSpinner(on){ $('#spinner').classList.toggle('show',!!on); }
-function letterToIndex(L){ L=String(L||'').trim().toUpperCase(); let n=0; for(let i=0;i<L.length;i++){ n = n*26 + (L.charCodeAt(i)-64); } return n-1; }
-function parseDate(v){ if(v instanceof Date) return v; if(typeof v==='number') return new Date(Math.round((v-25569)*86400*1000)); const t=(v||'').toString().trim().replace(/\./g,'/').replace(/-/g,'/'); const d=new Date(t); return isNaN(d)?null:d; }
-const daysForward=(a,b)=>Math.round((b-a)/(1000*60*60*24));
-function addDays(base,n){const d=new Date(base); d.setDate(d.getDate()+n); return d;}
-function escapeHTML(s){ return (s||'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]||c)); }
+            // Try Excel serial number
+            const serial = parseFloat(dateStr);
+            if (!isNaN(serial) && serial > 25569) {
+                return new Date((serial - 25569) * 86400 * 1000);
+            }
 
-function loadConf(tag, def){
-  try{
-    if(tag==='TPE' && !localStorage.getItem('pm_gviz_config_TPE') && localStorage.getItem('pm_gviz_config')){
-      const old = JSON.parse(localStorage.getItem('pm_gviz_config'));
-      localStorage.setItem('pm_gviz_config_TPE', JSON.stringify({ ...def, ...old }));
-    }
-    const raw = localStorage.getItem('pm_gviz_config_'+tag);
-    const saved = raw ? JSON.parse(raw) : {};
-    const merged = { ...def };
-    const keys = ['sheetId','sheetName','headerRow','nameCol','expiryCol','qtyCol'];
-    for(const k of keys){
-      const v = saved[k];
-      if(v !== undefined && v !== null && String(v).trim() !== ''){
-        merged[k] = (k==='headerRow') ? Number(v) : v;
-      }
-    }
-    return merged;
-  }catch(e){ return { ...def }; }
-}
-function saveConfFromInputs(tag){
-  const get=(id)=>($('#'+id+'_'+tag)?.value||'').trim();
-  function extractSheetId(linkOrId){ if(!linkOrId) return ''; const token='/d/'; const i=linkOrId.indexOf(token); if(i<0) return linkOrId; const start=i+token.length; let end=linkOrId.indexOf('/',start); if(end<0) end=linkOrId.length; return linkOrId.slice(start,end); }
-  const c={
-    sheetId: extractSheetId(get('gvizLink')) || (tag==='TPE'?DEFAULT_TPE.sheetId: (tag==='SC'?DEFAULT_SC.sheetId:'')),
-    sheetName: get('gvizSheet') || (tag==='TPE'?DEFAULT_TPE.sheetName:''),
-    headerRow: Number(get('gvizHeader')|| (tag==='TPE'?DEFAULT_TPE.headerRow:4)),
-    nameCol: (get('gvizNameCol')|| (tag==='TPE'?DEFAULT_TPE.nameCol:'D')).toUpperCase(),
-    expiryCol: (get('gvizExpiryCol')|| (tag==='TPE'?DEFAULT_TPE.expiryCol:'E')).toUpperCase(),
-    qtyCol: (get('gvizQtyCol')|| (tag==='TPE'?DEFAULT_TPE.qtyCol:'J')).toUpperCase(),
-  };
-  localStorage.setItem('pm_gviz_config_'+tag, JSON.stringify(c));
-  if(tag==='TPE') CONF_TPE=c; if(tag==='SC') CONF_SC=c; if(tag==='MOMO') CONF_MOMO=c;
-}
-function hydrateInputs(tag, conf){
-  const set=(sel,val)=>{ const el=$('#'+sel+'_'+tag); if(el){ el.value = val==null? '' : String(val); } };
-  set('gvizLink', conf.sheetId ? `https://docs.google.com/spreadsheets/d/${conf.sheetId}/edit` : '');
-  set('gvizSheet', conf.sheetName || '');
-  set('gvizHeader', conf.headerRow || 4);
-  set('gvizNameCol', conf.nameCol || 'D');
-  set('gvizExpiryCol', conf.expiryCol || 'E');
-  set('gvizQtyCol', conf.qtyCol || 'J');
-}
-function gvizTestUrl(conf){
-  if(!conf.sheetId) return '';
-  const base = `https://docs.google.com/spreadsheets/d/${conf.sheetId}/gviz/tq?`;
-  const parts=[];
-  if(conf.sheetName) parts.push(`sheet=${encodeURIComponent(conf.sheetName)}`);
-  parts.push(`range=A${conf.headerRow}:Z`);
-  parts.push('tqx=out:csv');
-  return base + parts.join('&');
-}
+            // Try other formats
+            const date = new Date(dateStr);
+            return isNaN(date.getTime()) ? null : date;
+        }
 
-// ---------- data ----------
-async function fetchOne(conf, tag){
-  if(!conf.sheetId) return [];
-  const url = gvizTestUrl(conf);
-  const res = await fetch(url,{cache:'no-store'});
-  if(!res.ok) throw new Error(`[${tag}] HTTP ${res.status}`);
-  const csv = await res.text();
-  const rows = parseCSV(csv); if(!rows.length) return [];
-  const dataRows = rows.slice(1);
-  const idxName   = letterToIndex(conf.nameCol||'D');
-  const idxExpiry = letterToIndex(conf.expiryCol||'E');
-  const idxQty    = letterToIndex(conf.qtyCol||'J');
-  const out=[];
-  for(const arr of dataRows){
-    const name=(arr[idxName]||'').toString().trim();
-    const expiry=arr[idxExpiry];
-    const qty=Number(arr[idxQty]||0);
-    if(!name && !expiry && !qty) continue;
-    out.push({ ProductName:name, 'Expiry Date':expiry, Quantity:qty, Source:tag });
-  }
-  return out;
-}
+        function colToIndex(col) {
+            let index = 0;
+            for (let i = 0; i < col.length; i++) {
+                index = index * 26 + (col.charCodeAt(i) - 65 + 1);
+            }
+            return index - 1;
+        }
 
-async function fetchAll(){
-  toggleSpinner(true);
-  try{
-    const parts = await Promise.all([
-      fetchOne(CONF_TPE,'TPE').catch(e=>{console.warn(e); return []; }),
-      fetchOne(CONF_SC,'SC').catch(e=>{console.warn(e); return []; }),
-      fetchOne(CONF_MOMO,'MOMO').catch(e=>{console.warn(e); return []; }),
-    ]);
-    RAW_ALL = parts.flat();
-    DATA = normalizeRowsMulti(RAW_ALL);
-  } finally { toggleSpinner(false); }
-}
+        function getDTEStatusClass(dte) {
+            if (dte < 0) return 'status-expired';
+            if (dte <= 60) return 'status-warning';
+            return '';
+        }
 
-function normalizeRowsMulti(rows){
-  DIAG={ raw:rows.length,included:0,skipNoName:0,skipNoDate:0,uniqueAfterGroup:0,aggregatedFrom:0, sources:{TPE:0,SC:0,MOMO:0} };
-  const included=[];
-  for(const r of rows){
-    const name=String(r.ProductName||'').trim();
-    const d=parseDate(r['Expiry Date']||r['ExpiryDate']||r['Expiration Date']);
-    const src=r.Source||'TPE';
-    if(!name){ DIAG.skipNoName++; continue; }
-    if(!d){ DIAG.skipNoDate++; continue; }
-    const qty=Number(r.Quantity||0)||0;
-    included.push({ name,d,qty,src });
-  }
-  DIAG.included=included.length;
-  const buckets=new Map();
-  for(const r of included){
-    const iso=r.d.toISOString().slice(0,10);
-    const key=(GROUP_MODE==='batch')? `${r.name}||${iso}` : r.name;
-    if(!buckets.has(key)) buckets.set(key,{ ProductName:r.name, Qty_TPE:0, Qty_SC:0, Qty_MOMO:0, ExpiryDate:r.d });
-    const o=buckets.get(key);
-    if(r.src==='TPE') o.Qty_TPE += r.qty; else if(r.src==='SC') o.Qty_SC += r.qty; else if(r.src==='MOMO') o.Qty_MOMO += r.qty;
-    if(GROUP_MODE==='product'){ if(r.d < o.ExpiryDate) o.ExpiryDate=r.d; }
-  }
-  const today=new Date();
-  const out = Array.from(buckets.values()).map(o=>{
-    const TTQ = (o.Qty_TPE||0) + (o.Qty_SC||0) + (o.Qty_MOMO||0);
-    return { ...o, Quantity:TTQ, Qty_TTQ:TTQ, DaysToExpiry:daysForward(today,o.ExpiryDate) };
-  });
-  DIAG.uniqueAfterGroup=out.length; DIAG.aggregatedFrom=DIAG.included-DIAG.uniqueAfterGroup;
-  out.forEach(o=>{ DIAG.sources.TPE+=(o.Qty_TPE||0); DIAG.sources.SC+=(o.Qty_SC||0); DIAG.sources.MOMO+=(o.Qty_MOMO||0); });
-  return out;
-}
+        // Data fetching
+        async function fetchSheetData(source) {
+            if (!source.sheetId) return [];
+            try {
+                const sheetParam = source.sheetName ? `&sheet=${encodeURIComponent(source.sheetName)}` : '';
+                const url = `https://docs.google.com/spreadsheets/d/${source.sheetId}/gviz/tq?${sheetParam}&range=A${source.headerRow}:Z&tqx=out:csv`;
+                
+                const response = await fetch(url, { cache: 'no-store' });
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
 
-// ---------- render ----------
-function render(){
-  const q=$('#search').value.trim().toLowerCase();
+                const csvText = await response.text();
+                const rows = parseCSV(csvText);
+                const nameIdx = colToIndex(source.nameCol);
+                const expiryIdx = colToIndex(source.expiryCol);
+                const qtyIdx = colToIndex(source.qtyCol);
 
-  VIEW = DATA.filter(r=>{
-    let inRange=true; const cr=currentRange;
-    if(typeof cr==='object' && cr && cr.mode==='custom'){
-      if(cr.min!=null && r.DaysToExpiry < cr.min) inRange=false;
-      if(cr.max!=null && r.DaysToExpiry > cr.max) inRange=false;
-    }else if(cr==='all'){ inRange=true; }
-    else if(cr==='expired'){ inRange = r.DaysToExpiry < 0; }
-    else{ inRange = (r.DaysToExpiry >= 0 && r.DaysToExpiry <= Number(cr)); }
-    if(!inRange) return false;
-    if(!q) return true; return `${r.ProductName}`.toLowerCase().includes(q);
-  }).sort((a,b)=>{ const va=a[sortKey], vb=b[sortKey]; if(va===vb) return 0; return (va>vb?1:-1) * (sortAsc?1:-1); });
+                const items = [];
+                for (const row of rows) {
+                    const name = row[nameIdx]?.trim();
+                    const expiryStr = row[expiryIdx]?.trim();
+                    const qtyStr = row[qtyIdx]?.trim();
 
-  const totalQty = VIEW.reduce((s,r)=>s+(Number.isFinite(r.Quantity)?r.Quantity:0),0);
-  const earliestItem = VIEW.slice().sort((a,b)=>a.ExpiryDate-b.ExpiryDate)[0];
-  const earliestStr = earliestItem? `${earliestItem.ExpiryDate.toISOString().slice(0,10)} (${earliestItem.DaysToExpiry}天)` : '–';
-  $('#statSku').textContent = fmtInt(VIEW.length);
-  $('#statQty').textContent = fmtInt(totalQty);
-  $('#statEarliest').textContent = earliestStr;
+                    if (!name || !expiryStr) continue;
 
-  const tbody=$('#tbl tbody'); tbody.innerHTML=''; const frag=document.createDocumentFragment();
-  VIEW.forEach((r,i)=>{
-    const cls = r.DaysToExpiry < 0 ? 'danger' : (r.DaysToExpiry <= 60 ? 'warn' : '');
-    const tr=document.createElement('tr');
-    tr.innerHTML = `
-      <td class="mono col-idx">${i+1}</td>
-      <td class="col-product"><span class="product-name">${escapeHTML(r.ProductName||'')}</span></td>
-      <td class="mono col-qty">${fmtInt(r.Qty_TTQ||r.Quantity||0)}</td>
-      <td class="mono col-src">${fmtInt(r.Qty_TPE||0)}</td>
-      <td class="mono col-src">${fmtInt(r.Qty_SC||0)}</td>
-      <td class="mono col-src">${fmtInt(r.Qty_MOMO||0)}</td>
-      <td class="mono col-dte ${cls}">${fmtInt(r.DaysToExpiry)}</td>`;
-    frag.appendChild(tr);
-  });
-  tbody.appendChild(frag);
+                    const expiry = parseDate(expiryStr);
+                    const qty = parseInt(qtyStr) || 0;
 
-  const cr=currentRange; let rangeLabel;
-  if(typeof cr==='object' && cr && cr.mode==='custom'){
-    const minLabel=(cr.min!=null)?cr.min:'-∞'; const maxLabel=(cr.max!=null)?cr.max:'+∞';
-    rangeLabel=`自訂 ${minLabel}–${maxLabel} 天`;
-  }else{ rangeLabel = cr==='all'? '全部' : (cr==='expired'? '已過期' : `到期 ≤ ${cr} 天`); }
-  $('#meta').textContent = `${rangeLabel} · ${VIEW.length} 筆`;
+                    if (expiry && !isNaN(qty)) {
+                        items.push({ name, expiry, qty });
+                    }
+                }
 
-  renderDiagnostics();
-}
+                return items;
+            } catch (error) {
+                console.error(`[${source.name}] Error fetching data:`, error);
+                alert(`[${source.name}] HTTP Error: ${error.message}`);
+                return [];
+            }
+        }
 
-function renderDiagnostics(){
-  const links = [
-    ['台北', gvizTestUrl(CONF_TPE)],
-    ['三重', gvizTestUrl(CONF_SC)],
-    ['MOMO', gvizTestUrl(CONF_MOMO)],
-  ].filter(x=>x[1]);
-  const qSum = DATA.reduce((s,r)=>s+(Number(r.Quantity)||0),0);
-  const html=[
-    `<div>資料診斷${links.length? ' · ' + links.map(([n,u])=>`<a href="${u}" target="_blank" rel="noopener">${n}測試</a>`).join(' · ') : ''}</div>`,
-    `<div>原始列 ${DIAG.raw} · 有效列 ${DIAG.included} · 分組後 ${DIAG.uniqueAfterGroup}（彙總自 ${DIAG.aggregatedFrom} 列）</div>`,
-    `<div>略過：無商品名 ${DIAG.skipNoName}、無法解析日期 ${DIAG.skipNoDate}</div>`,
-    `<div>來源合計：台北 ${fmtInt(DIAG.sources.TPE||0)} · 三重 ${fmtInt(DIAG.sources.SC||0)} · MOMO ${fmtInt(DIAG.sources.MOMO||0)} · 視圖 TTQ ${fmtInt(qSum)}</div>`,
-    `<div>彙總模式：<b>${GROUP_MODE==='product'?'同商品彙總（保留最早到期）':'保留批次（商品+到期日）'}</b></div>`
-  ].join('');
-  $('#diagArea').innerHTML=html;
-}
+        async function fetchAllData() {
+            setLoading(true);
+            try {
+                const results = await Promise.all(sources.map(fetchSheetData));
 
-// ---------- events ----------
-$('#search').addEventListener('input',()=>render());
-$$('#tbl thead th.sortable').forEach(th=>{ th.addEventListener('click',()=>{ const key=th.dataset.key; if(sortKey===key){ sortAsc=!sortAsc; } else { sortKey=key; sortAsc=(key!=='Quantity'); } render(); }); });
+                // Aggregate data
+                const productMap = new Map();
+                results.forEach((items, sourceIndex) => {
+                    const sourceName = sources[sourceIndex].name;
+                    items.forEach(item => {
+                        const existing = productMap.get(item.name);
+                        if (existing) {
+                            if (item.expiry < existing.expiry) {
+                                existing.expiry = item.expiry;
+                            }
+                            if (sourceName === 'TPE') existing.qty_TPE += item.qty;
+                            else if (sourceName === 'SC') existing.qty_SC += item.qty;
+                            else if (sourceName === 'MOMO') existing.qty_MOMO += item.qty;
+                        } else {
+                            const newItem = {
+                                name: item.name,
+                                expiry: item.expiry,
+                                qty_TPE: sourceName === 'TPE' ? item.qty : 0,
+                                qty_SC: sourceName === 'SC' ? item.qty : 0,
+                                qty_MOMO: sourceName === 'MOMO' ? item.qty : 0
+                            };
+                            productMap.set(item.name, newItem);
+                        }
+                    });
+                });
 
-function applyRangeFromSelect(){
-  const v = $('#rangeSel').value;
-  if (v==='custom'){
-    $('#customBar').style.display='flex';
-    return;
-  }
-  $('#customBar').style.display='none';
-  if (v==='all' || v==='expired'){
-    currentRange = v;
-  } else if (v.endsWith('+')){
-    const n = Number(v.slice(0,-1));
-    currentRange = {mode:'custom', min:n, max:null};
-  } else if (v.includes('-')){
-    const parts=v.split('-');
-    if(parts.length===2){
-      const a=Number(parts[0]); const b=Number(parts[1]);
-      if(Number.isFinite(a) && Number.isFinite(b)) currentRange = {mode:'custom', min:a, max:b};
-    }
-  } else {
-    currentRange = Number(v);
-  }
-  render();
-}
-$('#rangeSel').addEventListener('change', applyRangeFromSelect);
+                // Calculate DTE
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                data = Array.from(productMap.values()).map(item => ({
+                    ...item,
+                    qty_TTQ: item.qty_TPE + item.qty_SC + item.qty_MOMO,
+                    dte: Math.floor((item.expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+                }));
 
-$('#applyCustom').addEventListener('click',()=>{
-  const toNum=v=> (v===''||v==null)? null : Number(v);
-  currentRange={mode:'custom', min:toNum($('#minDays').value), max:toNum($('#maxDays').value)};
-  $('#customBar').style.display='none';
-  render();
-});
+                lastFetch = new Date();
+                updateLastFetch();
+                filterAndSortData();
+                updateUI();
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            } finally {
+                setLoading(false);
+            }
+        }
 
-$('#toggleSources').addEventListener('change', (e)=>{
-  document.body.classList.toggle('show-sources', e.target.checked);
-});
+        function setLoading(isLoading) {
+            loading = isLoading;
+            const refreshBtn = document.getElementById('refresh-btn');
+            const icon = refreshBtn.querySelector('[data-lucide="refresh-cw"]');
+            
+            if (loading) {
+                icon.classList.add('animate-spin');
+                refreshBtn.disabled = true;
+            } else {
+                icon.classList.remove('animate-spin');
+                refreshBtn.disabled = false;
+            }
+        }
 
-$('#saveGViz').addEventListener('click', async()=>{
-  ['TPE','SC','MOMO'].forEach(tag=>saveConfFromInputs(tag));
-  try{ await fetchAll(); render(); renderDiagnostics(); alert('已儲存並重新載入'); }catch(e){
-    alert('讀取 Google Sheet 失敗：'+e.message+'\n\n請確認：\n1) 三個工作表皆「發佈到網路」\n2) 名稱/欄位字母正確 (D/E/J)\n3) 權限為任何持有連結者可檢視');
-  }
-});
+        function updateLastFetch() {
+            const element = document.getElementById('last-fetch');
+            if (lastFetch) {
+                element.textContent = `更新: ${lastFetch.toLocaleTimeString()}`;
+            }
+        }
 
-// hydrate inputs
-(function(){
-  hydrateInputs('TPE', CONF_TPE);
-  hydrateInputs('SC',  CONF_SC);
-  hydrateInputs('MOMO',CONF_MOMO);
-})();
+        // Filtering and sorting
+        function filterAndSortData() {
+            let filtered = [...data];
 
-// ---------- CSV parser (fixed) ----------
-function parseCSV(text){
-  const rows=[]; let cur='', row=[], inQ=false;
-  for(let i=0;i<text.length;i++){
-    const ch=text[i];
-    if(inQ){
-      if(ch === '"'){
-        if(text[i+1] === '"'){ cur+='"'; i++; } else { inQ=false; }
-      } else {
-        cur += ch;
-      }
-    } else {
-      if(ch === '"'){ inQ = true; }
-      else if(ch === ','){ row.push(cur); cur=''; }
-      else if(ch === '\n'){ row.push(cur); rows.push(row); row=[]; cur=''; }
-      else if(ch === '\r'){ /* ignore CR */ }
-      else { cur += ch; }
-    }
-  }
-  if(cur.length>0 || row.length){ row.push(cur); rows.push(row); }
-  return rows;
-}
+            // Search filter
+            if (searchTerm) {
+                filtered = filtered.filter(item => 
+                    item.name.toLowerCase().includes(searchTerm.toLowerCase())
+                );
+            }
 
-// ---------- tests ----------
-function runTests(){
-  const results=[]; const today=new Date();
-  const ten=daysForward(today,addDays(today,10)); results.push(['T1 daysForward +10',ten===10,ten]);
-  const known=new Date('2025-01-15T00:00:00'); const serial=Math.floor(known.getTime()/(86400*1000))+25569; const parsed=parseDate(serial); const sameDay=parsed && parsed.getUTCFullYear()===known.getUTCFullYear() && parsed.getUTCMonth()===known.getUTCMonth() && parsed.getUTCDate()===known.getUTCDate(); results.push(['T2 parse Excel serial',!!sameDay,parsed?.toISOString()?.slice(0,10)]);
-  const demo=[
-    {ProductName:'Demo','Expiry Date':addDays(today,50),Quantity:5,Source:'TPE'},
-    {ProductName:'Demo','Expiry Date':addDays(today,20),Quantity:7,Source:'SC'},
-    {ProductName:'Demo','Expiry Date':addDays(today,30),Quantity:3,Source:'MOMO'},
-  ];
-  const norm=normalizeRowsMulti(demo);
-  results.push(['T3 TTQ sum', norm[0]?.Qty_TTQ===15, norm[0]?.Qty_TTQ]);
-  results.push(['T3 earliest kept', norm[0]?.DaysToExpiry===20, norm[0]?.DaysToExpiry]);
-  const ok=results.filter(r=>r[1]).length; $('#testArea').innerHTML=[`<div>測試通過 ${ok}/${results.length}</div>`, '<ul>', ...results.map(([n,p,i])=>`<li>${p?'✅':'❌'} ${n} <span class="sub">(${i??''})</span></li>`), '</ul>'].join('');
-}
+            // Location filter
+            if (!locationFilter.includes('ALL')) {
+                filtered = filtered.filter(item => {
+                    if (locationFilter.includes('TAIPEI') && item.qty_TPE > 0) return true;
+                    if (locationFilter.includes('SANCHONG') && item.qty_SC > 0) return true;
+                    if (locationFilter.includes('MOMO') && item.qty_MOMO > 0) return true;
+                    return false;
+                });
+            }
 
-// ---------- boot ----------
-(async function init(){
-  try{ await fetchAll(); } catch(e){
-    alert('讀取 Google Sheet 失敗：'+e.message+'\n\n請確認：\n1) 三個工作表皆「發佈到網路」\n2) 名稱/欄位字母正確 (D/E/J)\n3) 權限為任何持有連結者可檢視');
-  }
-  render(); runTests();
-})();
-</script>
+            // DTE filter
+            if (dteFilter === 'expired') {
+                filtered = filtered.filter(item => item.dte < 0);
+            } else if (dteFilter === '≤30') {
+                filtered = filtered.filter(item => item.dte <= 30);
+            } else if (dteFilter === '≤60') {
+                filtered = filtered.filter(item => item.dte <= 60);
+            } else if (dteFilter === '≤90') {
+                filtered = filtered.filter(item => item.dte <= 90);
+            } else if (dteFilter === '≥365') {
+                filtered = filtered.filter(item => item.dte >= 365);
+            } else if (dteFilter === '≥548') {
+                filtered = filtered.filter(item => item.dte >= 548);
+            } else if (dteFilter === '≥730') {
+                filtered = filtered.filter(item => item.dte >= 730);
+            } else if (dteFilter === '≥913') {
+                filtered = filtered.filter(item => item.dte >= 913);
+            } else if (dteFilter === '365-548') {
+                filtered = filtered.filter(item => item.dte >= 365 && item.dte <= 548);
+            } else if (dteFilter === '365-730') {
+                filtered = filtered.filter(item => item.dte >= 365 && item.dte <= 730);
+            }
+
+            // Sort
+            filtered.sort((a, b) => {
+                let aVal = a[sortField];
+                let bVal = b[sortField];
+
+                if (sortField === 'expiry') {
+                    aVal = a.expiry.getTime();
+                    bVal = b.expiry.getTime();
+                }
+
+                if (typeof aVal === 'string' && typeof bVal === 'string') {
+                    aVal = aVal.toLowerCase();
+                    bVal = bVal.toLowerCase();
+                }
+
+                if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+                if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            filteredData = filtered;
+        }
+
+        // UI updates
+        function updateUI() {
+            updateStats();
+            updateTable();
+            updateSortIndicators();
+        }
+
+        function updateStats() {
+            const sku = filteredData.length;
+            
+            let qty = 0;
+            if (locationFilter.includes('ALL')) {
+                qty = filteredData.reduce((sum, item) => sum + item.qty_TTQ, 0);
+            } else {
+                qty = filteredData.reduce((sum, item) => {
+                    let total = 0;
+                    if (locationFilter.includes('TAIPEI')) total += item.qty_TPE;
+                    if (locationFilter.includes('SANCHONG')) total += item.qty_SC;
+                    if (locationFilter.includes('MOMO')) total += item.qty_MOMO;
+                    return sum + total;
+                }, 0);
+            }
+
+            const earliestItem = filteredData.reduce((earliest, item) => 
+                !earliest || item.expiry < earliest.expiry ? item : earliest, null
+            );
+
+            document.getElementById('stats-sku').textContent = sku.toLocaleString();
+            document.getElementById('stats-qty').textContent = qty.toLocaleString();
+            
+            if (earliestItem) {
+                document.getElementById('stats-earliest-date').textContent = 
+                    earliestItem.expiry.toISOString().split('T')[0];
+                document.getElementById('stats-earliest-days').textContent = 
+                    `${earliestItem.dte}天`;
+            } else {
+                document.getElementById('stats-earliest-date').textContent = 'N/A';
+                document.getElementById('stats-earliest-days').textContent = '最早到期';
+            }
+        }
+
+        function updateTable() {
+            const tbody = document.getElementById('data-table-body');
+            
+            if (loading) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="${3 + (sourceColumnsExpanded ? 3 : 0)}" class="p-4 sm:p-8 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <i data-lucide="refresh-cw" class="h-4 w-4 animate-spin"></i>
+                                <span class="text-xs sm:text-sm">Loading...</span>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            if (filteredData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="${3 + (sourceColumnsExpanded ? 3 : 0)}" class="p-4 sm:p-8 text-center muted-text text-xs sm:text-sm">
+                            無數據
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = filteredData.map((item, index) => {
+                const statusClass = getDTEStatusClass(item.dte);
+                const alertIcon = item.dte < 0 ? '<i data-lucide="alert-triangle" class="inline h-2 w-2 sm:h-3 sm:w-3 mr-0.5 sm:mr-1"></i>' : '';
+                
+                const totalQty = locationFilter.includes('ALL') 
+                    ? item.qty_TTQ 
+                    : (locationFilter.includes('TAIPEI') ? item.qty_TPE : 0) +
+                      (locationFilter.includes('SANCHONG') ? item.qty_SC : 0) +
+                      (locationFilter.includes('MOMO') ? item.qty_MOMO : 0);
+
+                const sourceColumns = sourceColumnsExpanded ? `
+                    <td class="p-2 sm:p-3 text-right font-medium align-top">
+                        <span class="text-xs sm:text-sm tabular-nums">${item.qty_TPE.toLocaleString()}</span>
+                    </td>
+                    <td class="p-2 sm:p-3 text-right font-medium align-top">
+                        <span class="text-xs sm:text-sm tabular-nums">${item.qty_SC.toLocaleString()}</span>
+                    </td>
+                    <td class="p-2 sm:p-3 text-right font-medium align-top">
+                        <span class="text-xs sm:text-sm tabular-nums">${item.qty_MOMO.toLocaleString()}</span>
+                    </td>
+                ` : '';
+
+                return `
+                    <tr class="border-t hover:bg-gray-50" style="border-top: 1px solid hsl(var(--border));">
+                        <td class="p-2 sm:p-3 align-top" style="min-width: 40%;">
+                            <div class="font-medium leading-tight break-words line-clamp-2" style="
+                                font-size: clamp(0.75rem, 2.5vw, 0.875rem);
+                                line-height: 1.3;
+                            ">
+                                ${item.name}
+                            </div>
+                        </td>
+                        <td class="p-2 sm:p-3 text-right align-top">
+                            <span class="px-1 sm:px-2 py-0.5 sm:py-1 rounded text-xs font-medium ${statusClass}">
+                                ${alertIcon}
+                                <span class="tabular-nums">${item.dte}</span>
+                            </span>
+                        </td>
+                        <td class="p-2 sm:p-3 text-right font-bold primary-text align-top">
+                            <span class="text-xs sm:text-sm tabular-nums">
+                                ${totalQty.toLocaleString()}
+                            </span>
+                        </td>
+                        ${sourceColumns}
+                    </tr>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        function updateSortIndicators() {
+            // Clear all indicators
+            ['name', 'dte', 'qty_TTQ', 'qty_TPE', 'qty_SC', 'qty_MOMO'].forEach(field => {
+                const element = document.getElementById(`sort-${field}`);
+                if (element) element.textContent = '';
+            });
+
+            // Set current indicator
+            const element = document.getElementById(`sort-${sortField}`);
+            if (element) {
+                element.textContent = sortDirection === 'asc' ? '↑' : '↓';
+            }
+        }
+
+        // Event handlers
+        function handleSort(field) {
+            if (sortField === field) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortField = field;
+                sortDirection = 'asc';
+            }
+            filterAndSortData();
+            updateUI();
+        }
+
+        function handleLocationToggle(value) {
+            if (value === 'ALL') {
+                locationFilter = ['ALL'];
+            } else {
+                const newFilter = locationFilter.includes('ALL')
+                    ? [value]
+                    : locationFilter.includes(value)
+                    ? locationFilter.filter(l => l !== value)
+                    : [...locationFilter.filter(l => l !== 'ALL'), value];
+                
+                locationFilter = newFilter.length === 0 ? ['ALL'] : newFilter;
+            }
+            
+            updateLocationCheckboxes();
+            filterAndSortData();
+            updateUI();
+        }
+
+        function updateLocationCheckboxes() {
+            const container = document.getElementById('location-checkboxes');
+            const locations = [
+                { value: 'ALL', label: '全部' },
+                { value: 'TAIPEI', label: '北' },
+                { value: 'SANCHONG', label: '重' },
+                { value: 'MOMO', label: 'M' }
+            ];
+
+            container.innerHTML = locations.map(location => `
+                <div class="flex items-center space-x-1">
+                    <input type="checkbox" 
+                           id="checkbox-${location.value}" 
+                           class="checkbox h-3 w-3 sm:h-4 sm:w-4"
+                           ${locationFilter.includes(location.value) ? 'checked' : ''}
+                           onchange="handleLocationToggle('${location.value}')">
+                    <label for="checkbox-${location.value}" class="text-xs sm:text-sm font-normal cursor-pointer">
+                        ${location.label}
+                    </label>
+                </div>
+            `).join('');
+        }
+
+        function toggleSourceColumns(event) {
+            event.stopPropagation();
+            sourceColumnsExpanded = !sourceColumnsExpanded;
+            
+            const columns = ['source-col-tpe', 'source-col-sc', 'source-col-momo'];
+            const toggleBtn = document.getElementById('toggle-columns-btn');
+            const icon = toggleBtn.querySelector('[data-lucide]');
+            
+            if (sourceColumnsExpanded) {
+                columns.forEach(col => document.getElementById(col).classList.remove('hidden'));
+                icon.setAttribute('data-lucide', 'chevron-down');
+            } else {
+                columns.forEach(col => document.getElementById(col).classList.add('hidden'));
+                icon.setAttribute('data-lucide', 'chevron-right');
+            }
+            
+            lucide.createIcons();
+            updateTable();
+        }
+
+        // Settings
+        function toggleSettings() {
+            showSettings = !showSettings;
+            const panel = document.getElementById('settings-panel');
+            if (showSettings) {
+                panel.classList.remove('hidden');
+                renderSourcesConfig();
+            } else {
+                panel.classList.add('hidden');
+            }
+        }
+
+        function renderSourcesConfig() {
+            const container = document.getElementById('sources-config');
+            container.innerHTML = sources.map((source, index) => `
+                <div class="space-y-4 p-4 border rounded-lg" style="border-color: hsl(var(--border));">
+                    <h3 class="font-semibold">${source.name}</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Sheet ID/URL</label>
+                            <input type="text" class="input" value="${source.sheetId}" 
+                                   onchange="updateSource(${index}, 'sheetId', this.value)"
+                                   placeholder="Sheet ID or full URL">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Sheet Name</label>
+                            <input type="text" class="input" value="${source.sheetName}" 
+                                   onchange="updateSource(${index}, 'sheetName', this.value)"
+                                   placeholder="Leave blank for first tab">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Header Row</label>
+                            <input type="number" class="input" value="${source.headerRow}" 
+                                   onchange="updateSource(${index}, 'headerRow', parseInt(this.value) || 1)">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Name Column</label>
+                            <input type="text" class="input" value="${source.nameCol}" 
+                                   onchange="updateSource(${index}, 'nameCol', this.value.toUpperCase())"
+                                   placeholder="D">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Expiry Column</label>
+                            <input type="text" class="input" value="${source.expiryCol}" 
+                                   onchange="updateSource(${index}, 'expiryCol', this.value.toUpperCase())"
+                                   placeholder="E">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Quantity Column</label>
+                            <input type="text" class="input" value="${source.qtyCol}" 
+                                   onchange="updateSource(${index}, 'qtyCol', this.value.toUpperCase())"
+                                   placeholder="J">
+                        </div>
+                    </div>
+                    <div class="text-sm muted-text">
+                        <p>GViz CSV URL: 
+                            <a href="https://docs.google.com/spreadsheets/d/${source.sheetId}/gviz/tq?${source.sheetName ? `sheet=${source.sheetName}&` : ''}range=A${source.headerRow}:Z&tqx=out:csv" 
+                               target="_blank" rel="noopener noreferrer" 
+                               class="primary-text hover:underline ml-1">
+                                Test Link
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateSource(index, field, value) {
+            if (field === 'sheetId') {
+                // Extract sheet ID from URL if full URL provided
+                const match = value.match(/\/d\/([a-zA-Z0-9-_]+)/);
+                if (match) value = match[1];
+            }
+            sources[index][field] = value;
+        }
+
+        function saveSettings() {
+            sources.forEach(source => {
+                localStorage.setItem(`pm_gviz_config_${source.name}`, JSON.stringify({
+                    sheetId: source.sheetId,
+                    sheetName: source.sheetName,
+                    headerRow: source.headerRow,
+                    nameCol: source.nameCol,
+                    expiryCol: source.expiryCol,
+                    qtyCol: source.qtyCol
+                }));
+            });
+            toggleSettings();
+            fetchAllData();
+        }
+
+        function loadSettings() {
+            sources = defaultSources.map(source => {
+                const stored = localStorage.getItem(`pm_gviz_config_${source.name}`);
+                return stored ? { ...source, ...JSON.parse(stored) } : source;
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load settings
+            loadSettings();
+
+            // Set up event listeners
+            document.getElementById('refresh-btn').onclick = fetchAllData;
+            document.getElementById('settings-btn').onclick = toggleSettings;
+            document.getElementById('save-settings-btn').onclick = saveSettings;
+
+            document.getElementById('search-input').oninput = function(e) {
+                searchTerm = e.target.value;
+                filterAndSortData();
+                updateUI();
+            };
+
+            document.getElementById('dte-filter').onchange = function(e) {
+                dteFilter = e.target.value;
+                filterAndSortData();
+                updateUI();
+            };
+
+            // Initialize UI
+            updateLocationCheckboxes();
+            
+            // Load icons
+            lucide.createIcons();
+            
+            // Fetch initial data
+            fetchAllData();
+        });
+    </script>
 </body>
 </html>
