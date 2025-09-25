@@ -78,14 +78,14 @@
     </div>
     <div class="bars">
       <div class="grid">
-        <div class="bar"><div id="pHealth" class="fill health" style="width:100%"></div></div>
-        <div class="bar"><div id="pStamina" class="fill stamina" style="width:100%"></div></div>
-        <div class="bar"><div id="pSuper" class="fill super" style="width:0%"></div></div>
+        <div class="bar"><div id="pHealth" class="fill health" style="width:0%"></div></div>
+        <div class="bar"><div id="pStamina" class="fill stamina" style="width:0%"></div></div>
+        <div class="bar"><div id="pSuper"  class="fill super"   style="width:0%"></div></div>
       </div>
       <div class="grid">
-        <div class="bar"><div id="eHealth" class="fill health" style="width:100%"></div></div>
-        <div class="bar"><div id="eStamina" class="fill stamina" style="width:100%"></div></div>
-        <div class="bar"><div id="eSuper" class="fill super" style="width:0%"></div></div>
+        <div class="bar"><div id="eHealth" class="fill health" style="width:0%"></div></div>
+        <div class="bar"><div id="eStamina" class="fill stamina" style="width:0%"></div></div>
+        <div class="bar"><div id="eSuper"  class="fill super"   style="width:0%"></div></div>
       </div>
     </div>
   </div>
@@ -151,7 +151,7 @@ const GAME_CONFIG = {
     superGainOnHit:8, superGainOnBlock:4, maxSuper:100,
     comboWindowMs:450, hitstunMs:220
   },
-  enemy:{ // base; difficulty multiplies below
+  enemy:{
     width:48,height:96, moveSpeed:3.8, dash:6.0, dashCd:480,
     maxHealth:100, maxStamina:100, staminaRegen:12, staminaDrainMove:2,
     blockMitigation:0.55, dodgeIFrames:220, pushback:3.0,
@@ -164,15 +164,9 @@ const GAME_CONFIG = {
     upper:{ dmg:20, stamina:22, range:54, startup:180,active:120, recovery:260, knock:1.3, advantage:20 },
     super:{dmg:36, stamina:0,  range:74, startup:220,active:160, recovery:340, knock:1.6, advantage:40 }
   },
-  round:{
-    seconds:60, suddenDeath:15, bestOf:3, koDowns:3
-  },
-  audio:{
-    master:0.18, reduceFlashing:false, soundOn:true
-  },
-  UI:{
-    colorBlind:false
-  },
+  round:{ seconds:60, suddenDeath:15, bestOf:3, koDowns:3 },
+  audio:{ master:0.18, reduceFlashing:false, soundOn:true },
+  UI:{ colorBlind:false },
   DIFFICULTY:{
     Easy:   { enemyHp:0.9, enemyDmg:0.85, enemySpeed:0.95, aiAggro:0.72, aiDefend:0.85, aiRandom:0.25 },
     Normal: { enemyHp:1.0, enemyDmg:1.0,   enemySpeed:1.0,  aiAggro:0.92, aiDefend:1.0,  aiRandom:0.18 },
@@ -213,7 +207,6 @@ let KEY_MAP = JSON.parse(localStorage.getItem('bb_keys')||'null')||DEFAULT_KEYS;
 const pressed = new Set();
 addEventListener('keydown',e=>{
   pressed.add(e.key.toLowerCase());
-  // prevent page scroll on arrows/space when game focused
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
 });
 addEventListener('keyup',e=>pressed.delete(e.key.toLowerCase()));
@@ -244,7 +237,6 @@ const SFX = {
   ko:    ()=>beep('triangle', 120, 0.35, 0.32),
   ui:    ()=>beep('sine', 520, 0.06, 0.16)
 };
-/* simple music stub */
 let musicOsc=null;
 function musicStart(){
   if(!GAME_CONFIG.audio.soundOn||musicOsc) return;
@@ -273,13 +265,7 @@ class Fighter{
   alive(){ return this.health>0; }
   canAct(t){ return t>this.hitstunUntil && t>this.dodgeUntil && !this.hitting; }
 }
-
-/* collision AABB (for simple hitboxes) */
-function aabb(a,b){
-  return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
-}
-
-/* Hitbox builder for a move */
+function aabb(a,b){ return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y; }
 function moveHitbox(f, kind){
   const M = GAME_CONFIG.moves[kind];
   const reach = M.range;
@@ -294,69 +280,41 @@ function moveHitbox(f, kind){
    AI (Finite State)
    ======================== */
 class SimpleAI{
-  constructor(fighter, diff){
-    this.f = fighter;
-    this.diff = diff;
-    this.state='idle'; this.nextThink=0;
-  }
+  constructor(fighter, diff){ this.f = fighter; this.diff = diff; this.state='idle'; this.nextThink=0; }
   think(t, player, dist){
     if(t<this.nextThink) return;
     const d = this.diff, f=this.f;
     this.nextThink = t + 120 + rand(-60,80);
-
-    // Evaluate context
     const lowStam = f.stamina<25;
     const playerAggro = player.move.kind?1:0;
     const wantDefend = chance(0.25*d.aiDefend) || lowStam || playerAggro;
     const wantAggro = chance(0.35*d.aiAggro) && !wantDefend;
-
-    // Spacing
     if(dist>150 && wantAggro){ this.state='approach'; return; }
     if(dist<70 && wantDefend){ this.state= chance(0.5)?'defend':'retreat'; return; }
-
-    // Attack selection
     if(wantAggro && f.canAct(t) && f.stamina>12){
       const r=Math.random();
       const move = r<0.5?'jab':(r<0.8?'hook':'upper');
-      this.state='attack_'+move;
-      return;
+      this.state='attack_'+move; return;
     }
-
-    // Default
     this.state = lowStam? 'retreat':'idle';
   }
   update(t, player, dt){
-    const f=this.f;
-    const dist = Math.abs(player.x - f.x);
-    const dir = Math.sign(player.x - f.x); // 1 if player to the right
-    // Re-evaluate periodically
+    const f=this.f; const dist = Math.abs(player.x - f.x); const dir = Math.sign(player.x - f.x);
     this.think(t, player, dist);
-
     switch(this.state){
-      case 'approach':
-        f.x += dir * GAME_CONFIG.enemy.moveSpeed * this.diff.enemySpeed;
-        break;
-      case 'retreat':
-        f.x -= dir * (GAME_CONFIG.enemy.moveSpeed*0.9);
-        break;
+      case 'approach': f.x += dir * GAME_CONFIG.enemy.moveSpeed * this.diff.enemySpeed; break;
+      case 'retreat':  f.x -= dir * (GAME_CONFIG.enemy.moveSpeed*0.9); break;
       case 'defend':
-        // random block/dodge
         if(chance(0.6*this.diff.aiDefend) && f.canAct(t)) startBlock(f,t);
         else if(chance(0.35*this.diff.aiDefend) && f.canAct(t)) startDodge(f,t);
         break;
       case 'attack_jab':
       case 'attack_hook':
       case 'attack_upper':
-        if(dist<90 && f.canAct(t)){
-          const mv=this.state.split('_')[1];
-          startMove(f,mv,t,true);
-        } else {
-          this.state='approach';
-        }
+        if(dist<90 && f.canAct(t)){ const mv=this.state.split('_')[1]; startMove(f,mv,t,true); }
+        else { this.state='approach'; }
         break;
-      default:
-        // micro jiggle (idle)
-        f.x += rand(-0.4,0.4);
+      default: f.x += rand(-0.4,0.4);
     }
   }
 }
@@ -366,22 +324,19 @@ class SimpleAI{
    ======================== */
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
-let scale = 1;
 
 const state = {
   running:false, paused:false, debug:false,
   round:1, bestOf:GAME_CONFIG.round.bestOf,
   seconds:GAME_CONFIG.round.seconds, sudden:false,
   lastTick: performance.now(), acc:0, step:1000/60,
-  comboTexts:[],
-  particles:[],
+  comboTexts:[], particles:[],
   difficulty:'Normal',
-  reduceFlashing:false,
-  colorBlind:false,
+  reduceFlashing:false, colorBlind:false,
   stats:{ player:{swings:0,hits:0,damage:0}, enemy:{swings:0,hits:0,damage:0} }
 };
 
-let player, enemy, ai;
+let player=null, enemy=null, ai=null;
 
 /* ========================
    ROUND / MATCH FLOW
@@ -390,7 +345,6 @@ function spawnFighters(){
   const d = GAME_CONFIG.DIFFICULTY[state.difficulty];
   player = new Fighter('Player', GAME_CONFIG.ring.left+140, false, false, GAME_CONFIG.player);
   enemy  = new Fighter('CPU',    GAME_CONFIG.ring.right-140, true,  true,  GAME_CONFIG.enemy);
-  // apply difficulty multipliers to enemy
   enemy.health = enemy.maxHealth = Math.round(GAME_CONFIG.enemy.maxHealth * d.enemyHp);
   enemy.stamina= enemy.maxStamina= GAME_CONFIG.enemy.maxStamina;
   ai = new SimpleAI(enemy, d);
@@ -402,9 +356,6 @@ function resetRound(seconds=GAME_CONFIG.round.seconds){
   spawnFighters();
   SFX.bell();
 }
-function nextRoundOrEnd(){
-  const pWins = (player.knockdowns>enemy.knockdowns)?0:0; // placeholder if tracking rounds won (optional)
-}
 
 /* ========================
    MOVES / ACTIONS
@@ -412,23 +363,18 @@ function nextRoundOrEnd(){
 function startMove(f, kind, t, isEnemy=false){
   const M = GAME_CONFIG.moves[kind];
   if(!M) return;
-  if(f.stamina < M.stamina) return; // too tired
-  f.hitting = true; f.move={kind, t, window:t + GAME_CONFIG.player.comboWindowMs};
+  if(f.stamina < M.stamina) return;
+  f.hitting = true; f.move={kind, t, window:t + (f.isCPU?GAME_CONFIG.enemy.comboWindowMs:GAME_CONFIG.player.comboWindowMs)};
   f.acc.swings++;
   if(!isEnemy) state.stats.player.swings++; else state.stats.enemy.swings++;
   f.stamina = Math.max(0, f.stamina - M.stamina);
   SFX.punch();
 }
-function startBlock(f,t){
-  f.state='block'; f.blockUntil = t+240;
-  SFX.block();
-}
-function startDodge(f,t){
-  f.state='dodge'; f.dodgeUntil = t + (f.isCPU? GAME_CONFIG.enemy.dodgeIFrames : GAME_CONFIG.player.dodgeIFrames);
-  SFX.dodge();
-}
+function startBlock(f,t){ f.state='block'; f.blockUntil = t+240; SFX.block(); }
+function startDodge(f,t){ f.state='dodge'; f.dodgeUntil = t + (f.isCPU? GAME_CONFIG.enemy.dodgeIFrames : GAME_CONFIG.player.dodgeIFrames); SFX.dodge(); }
 function startSuper(f,t){
-  if(f.super < (f.isCPU?GAME_CONFIG.enemy.maxSuper:GAME_CONFIG.player.maxSuper)) return;
+  const maxS = f.isCPU?GAME_CONFIG.enemy.maxSuper:GAME_CONFIG.player.maxSuper;
+  if(f.super < maxS) return;
   f.super = 0; startMove(f,'super',t,f.isCPU); SFX.superR();
 }
 
@@ -436,43 +382,31 @@ function startSuper(f,t){
    DAMAGE / HIT RESOLUTION
    ======================== */
 function applyHit(att, vic, hb, t){
-  // blocking?
   let dmg = hb.dmg;
   const cfg = vic.isCPU?GAME_CONFIG.enemy:GAME_CONFIG.player;
-  if(vic.state==='block'){
-    dmg = Math.round(dmg * (1 - cfg.blockMitigation));
-    SFX.block();
-  } else {
-    SFX.hit();
-  }
-  // dodge i-frames?
-  if(t<vic.dodgeUntil) return;
+  if(vic.state==='block'){ dmg = Math.round(dmg * (1 - cfg.blockMitigation)); SFX.block(); }
+  else { SFX.hit(); }
+  if(t<vic.dodgeUntil) return; // i-frames
 
   vic.health = Math.max(0, vic.health - dmg);
   if(att.isCPU){ state.stats.enemy.damage+=dmg; state.stats.enemy.hits++; }
   else { state.stats.player.damage+=dmg; state.stats.player.hits++; }
 
-  // super gain
   const attMaxS = att.isCPU?GAME_CONFIG.enemy.maxSuper:GAME_CONFIG.player.maxSuper;
   const vicMaxS = vic.isCPU?GAME_CONFIG.enemy.maxSuper:GAME_CONFIG.player.maxSuper;
   att.super = clamp(att.super + (att.isCPU?GAME_CONFIG.enemy.superGainOnHit:GAME_CONFIG.player.superGainOnHit), 0, attMaxS);
   vic.super = clamp(vic.super + (vic.isCPU?GAME_CONFIG.enemy.superGainOnBlock:GAME_CONFIG.player.superGainOnBlock), 0, vicMaxS);
 
-  // hitstun + pushback
   const push = (att.isCPU?GAME_CONFIG.enemy.pushback:GAME_CONFIG.player.pushback) * hb.knock * (att.flip?-1:1);
   vic.x += push*8;
   vic.hitstunUntil = t + (vic.isCPU?GAME_CONFIG.enemy.hitstunMs:GAME_CONFIG.player.hitstunMs);
 
-  // combo text
   if(t<att.comboUntil){ spawnFloating(`${hb.kind==='super'?'SUPER!':'+combo'}`, att.x, att.y-110, '#ffd166'); }
   att.comboUntil = t + (att.isCPU?GAME_CONFIG.enemy.comboWindowMs:GAME_CONFIG.player.comboWindowMs);
   att.lastHitAt = t;
 
-  // knockdown check (simple: health <=0 triggers KO)
   if(vic.health<=0){ SFX.ko(); }
 }
-
-/* Floating texts / simple particles */
 function spawnFloating(txt,x,y,color){ state.comboTexts.push({txt,x,y,vy:-0.3,a:1,color}); }
 function spawnSpark(x,y){ state.particles.push({x,y,dx:rand(-1,1),dy:rand(-2,-0.4),life:300}); }
 
@@ -481,112 +415,85 @@ function spawnSpark(x,y){ state.particles.push({x,y,dx:rand(-1,1),dy:rand(-2,-0.
    ======================== */
 function update(dt){
   const t = nowMs();
-
-  // Pause logic
   if(state.paused||!state.running) return;
 
-  // Time
   state._elapsed = (state._elapsed||0)+dt/1000;
   if(state._elapsed>=1){
     state._elapsed=0;
     state.seconds = Math.max(0, state.seconds-1);
     document.getElementById('timer').textContent = fmtTime(state.seconds);
     if(state.seconds===0){
-      // round end by time — sudden death or judge
       if(!state.sudden){
         state.sudden = true; state.seconds = GAME_CONFIG.round.suddenDeath;
         document.getElementById('timer').textContent = fmtTime(state.seconds);
         SFX.bell();
-      } else {
-        // decide winner by HP
-        endRoundByHP();
-        return;
-      }
+      } else { endRoundByHP(); return; }
     }
   }
 
-  // Inputs (player)
-  player.facing = (enemy.x>player.x)?1:-1;
-  enemy.facing  = (player.x>enemy.x)?1:-1;
+  if(player && enemy){
+    player.facing = (enemy.x>player.x)?1:-1;
+    enemy.facing  = (player.x>enemy.x)?1:-1;
 
-  // Movement
-  const pMove = (isDown('left')?-1:0) + (isDown('right')?1:0);
-  player.x += pMove * GAME_CONFIG.player.moveSpeed;
+    const pMove = (isDown('left')?-1:0) + (isDown('right')?1:0);
+    player.x += pMove * GAME_CONFIG.player.moveSpeed;
 
-  // Step / dash (cooldown)
-  if(isDown('stepF') && t>player.lastDash+GAME_CONFIG.player.dashCd){
-    player.lastDash=t; player.x += player.facing * (GAME_CONFIG.player.dash*10);
-    player.stamina = Math.max(0, player.stamina - GAME_CONFIG.player.staminaDrainMove);
+    if(isDown('stepF') && t>player.lastDash+GAME_CONFIG.player.dashCd){
+      player.lastDash=t; player.x += player.facing * (GAME_CONFIG.player.dash*10);
+      player.stamina = Math.max(0, player.stamina - GAME_CONFIG.player.staminaDrainMove);
+    }
+    if(isDown('stepB') && t>player.lastDash+GAME_CONFIG.player.dashCd){
+      player.lastDash=t; player.x -= player.facing * (GAME_CONFIG.player.dash*10);
+      player.stamina = Math.max(0, player.stamina - GAME_CONFIG.player.staminaDrainMove);
+    }
+
+    if(player.canAct(t)){
+      if(isDown('block')) startBlock(player,t);
+      else if(isDown('dodge')) startDodge(player,t);
+      else if(isDown('jab')) startMove(player,'jab',t,false);
+      else if(isDown('hook')) startMove(player,'hook',t,false);
+      else if(isDown('upper')) startMove(player,'upper',t,false);
+      else if(isDown('super')) startSuper(player,t);
+    } else if(player.state==='block' && t>(player.blockUntil||0)) {
+      player.state='idle';
+    }
+
+    ai.update(t, player, dt);
+
+    const L=GAME_CONFIG.ring.left, R=GAME_CONFIG.ring.right;
+    player.x = clamp(player.x, L, R);
+    enemy.x  = clamp(enemy.x,  L, R);
+
+    if(!player.hitting && player.state!=='block') player.stamina = clamp(player.stamina + GAME_CONFIG.player.staminaRegen*dt/1000, 0, GAME_CONFIG.player.maxStamina);
+    if(!enemy.hitting  && enemy.state!=='block')  enemy.stamina  = clamp(enemy.stamina + GAME_CONFIG.enemy.staminaRegen*dt/1000, 0, GAME_CONFIG.enemy.maxStamina);
+
+    stepMove(player, enemy, t);
+    stepMove(enemy, player, t);
+
+    if(player.health<=0 || enemy.health<=0){ endRoundByKO(); }
   }
-  if(isDown('stepB') && t>player.lastDash+GAME_CONFIG.player.dashCd){
-    player.lastDash=t; player.x -= player.facing * (GAME_CONFIG.player.dash*10);
-    player.stamina = Math.max(0, player.stamina - GAME_CONFIG.player.staminaDrainMove);
-  }
 
-  // Actions
-  if(player.canAct(t)){
-    if(isDown('block')) startBlock(player,t);
-    else if(isDown('dodge')) startDodge(player,t);
-    else if(isDown('jab')) startMove(player,'jab',t,false);
-    else if(isDown('hook')) startMove(player,'hook',t,false);
-    else if(isDown('upper')) startMove(player,'upper',t,false);
-    else if(isDown('super')) startSuper(player,t);
-  } else {
-    // if blocking, end block when time passes
-    if(player.state==='block' && t>(player.blockUntil||0)) player.state='idle';
-  }
-
-  // AI
-  ai.update(t, player, dt);
-
-  // Clamp inside ring
-  const L=GAME_CONFIG.ring.left, R=GAME_CONFIG.ring.right;
-  player.x = clamp(player.x, L, R);
-  enemy.x  = clamp(enemy.x,  L, R);
-
-  // Stamina regen
-  if(!player.hitting && player.state!=='block') player.stamina = clamp(player.stamina + GAME_CONFIG.player.staminaRegen*dt/1000, 0, GAME_CONFIG.player.maxStamina);
-  if(!enemy.hitting  && enemy.state!=='block')  enemy.stamina  = clamp(enemy.stamina + GAME_CONFIG.enemy.staminaRegen*dt/1000, 0, GAME_CONFIG.enemy.maxStamina);
-
-  // Moves timing + hit detection
-  stepMove(player, enemy, t);
-  stepMove(enemy, player, t);
-
-  // Update floating text / particles
   for(const fx of state.comboTexts){ fx.y+=fx.vy; fx.a-=0.01; }
   state.comboTexts = state.comboTexts.filter(fx=>fx.a>0);
+
   for(const p of state.particles){ p.x+=p.dx; p.y+=p.dy; p.dy+=0.03; p.life-=dt; }
   state.particles = state.particles.filter(p=>p.life>0);
 
-  // Death / KO
-  if(player.health<=0 || enemy.health<=0){
-    endRoundByKO();
-  }
-
-  // Update bars
   setBars();
 }
-
 function stepMove(att, vic, t){
-  const m = att.move;
-  if(!m.kind) return;
-
+  const m = att.move; if(!m.kind) return;
   const M = GAME_CONFIG.moves[m.kind];
   const elapsed = t - m.t;
-
-  // Startup/active/recovery windows
   if(elapsed > M.startup && elapsed < M.startup + M.active && !m._hit){
-    // generate hitbox, check collision
     const hb = moveHitbox(att, m.kind);
-    const vicRect = vic.rect();
-    if(aabb(hb, vicRect)){
+    if(vic && aabb(hb, vic.rect())){
       applyHit(att, vic, hb, t);
       spawnSpark(hb.x+hb.w/2, hb.y+hb.h/2);
       m._hit = true;
     }
   }
   if(elapsed > (M.startup+M.active+M.recovery)){
-    // end move
     att.hitting=false; att.move={kind:null,t:0,window:0};
   }
 }
@@ -596,7 +503,6 @@ function stepMove(att, vic, t){
    ======================== */
 function render(){
   const w=canvas.width, h=canvas.height;
-  // letterbox safe
   ctx.clearRect(0,0,w,h);
 
   // Background (crowd parallax)
@@ -614,22 +520,24 @@ function render(){
   // Ring
   ctx.fillStyle='#1c2030';
   ctx.fillRect(60, GAME_CONFIG.groundY-10, w-120, 20);
-  // Ropes
   ctx.strokeStyle='#9bb8ff'; ctx.lineWidth=3;
   for(let r=0;r<3;r++){
     const ry = GAME_CONFIG.ring.ropeY + r*20;
     ctx.beginPath(); ctx.moveTo(80,ry); ctx.lineTo(w-80,ry); ctx.stroke();
   }
 
-  // Fighters (blocky Roblox vibe)
-  drawFighter(player);
-  drawFighter(enemy);
+  // Fighters — only if spawned
+  if (player && enemy) {
+    drawFighter(player);
+    drawFighter(enemy);
+  } else {
+    ctx.fillStyle='#9bb8ff';
+    ctx.font='700 20px Arial';
+    ctx.fillText('Press ▶ Play to start', w/2 - 120, GAME_CONFIG.groundY - 140);
+  }
 
   // Particles
-  for(const p of state.particles){
-    ctx.fillStyle='rgba(255,255,255,0.7)';
-    ctx.fillRect(p.x, p.y, 3,3);
-  }
+  for(const p of state.particles){ ctx.fillStyle='rgba(255,255,255,0.7)'; ctx.fillRect(p.x, p.y, 3,3); }
 
   // Floating texts
   for(const fx of state.comboTexts){
@@ -641,23 +549,19 @@ function render(){
   }
 
   // Debug
-  if(state.debug){
+  if(state.debug && player && enemy){
     ctx.strokeStyle='#00ff88';
-    // hitboxes (during active windows)
     drawRect(player.rect());
     drawRect(enemy.rect());
     ctx.fillStyle='#fff';
-    ctx.fillText(`AI:${ai.state}`, enemy.x-30, enemy.y - enemy.h - 14);
+    ctx.fillText(`AI:${ai?.state||'—'}`, enemy.x-30, enemy.y - enemy.h - 14);
     ctx.fillText(`FPS: ~60`, 10, 20);
   }
   ctx.restore();
 }
-
 function drawFighter(f){
   const {x,y,w,h,flip} = f;
   const baseX = Math.floor(x - w/2), baseY = Math.floor(y - h);
-
-  // Body palette (skin/clothes)
   const skin = '#fbd6a3';
   const torso = f.isCPU ? '#6ea8fe' : '#7bf1a8';
   const glove = f.isCPU ? '#ff8a8a' : '#ffd166';
@@ -665,75 +569,57 @@ function drawFighter(f){
 
   // Shadow
   ctx.fillStyle='rgba(0,0,0,0.35)';
-  ctx.beginPath();
-  ctx.ellipse(x, y-4, 26, 8, 0, 0, Math.PI*2);
-  ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x, y-4, 26, 8, 0, 0, Math.PI*2); ctx.fill();
 
-  // Legs (blocky)
+  // Legs
   ctx.fillStyle=pant;
   ctx.fillRect(baseX, baseY+h-36, w/2-4, 36);
   ctx.fillRect(baseX+w/2+4, baseY+h-36, w/2-4, 36);
 
   // Torso
-  ctx.fillStyle=torso;
-  ctx.fillRect(baseX, baseY+22, w, 48);
+  ctx.fillStyle=torso; ctx.fillRect(baseX, baseY+22, w, 48);
 
   // Head
-  ctx.fillStyle=skin;
-  ctx.fillRect(baseX+8, baseY, w-16, 22);
+  ctx.fillStyle=skin; ctx.fillRect(baseX+8, baseY, w-16, 22);
 
-  // Arms (simple rectangles, front arm for punches)
+  // Arms
   ctx.fillStyle=skin;
   const armY = baseY+28;
-  if(!flip){
-    ctx.fillRect(baseX-12, armY, 14, 18); // back arm
-    ctx.fillRect(baseX+w-2, armY, 14, 18); // front arm
-  } else {
-    ctx.fillRect(baseX+w-2, armY, 14, 18);
-    ctx.fillRect(baseX-12, armY, 14, 18);
-  }
+  if(!flip){ ctx.fillRect(baseX-12, armY, 14, 18); ctx.fillRect(baseX+w-2, armY, 14, 18); }
+  else     { ctx.fillRect(baseX+w-2, armY, 14, 18); ctx.fillRect(baseX-12, armY, 14, 18); }
 
   // Gloves
   ctx.fillStyle=glove;
-  if(!flip){
-    ctx.fillRect(baseX-18, armY+12, 16, 12);
-    ctx.fillRect(baseX+w+6, armY+12, 16, 12);
-  } else {
-    ctx.fillRect(baseX+w+6, armY+12, 16, 12);
-    ctx.fillRect(baseX-18, armY+12, 16, 12);
-  }
+  if(!flip){ ctx.fillRect(baseX-18, armY+12, 16, 12); ctx.fillRect(baseX+w+6, armY+12, 16, 12); }
+  else     { ctx.fillRect(baseX+w+6, armY+12, 16, 12); ctx.fillRect(baseX-18, armY+12, 16, 12); }
 
   // Face (eyes)
   ctx.fillStyle='#111';
-  const eyeX1 = baseX+14, eyeX2 = baseX+w-22;
-  ctx.fillRect(eyeX1, baseY+8, 4, 4);
-  ctx.fillRect(eyeX2, baseY+8, 4, 4);
+  ctx.fillRect(baseX+14, baseY+8, 4, 4);
+  ctx.fillRect(baseX+w-22, baseY+8, 4, 4);
 
-  // Simple wind-up pose hint when attacking
-  if(f.hitting){
-    ctx.strokeStyle='#ffffff33';
-    ctx.beginPath();
-    ctx.arc(x + (f.flip?-10:10), baseY+40, 14, 0, Math.PI*2);
-    ctx.stroke();
-  }
+  // Wind-up cue
+  if(f.hitting){ ctx.strokeStyle='#ffffff33'; ctx.beginPath(); ctx.arc(x + (f.flip?-10:10), baseY+40, 14, 0, Math.PI*2); ctx.stroke(); }
 }
-
 function drawRect(r){ ctx.strokeRect(r.x, r.y, r.w, r.h); }
 
-/* Bars + HUD binding */
+/* Bars + HUD binding (null-guard) */
 function setBars(){
   const pH = document.getElementById('pHealth'), pS=document.getElementById('pStamina'), pSu=document.getElementById('pSuper');
   const eH = document.getElementById('eHealth'), eS=document.getElementById('eStamina'), eSu=document.getElementById('eSuper');
 
-  pH.style.width = `${(player.health/player.maxHealth)*100}%`;
-  pS.style.width = `${(player.stamina/player.maxStamina)*100}%`;
-  pSu.style.width= `${(player.super/(GAME_CONFIG.player.maxSuper))*100}%`;
+  if (player){
+    pH.style.width = `${(player.health/player.maxHealth)*100}%`;
+    pS.style.width = `${(player.stamina/player.maxStamina)*100}%`;
+    pSu.style.width= `${(player.super/(GAME_CONFIG.player.maxSuper))*100}%`;
+  } else { pH.style.width = pS.style.width = pSu.style.width = '0%'; }
 
-  eH.style.width = `${(enemy.health/ enemy.maxHealth)*100}%`;
-  eS.style.width = `${(enemy.stamina/enemy.maxStamina)*100}%`;
-  eSu.style.width= `${(enemy.super/(GAME_CONFIG.enemy.maxSuper))*100}%`;
+  if (enemy){
+    eH.style.width = `${(enemy.health/ enemy.maxHealth)*100}%`;
+    eS.style.width = `${(enemy.stamina/enemy.maxStamina)*100}%`;
+    eSu.style.width= `${(enemy.super/(GAME_CONFIG.enemy.maxSuper))*100}%`;
+  } else { eH.style.width = eS.style.width = eSu.style.width = '0%'; }
 
-  // color-blind friendly option adjusts gradients subtly (simple demo)
   if(GAME_CONFIG.UI.colorBlind){
     [pH,eH].forEach(el=>el.style.background='linear-gradient(90deg,#ffb3c1,#ff6b6b)');
     [pS,eS].forEach(el=>el.style.background='linear-gradient(90deg,#c1ffd7,#63e6be)');
@@ -746,12 +632,13 @@ function setBars(){
    ======================== */
 function endRoundByKO(){
   state.paused=true; state.running=false;
-  const winner = player.health>0 ? 'You Win!' : 'CPU Wins!';
+  const winner = (player && player.health>0) ? 'You Win!' : 'CPU Wins!';
   showModal('KO!', modalResultsHTML(winner), ()=>SFX.ko());
 }
 function endRoundByHP(){
   state.paused=true; state.running=false;
-  const winner = player.health>=enemy.health ? 'You Win (by decision)!' : 'CPU Wins (by decision)!';
+  const pHp = player?player.health:0, eHp = enemy?enemy.health:0;
+  const winner = pHp>=eHp ? 'You Win (by decision)!' : 'CPU Wins (by decision)!';
   showModal('Time!', modalResultsHTML(winner), ()=>SFX.bell());
 }
 function modalResultsHTML(winner){
@@ -784,14 +671,15 @@ function modalResultsHTML(winner){
    MAIN LOOP
    ======================== */
 function loop(ts){
-  const dt = ts - state.lastTick; state.lastTick = ts;
-  state.acc += dt;
-  // fixed timestep
-  while(state.acc >= state.step){
-    update(state.step);
-    state.acc -= state.step;
+  try{
+    const dt = ts - state.lastTick; state.lastTick = ts;
+    state.acc += dt;
+    while(state.acc >= state.step){ update(state.step); state.acc -= state.step; }
+    render();
+  }catch(err){
+    console.error('[Block Brawl] runtime error:', err);
+    state.running=false;
   }
-  render();
   requestAnimationFrame(loop);
 }
 
@@ -810,15 +698,11 @@ function showModal(title, html, onOpen){
   modal.root.style.display='flex';
   if(onOpen) onOpen();
 }
-function closeModal(){
-  modal.root.style.display='none';
-  SFX.ui();
-}
-
+function closeModal(){ modal.root.style.display='none'; SFX.ui(); }
 document.getElementById('modalClose').addEventListener('click', closeModal);
 modal.root.addEventListener('click', (e)=>{ if(e.target===modal.root) closeModal(); });
 
-/* Start tutorial on first visit */
+/* Tutorial on first visit */
 (function tutorial(){
   const seen = localStorage.getItem('bb_seen');
   if(!seen){
@@ -836,7 +720,7 @@ modal.root.addEventListener('click', (e)=>{ if(e.target===modal.root) closeModal
   }
 })();
 
-/* Controls modal (simple remap) */
+/* Controls (simple remap) */
 document.getElementById('btnControls').addEventListener('click',()=>{
   const names = Object.keys(KEY_MAP);
   let html = `<div class="grid">`;
@@ -858,7 +742,7 @@ document.getElementById('btnControls').addEventListener('click',()=>{
   });
 });
 
-/* Accessibility modal */
+/* Accessibility */
 document.getElementById('btnAccessibility').addEventListener('click',()=>{
   const chk = (id,label,checked)=> `<label class="row"><input type="checkbox" id="${id}" ${checked?'checked':''}/>&nbsp;${label}</label>`;
   showModal('Accessibility', `
@@ -869,7 +753,6 @@ document.getElementById('btnAccessibility').addEventListener('click',()=>{
       <div class="small">Settings save automatically.</div>
     </div>
   `);
-  const q=id=>modal.body.querySelector('#'+id);
   ['accSound','accReduce','accCB'].forEach(id=>{
     modal.body.querySelector('#'+id).addEventListener('change',(e)=>{
       if(id==='accSound'){ GAME_CONFIG.audio.soundOn = e.target.checked; if(!e.target.checked) musicStop(); }
@@ -887,30 +770,27 @@ document.getElementById('selDiff').addEventListener('change',(e)=>{
 });
 
 /* Play / Pause */
-document.getElementById('btnPlay').addEventListener('click', ()=>{
-  // (Re)start a match
+function startGame(){
+  // Resume AudioContext on user gesture (Chrome/Firefox mobile policy)
+  if(audioCtx.state === 'suspended'){ audioCtx.resume(); }
   state.stats = { player:{swings:0,hits:0,damage:0}, enemy:{swings:0,hits:0,damage:0} };
-  state.round=1;
-  resetRound();
-  state.running=true; state.paused=false;
-  musicStart();
-});
+  state.round=1; resetRound();
+  state.running=true; state.paused=false; musicStart();
+}
+document.getElementById('btnPlay').addEventListener('click', startGame);
 document.getElementById('btnPause').addEventListener('click', ()=>{ state.paused=!state.paused; SFX.ui(); });
 
 /* Global hotkeys */
 addEventListener('keydown', (e)=>{
-  if((e.key==='p'||e.key==='P')){ state.paused=!state.paused; }
+  if(e.key==='p'||e.key==='P'){ state.paused=!state.paused; }
   if(e.key==='/'){ state.debug=!state.debug; }
-  if(e.key==='r'||e.key==='R'){ state.stats = { player:{swings:0,hits:0,damage:0}, enemy:{swings:0,hits:0,damage:0} }; resetRound(); state.running=true; state.paused=false; }
+  if(e.key==='r'||e.key==='R'){ startGame(); }
 });
 
 /* Restore saved config */
 (function restore(){
   const saved = JSON.parse(localStorage.getItem('bb_cfg')||'null');
-  if(saved){
-    Object.assign(GAME_CONFIG.audio, saved.audio||{});
-    Object.assign(GAME_CONFIG.UI, saved.UI||{});
-  }
+  if(saved){ Object.assign(GAME_CONFIG.audio, saved.audio||{}); Object.assign(GAME_CONFIG.UI, saved.UI||{}); }
   document.getElementById('selDiff').value = state.difficulty;
 })();
 
