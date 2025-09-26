@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Block Brawl v2 — Roblox-Style Boxing (Animated Skeleton)</title>
+<title>Block Brawl v3 — Roblox-Style Boxing (Segment Hitboxes + Gait Boost + FX)</title>
 <style>
   :root{
     --bg:#0e0f13; --panel:#171923; --panel2:#1f2230; --text:#e8ebff;
@@ -46,8 +46,8 @@
 </head>
 <body>
 <div class="wrap">
-  <h1 class="title">🧱 Block Brawl v2</h1>
-  <div class="sub">Roblox-style boxing • Vanilla JS + Canvas • Skeleton Anim v2</div>
+  <h1 class="title">🧱 Block Brawl v3</h1>
+  <div class="sub">Roblox-style • Vanilla JS + Canvas • Segment Hitboxes • Gait Boost • FX</div>
 
   <div class="topbar card hud">
     <button id="btnPlay" class="btn">▶ Play</button>
@@ -98,8 +98,11 @@
 
 <script>
 /* README
-- 新增「三關節骨架動畫」：肩/肘/腕、髖/膝/踝；走路擺臂、出拳動態手套命中判定。
-- 所有調整點在 GAME_CONFIG。無外部資源；單檔可離線執行。
+- 新增：
+  (1) 多段關節命中盒（前手：上臂/前臂）— 精度更高；前臂=100%傷害，上臂=70%傷害。
+  (2) 踩踏步態加速/減速（移動時依 gait 相位微調速度，CPU 同步）。
+  (3) 閃避殘影 + 命中暈眩星星特效。
+- 可於 GAME_CONFIG 調整傷害比例、步態速度增益、殘影/星星壽命等。
 - Controls: A/D or ←/→ 移動；W/S 或 ↑/↓ 微衝；J/K/L 出拳；I 格擋；O 閃避；Space 超級；P 暫停；/ Debug；R 重開。
 */
 
@@ -135,6 +138,20 @@ const GAME_CONFIG = {
   round:{ seconds:60, suddenDeath:15, bestOf:3, koDowns:3 },
   audio:{ master:0.18, reduceFlashing:false, soundOn:true },
   UI:{ colorBlind:false },
+
+  // 新增可調參數
+  HITBOX:{
+    upperBox: {w:18,h:18, scaleDmg:0.7},
+    foreBox:  {w:20,h:20, scaleDmg:1.0}
+  },
+  GAIT:{
+    stepBoost:0.18, // +/− 18% 速度起伏
+    minFactor:0.75, // 不會低於 75% 基礎速度
+  },
+  FX:{
+    afterimage: { spawnEveryMs:36, life:260, alpha:0.32 },
+    stars: { count:4, life:700, radius:16 }
+  },
   DIFFICULTY:{
     Easy:   { enemyHp:0.9, enemyDmg:0.85, enemySpeed:0.95, aiAggro:0.72, aiDefend:0.85, aiRandom:0.25 },
     Normal: { enemyHp:1.0, enemyDmg:1.0,   enemySpeed:1.0,  aiAggro:0.92, aiDefend:1.0,  aiRandom:0.18 },
@@ -201,7 +218,8 @@ class Fighter{
       move:{kind:null,t:0,window:0,_hit:false},
       hitstunUntil:0, dodgeUntil:0, comboUntil:0, lastHitAt:0,
       gaitPhase:0, // 走路相位
-      acc:{swings:0,hits:0}
+      acc:{swings:0,hits:0},
+      _nextAfterimage:0
     });
   }
   rect(){ return {x:this.x-this.w/2, y:this.y-this.h, w:this.w, h:this.h}; }
@@ -228,9 +246,10 @@ class SimpleAI{
   update(t,p,dt){
     const f=this.f, dist=Math.abs(p.x-f.x), dir=Math.sign(p.x-f.x);
     this.think(t,p,dist);
+    const gaitBoost = gaitSpeedFactor(f);
     switch(this.state){
-      case'approach': f.x += dir*GAME_CONFIG.enemy.moveSpeed*this.diff.enemySpeed; f.gaitPhase += GAME_CONFIG.enemy.gaitSpeed; break;
-      case'retreat':  f.x -= dir*(GAME_CONFIG.enemy.moveSpeed*0.9); f.gaitPhase += GAME_CONFIG.enemy.gaitSpeed; break;
+      case'approach': f.x += dir*GAME_CONFIG.enemy.moveSpeed*this.diff.enemySpeed*gaitBoost; f.gaitPhase=(f.gaitPhase+GAME_CONFIG.enemy.gaitSpeed)%1; break;
+      case'retreat':  f.x -= dir*(GAME_CONFIG.enemy.moveSpeed*0.9)*gaitBoost; f.gaitPhase=(f.gaitPhase+GAME_CONFIG.enemy.gaitSpeed)%1; break;
       case'defend':   if(chance(0.6*this.diff.aiDefend)&&f.canAct(t)) startBlock(f,t); else if(chance(0.35*this.diff.aiDefend)&&f.canAct(t)) startDodge(f,t); break;
       case'attack_jab':
       case'attack_hook':
@@ -246,8 +265,11 @@ class SimpleAI{
    GLOBAL STATE
    ======================== */
 const canvas=document.getElementById('game'); const ctx=canvas.getContext('2d');
-const state={running:false, paused:false, debug:false, round:1, seconds:GAME_CONFIG.round.seconds, lastTick:performance.now(), acc:0, step:1000/60,
-  comboTexts:[], particles:[], difficulty:'Normal',
+const state={
+  running:false, paused:false, debug:false, round:1, seconds:GAME_CONFIG.round.seconds,
+  lastTick:performance.now(), acc:0, step:1000/60,
+  comboTexts:[], particles:[], afterimages:[], stars:[],
+  difficulty:'Normal',
   stats:{player:{swings:0,hits:0,damage:0}, enemy:{swings:0,hits:0,damage:0}}
 };
 let player=null, enemy=null, ai=null;
@@ -283,9 +305,9 @@ function startDodge(f,t){ f.state='dodge'; f.dodgeUntil=t+(f.isCPU?GAME_CONFIG.e
 function startSuper(f,t){ const max=f.maxSuper; if(f.super<max) return; f.super=0; startMove(f,'super',t,f.isCPU); SFX.superR(); }
 
 /* ========================
-   ANIMATION POSE HELPERS
+   ANIMATION / POSE
    ======================== */
-// 回傳 0..1 的動作進度或 null（不在出拳）
+// 動作相位
 function movePhase(f,t){
   const m=f.move; if(!m||!m.kind) return null;
   const M=GAME_CONFIG.moves[m.kind]; const e=t-m.t; const total=M.startup+M.active+M.recovery;
@@ -294,8 +316,16 @@ function movePhase(f,t){
 const easeIn = x=>x*x*(3-2*x);
 const easeOut= x=>1-Math.pow(1-x,2);
 
+// 步態加減速係數
+function gaitSpeedFactor(f){
+  const s = Math.sin(f.gaitPhase*2*Math.PI);
+  const boost = GAME_CONFIG.GAIT.stepBoost * s;
+  const factor = Math.max(GAME_CONFIG.GAIT.minFactor, 1 + boost);
+  return factor;
+}
+
 // 計算全身姿勢（回傳關節角度 + 腰位移）
-function computePose(f,t,moveDir){
+function computePose(f,t){
   const phase = movePhase(f,t);
   const facing = f.flip?-1:1;
   // Idle & gait
@@ -305,7 +335,7 @@ function computePose(f,t,moveDir){
 
   // 預設角度（弧度）
   let torsoLean=0, torsoTwist=0;
-  let frontUpper=facing*0.15 + gaitOpp*0.12*facing; // 上臂
+  let frontUpper=facing*0.15 + gaitOpp*0.12*facing;
   let frontFore =facing*0.25;
   let backUpper =facing*-0.15 + gait*0.12*facing;
   let backFore  =facing*-0.10;
@@ -332,16 +362,13 @@ function computePose(f,t,moveDir){
       super:{arm:2.1, twist:0.32, lean:0.24}
     }[kind];
 
-    // 前手主攻
     frontUpper = facing*(0.1 + MAX.arm*0.6*p);
     frontFore  = facing*(0.25 + MAX.arm*0.4*p);
     backUpper  = facing*(-0.25 + 0.3*p);
     backFore   = facing*(-0.15 + 0.25*p);
     torsoTwist = facing*(MAX.twist*p);
     torsoLean  = 0.02 + MAX.lean*p;
-    // 上勾拳：往上抬手
     if(kind==='upper'){ frontUpper -= facing*0.35*(p); frontFore += facing*0.15*(p); }
-    // 鉤拳：水平拉開
     if(kind==='hook'){ frontFore += facing*0.25*p; }
   }
 
@@ -349,26 +376,20 @@ function computePose(f,t,moveDir){
            frontHip, frontKnee, backHip, backKnee };
 }
 
-/* 計算「拳套」世界座標（用於命中判定） */
-function gloveWorldPos(f, which/* 'front'|'back' */, t){
+/* 計算手臂關節位置（肩→肘→拳套） */
+function armJoints(f, which, t){
   const facing=f.flip?-1:1;
   const pose=computePose(f,t);
-  // 角色腰部中心
   const waistX=f.x, waistY=f.y - f.h*0.5 + pose.bob;
-  // 軀幹尺寸
   const torsoW=f.w, torsoH=50;
-  // 肩膀位置（相對腰）
   const shoulderY = -torsoH/2 + 26;
   const shoulderX = (which==='front' ? (facing>0? +torsoW/2 : -torsoW/2)
                                       : (facing>0? -torsoW/2 : +torsoW/2));
-  // 將軀幹旋轉後，再加手臂
-  // 軀幹旋轉
   const rotTorso = pose.torsoLean*facing + pose.torsoTwist;
   const cosT=Math.cos(rotTorso), sinT=Math.sin(rotTorso);
   const sx = waistX + (shoulderX*cosT - shoulderY*sinT);
   const sy = waistY + (shoulderX*sinT + shoulderY*cosT);
 
-  // 手臂兩節
   const upper = which==='front'?pose.frontUpper:pose.backUpper;
   const fore  = which==='front'?pose.frontFore :pose.backFore;
   const armLen1=26, armLen2=22;
@@ -377,19 +398,30 @@ function gloveWorldPos(f, which/* 'front'|'back' */, t){
   const ex = sx + Math.cos(a1)*armLen1;
   const ey = sy + Math.sin(a1)*armLen1;
 
-  const a2 = a1 + fore*0.8; // 前臂再加一點角度
+  const a2 = a1 + fore*0.8;
   const gx = ex + Math.cos(a2)*armLen2;
   const gy = ey + Math.sin(a2)*armLen2;
 
-  return {x:gx, y:gy};
+  return { shoulder:{x:sx,y:sy}, elbow:{x:ex,y:ey}, glove:{x:gx,y:gy} };
+}
+
+/* 產生上臂/前臂兩個命中盒 */
+function armSegmentBoxes(f, which, t){
+  const j=armJoints(f,which,t);
+  const up=GAME_CONFIG.HITBOX.upperBox, fo=GAME_CONFIG.HITBOX.foreBox;
+  const midUpper={ x:(j.shoulder.x+j.elbow.x)/2, y:(j.shoulder.y+j.elbow.y)/2 };
+  const midFore ={ x:(j.elbow.x+j.glove.x)/2,    y:(j.elbow.y+j.glove.y)/2 };
+  const upperBox={ x:midUpper.x-up.w/2, y:midUpper.y-up.h/2, w:up.w, h:up.h, scale:up.scaleDmg, part:'upper' };
+  const foreBox ={ x:midFore.x-fo.w/2,  y:midFore.y-fo.h/2,  w:fo.w, h:fo.h,  scale:fo.scaleDmg,  part:'fore'  };
+  return { upperBox, foreBox };
 }
 
 /* ========================
-   DAMAGE / HITS
+   DAMAGE / HITS / FX
    ======================== */
-function applyHit(att,vic,dmg,knock,t){
-  if(t<vic.dodgeUntil) return; // i-frames
-  let dealt=dmg;
+function applyHit(att,vic,baseDmg,knock,t,scale=1){
+  if(t<vic.dodgeUntil) return;
+  let dealt=Math.round(baseDmg*scale);
   const cfg=vic.isCPU?GAME_CONFIG.enemy:GAME_CONFIG.player;
   if(vic.state==='block'){ dealt=Math.round(dealt*(1-cfg.blockMitigation)); SFX.block(); } else SFX.hit();
 
@@ -406,7 +438,39 @@ function applyHit(att,vic,dmg,knock,t){
 
   if(t<att.comboUntil) spawnFloating('Combo!', att.x, att.y-110, '#ffd166');
   att.comboUntil=t+(att.isCPU?GAME_CONFIG.enemy.comboWindowMs:GAME_CONFIG.player.comboWindowMs);
+  spawnStunStars(vic); // 暈眩星星
   if(vic.health<=0) SFX.ko();
+}
+
+function spawnFloating(txt,x,y,color){ state.comboTexts.push({txt,x,y,vy:-0.3,a:1,color}); }
+function spawnSpark(x,y){ state.particles.push({x,y,dx:rand(-1,1),dy:rand(-2,-0.4),life:300}); }
+
+/* 暈眩星星 */
+function spawnStunStars(f){
+  const c=headWorldPos(f);
+  for(let i=0;i<GAME_CONFIG.FX.stars.count;i++){
+    state.stars.push({
+      x:c.x, y:c.y-6, angle:(i/ GAME_CONFIG.FX.stars.count)*Math.PI*2,
+      radius:GAME_CONFIG.FX.stars.radius, life:GAME_CONFIG.FX.stars.life, t:0
+    });
+  }
+}
+function headWorldPos(f){
+  const pose=computePose(f, performance.now());
+  const waistX=f.x, waistY=f.y - f.h*0.5 + pose.bob;
+  const headY = -50/2 - (f.w-14?24:22); // 近似
+  return {x:waistX, y:waistY + headY};
+}
+
+/* 閃避殘影 */
+function leaveAfterimage(f,t){
+  if(t < f._nextAfterimage) return;
+  f._nextAfterimage = t + GAME_CONFIG.FX.afterimage.spawnEveryMs;
+  const pose=computePose(f,t);
+  state.afterimages.push({
+    x:f.x, y:f.y, w:f.w, h:f.h, flip:f.flip, isCPU:f.isCPU, pose,
+    life:GAME_CONFIG.FX.afterimage.life, alpha:GAME_CONFIG.FX.afterimage.alpha
+  });
 }
 
 /* ========================
@@ -429,7 +493,8 @@ function update(dt){
 
     // Player 移動與步態
     const mv=(isDown('left')?-1:0)+(isDown('right')?1:0);
-    player.x+=mv*GAME_CONFIG.player.moveSpeed;
+    const gaitBoost = gaitSpeedFactor(player);
+    player.x += mv*GAME_CONFIG.player.moveSpeed*gaitBoost;
     if(mv!==0) player.gaitPhase=(player.gaitPhase+GAME_CONFIG.player.gaitSpeed)%1;
 
     // Dash
@@ -446,8 +511,12 @@ function update(dt){
       else if(isDown('super')) startSuper(player,t);
     } else if(player.state==='block' && t>(player.blockUntil||0)){ player.state='idle'; }
 
+    // 殘影：閃避期間生成
+    if(t<player.dodgeUntil) leaveAfterimage(player,t);
+
     // AI
     ai.update(t,player,dt);
+    if(t<enemy.dodgeUntil) leaveAfterimage(enemy,t);
 
     // 限界
     const L=GAME_CONFIG.ring.left, R=GAME_CONFIG.ring.right;
@@ -457,28 +526,47 @@ function update(dt){
     if(!player.hitting && player.state!=='block') player.stamina=clamp(player.stamina+GAME_CONFIG.player.staminaRegen*dt/1000,0,player.maxStamina);
     if(!enemy.hitting && enemy.state!=='block')   enemy.stamina =clamp(enemy.stamina +GAME_CONFIG.enemy.staminaRegen *dt/1000,0,enemy.maxStamina);
 
-    // 出拳時段與命中（以拳套位置為中心的 AABB）
-    stepMove(player,enemy,t); stepMove(enemy,player,t);
+    // 出拳命中（多段關節命中盒）
+    stepMoveWithSegments(player,enemy,t); 
+    stepMoveWithSegments(enemy,player,t);
 
     if(player.health<=0||enemy.health<=0){ endRoundByKO(); }
   }
 
-  // FX
+  // FX 更新
   for(const fx of state.comboTexts){ fx.y+=fx.vy; fx.a-=0.01; }
   state.comboTexts=state.comboTexts.filter(fx=>fx.a>0);
   for(const p of state.particles){ p.x+=p.dx; p.y+=p.dy; p.dy+=0.03; p.life-=dt; }
   state.particles=state.particles.filter(p=>p.life>0);
+  // 殘影
+  for(const g of state.afterimages){ g.life-=dt; g.alpha*=0.94; }
+  state.afterimages=state.afterimages.filter(g=>g.life>0);
+  // 星星
+  for(const s of state.stars){ s.t+=dt; s.life-=dt; }
+  state.stars=state.stars.filter(s=>s.life>0);
 
   setBars();
 }
-function stepMove(att,vic,t){
+
+function stepMoveWithSegments(att,vic,t){
   const m=att.move; if(!m.kind) return;
   const M=GAME_CONFIG.moves[m.kind]; const elapsed=t-m.t;
-  // Active window 命中
   if(elapsed>M.startup && elapsed<M.startup+M.active && !m._hit){
-    const g=gloveWorldPos(att,'front',t); // 以前手為主攻
-    const hb={x:g.x-10,y:g.y-10,w:20,h:20};
-    if(vic && aabb(hb, vic.rect())){ applyHit(att,vic,M.dmg,M.knock,t); spawnSpark(g.x,g.y); m._hit=true; }
+    const {upperBox, foreBox}=armSegmentBoxes(att,'front',t);
+    // 先以前臂（拳套）判定，再來上臂
+    if(vic && aabb(foreBox, vic.rect())){ 
+      applyHit(att,vic,M.dmg,M.knock,t,foreBox.scale); 
+      spawnSpark(foreBox.x+foreBox.w/2, foreBox.y+foreBox.h/2); 
+      m._hit=true; 
+    } else if(vic && aabb(upperBox, vic.rect())){
+      applyHit(att,vic,M.dmg,M.knock*0.8,t,upperBox.scale);
+      spawnSpark(upperBox.x+upperBox.w/2, upperBox.y+upperBox.h/2);
+      m._hit=true;
+    }
+    if(state.debug){ // 畫出命中盒
+      debugBoxes.push({box:upperBox,color:'#ffa50088'}); 
+      debugBoxes.push({box:foreBox,color:'#00ffff88'});
+    }
   }
   if(elapsed > (M.startup+M.active+M.recovery)){ att.hitting=false; att.move={kind:null,t:0,window:0,_hit:false}; }
 }
@@ -486,8 +574,11 @@ function stepMove(att,vic,t){
 /* ========================
    RENDER
    ======================== */
+let debugBoxes=[]; // 每幀清空
 function render(){
   const w=canvas.width,h=canvas.height; ctx.clearRect(0,0,w,h);
+  debugBoxes.length=0;
+
   // 背景與群眾
   ctx.fillStyle='#0b0c10'; ctx.fillRect(0,0,w,h);
   for(let i=0;i<GAME_CONFIG.crowd.layers;i++){
@@ -499,6 +590,9 @@ function render(){
   ctx.strokeStyle='#9bb8ff'; ctx.lineWidth=3;
   for(let r=0;r<3;r++){ const ry=GAME_CONFIG.ring.ropeY+r*20; ctx.beginPath(); ctx.moveTo(80,ry); ctx.lineTo(w-80,ry); ctx.stroke(); }
 
+  // 殘影
+  for(const g of state.afterimages){ drawFighterGhost(g); }
+
   if(player&&enemy){ drawFighter(player); drawFighter(enemy); }
   else { ctx.fillStyle='#9bb8ff'; ctx.font='700 20px Arial'; ctx.fillText('Press ▶ Play to start', w/2-120, GAME_CONFIG.groundY-140); }
 
@@ -506,13 +600,75 @@ function render(){
   for(const p of state.particles){ ctx.fillStyle='rgba(255,255,255,0.7)'; ctx.fillRect(p.x,p.y,3,3); }
   for(const fx of state.comboTexts){ ctx.globalAlpha=Math.max(0,fx.a); ctx.fillStyle=fx.color||'#fff'; ctx.font='700 16px Arial'; ctx.fillText(fx.txt,fx.x,fx.y); ctx.globalAlpha=1; }
 
+  // 星星
+  for(const s of state.stars){
+    const ang = s.angle + s.t*0.02;
+    const rx = s.x + Math.cos(ang)*s.radius;
+    const ry = s.y + Math.sin(ang)*s.radius*0.6;
+    drawStar(rx, ry, 5, 6, 3, Math.max(0, s.life/GAME_CONFIG.FX.stars.life));
+  }
+
+  // Debug overlays
   if(state.debug&&player&&enemy){
-    ctx.strokeStyle='#00ff88'; ctx.strokeRect(...Object.values(player.rect()));
-    ctx.strokeStyle='#ff00aa'; ctx.strokeRect(...Object.values(enemy.rect()));
-    const gp=gloveWorldPos(player,'front',performance.now());
-    ctx.strokeStyle='#ffffff55'; ctx.strokeRect(gp.x-10,gp.y-10,20,20);
+    ctx.strokeStyle='#00ff88'; const pr=player.rect(); ctx.strokeRect(pr.x,pr.y,pr.w,pr.h);
+    ctx.strokeStyle='#ff00aa'; const er=enemy.rect();  ctx.strokeRect(er.x,er.y,er.w,er.h);
+    for(const d of debugBoxes){ ctx.fillStyle=d.color; ctx.fillRect(d.box.x,d.box.y,d.box.w,d.box.h); }
     ctx.fillStyle='#fff'; ctx.fillText(`AI:${ai?.state||'—'}`, enemy.x-30, enemy.y-enemy.h-14);
   }
+}
+
+function drawStar(cx,cy,points,outerR,innerR,alpha){
+  ctx.save(); ctx.globalAlpha=0.6*alpha; ctx.fillStyle='#ffd166';
+  ctx.beginPath();
+  for(let i=0;i<points*2;i++){
+    const r = (i%2===0)?outerR:innerR;
+    const a = (Math.PI*i)/points;
+    const x = cx + Math.cos(a)*r;
+    const y = cy + Math.sin(a)*r;
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
+  ctx.closePath(); ctx.fill(); ctx.globalAlpha=1; ctx.restore();
+}
+
+function drawFighterGhost(g){
+  ctx.save(); ctx.globalAlpha = g.alpha;
+  // 單色輪廓化
+  const skin='#b9c0ff33', torso='#7bf1a833', glove='#ffd16644', pant='#2a2e4233';
+  // 用與 drawFighter 類似的骨架繪製，但採用保存的 pose
+  const waistX=g.x, waistY=g.y - g.h*0.5 + g.pose.bob;
+  // 影子
+  ctx.fillStyle='rgba(0,0,0,0.15)'; ctx.beginPath(); ctx.ellipse(g.x, g.y-4, 28, 8, 0, 0, Math.PI*2); ctx.fill();
+  ctx.translate(waistX,waistY);
+  ctx.rotate(g.pose.torsoLean*(g.flip?-1:1) + g.pose.torsoTwist);
+  const torsoW=g.w, torsoH=50, headW=g.w-14, headH=24;
+  // 腿
+  drawLegSimple(-torsoW*0.25, +g.h*0.5-36, g.pose.backHip, g.pose.backKnee, pant);
+  drawLegSimple(+torsoW*0.25, +g.h*0.5-36, g.pose.frontHip, g.pose.frontKnee, pant);
+  // 軀幹/頭
+  ctx.fillStyle=torso; ctx.fillRect(-torsoW/2,-torsoH/2,torsoW,torsoH);
+  ctx.fillStyle=skin;  ctx.fillRect(-headW/2, -torsoH/2-headH, headW, headH);
+  // 手
+  const shoulderY=-torsoH/2+26, shoulderFrontX=(g.flip?-1:1)>0? +torsoW/2 : -torsoW/2, shoulderBackX=-shoulderFrontX;
+  drawArmSimple(shoulderBackX, shoulderY, g.pose.backUpper, g.pose.backFore, skin, glove);
+  drawArmSimple(shoulderFrontX, shoulderY, g.pose.frontUpper, g.pose.frontFore, skin, glove);
+  ctx.restore();
+}
+function drawArmSimple(sx,sy,upper,fore,skin,gloveC){
+  const arm1=26, arm2=22, th=18;
+  ctx.save(); ctx.translate(sx,sy); ctx.rotate(upper);
+  ctx.fillStyle=skin; ctx.fillRect(0,-th/2, arm1, th);
+  ctx.translate(arm1,0); ctx.rotate(fore*0.8);
+  ctx.fillRect(0,-th/2, arm2, th);
+  ctx.fillStyle=gloveC; ctx.fillRect(arm2-2, -th/2+8, 16,12);
+  ctx.restore();
+}
+function drawLegSimple(hx,baseY,hip,knee,color){
+  const th=16, upper=26, lower=22;
+  ctx.save(); ctx.translate(hx, baseY); ctx.rotate(hip);
+  ctx.fillStyle=color; ctx.fillRect(-th/2,0, th, upper);
+  ctx.translate(0,upper); ctx.rotate(knee);
+  ctx.fillRect(-th/2,0, th, lower);
+  ctx.restore();
 }
 
 function drawFighter(f){
@@ -520,7 +676,6 @@ function drawFighter(f){
   const pose=computePose(f,t);
   const waistX=f.x, waistY=f.y - f.h*0.5 + pose.bob;
 
-  // 調色
   const skin='#fbd6a3', torsoC=f.isCPU?'#6ea8fe':'#7bf1a8', glove=f.isCPU?'#ff8a8a':'#ffd166', pant='#2a2e42';
 
   // 影子
@@ -530,36 +685,28 @@ function drawFighter(f){
   ctx.translate(waistX,waistY);
   ctx.rotate(pose.torsoLean*facing + pose.torsoTwist);
 
-  // 尺寸
   const torsoW=f.w, torsoH=50, headW=f.w-14, headH=24;
-  // 腿（簡式兩節）
-  drawLeg(-torsoW*0.25, +f.h*0.5-36, pose.backHip, pose.backKnee, pant);   // 後腿
-  drawLeg(+torsoW*0.25, +f.h*0.5-36, pose.frontHip, pose.frontKnee, pant); // 前腿
+  drawLeg(-torsoW*0.25, +f.h*0.5-36, pose.backHip, pose.backKnee, pant);
+  drawLeg(+torsoW*0.25, +f.h*0.5-36, pose.frontHip, pose.frontKnee, pant);
 
-  // 軀幹
   ctx.fillStyle=torsoC; ctx.fillRect(-torsoW/2,-torsoH/2,torsoW,torsoH);
 
-  // 頭
   ctx.fillStyle=skin; ctx.fillRect(-headW/2, -torsoH/2-headH, headW, headH);
   ctx.fillStyle='#111'; ctx.fillRect(-headW/2+8, -torsoH/2-headH+8, 4,4); ctx.fillRect(headW/2-12, -torsoH/2-headH+8, 4,4);
 
-  // 肩膀座標
   const shoulderY=-torsoH/2+26, shoulderFrontX=(facing>0? +torsoW/2 : -torsoW/2), shoulderBackX= -shoulderFrontX;
 
-  // 後臂在下層
   drawArm(shoulderBackX, shoulderY, pose.backUpper, pose.backFore, skin, glove);
-  // 前臂在上層（主攻）
   drawArm(shoulderFrontX, shoulderY, pose.frontUpper, pose.frontFore, skin, glove);
 
-  // 出拳風線
   if(f.hitting){
-    const g=gloveWorldPos(f,'front',t);
-    ctx.strokeStyle='#ffffff33'; ctx.beginPath(); ctx.arc(g.x-waistX, g.y-waistY, 14, 0, Math.PI*2); ctx.stroke();
+    const j=armJoints(f,'front',t);
+    ctx.strokeStyle='#ffffff33'; ctx.beginPath(); ctx.arc(j.glove.x-waistX, j.glove.y-waistY, 14, 0, Math.PI*2); ctx.stroke();
   }
   ctx.restore();
 }
 function drawArm(sx,sy,upper,fore,skin,gloveC){
-  const arm1=26, arm2=22, th=18, facing=1; // 已在父座標做過 facing
+  const arm1=26, arm2=22, th=18;
   ctx.save(); ctx.translate(sx,sy); ctx.rotate(upper);
   ctx.fillStyle=skin; ctx.fillRect(0,-th/2, arm1, th);
   ctx.translate(arm1,0); ctx.rotate(fore*0.8);
@@ -576,12 +723,8 @@ function drawLeg(hx,baseY,hip,knee,color){
   ctx.restore();
 }
 
-/* FX helpers */
-function spawnFloating(txt,x,y,color){ state.comboTexts.push({txt,x,y,vy:-0.3,a:1,color}); }
-function spawnSpark(x,y){ state.particles.push({x,y,dx:rand(-1,1),dy:rand(-2,-0.4),life:300}); }
-
 /* ========================
-   ENDING / HUD
+   HUD / ENDING
    ======================== */
 function endRoundByKO(){ state.paused=true; state.running=false; showModal('KO!', modalResultsHTML((player&&player.health>0)?'You Win!':'CPU Wins!'), ()=>SFX.ko()); }
 function endRoundByHP(){
@@ -618,7 +761,7 @@ function loop(ts){
     const dt=ts-state.lastTick; state.lastTick=ts; state.acc+=dt;
     while(state.acc>=state.step){ update(state.step); state.acc-=state.step; }
     render();
-  }catch(err){ console.error('[Block Brawl v2] runtime error:',err); state.running=false; }
+  }catch(err){ console.error('[Block Brawl v3] runtime error:',err); state.running=false; }
   requestAnimationFrame(loop);
 }
 
@@ -636,7 +779,7 @@ modal.root.addEventListener('click',e=>{ if(e.target===modal.root) closeModal();
     localStorage.setItem('bb_seen','1');
     showModal('How to Play', `<div class="grid">
       <div>Move <span class="k">A/D</span> or <span class="k">←/→</span>, Dash <span class="k">W/S</span> or <span class="k">↑/↓</span></div>
-      <div>Punches: <span class="k">J</span>/<span class="k">K</span>/<span class="k">L</span>, Block <span class="k">I</span>, Dodge <span class="k">O</span>, Super <span class="k">Space</span></div>
+      <div>Punches: <span class="k">J</span>/<span class="k">K</span>/<span className="k">L</span>, Block <span class="k">I</span>, Dodge <span class="k">O</span>, Super <span class="k">Space</span></div>
       <div>Pause <span class="k">P</span> • Debug <span class="k">/</span> • Restart <span class="k">R</span></div>
     </div>`);
   }
