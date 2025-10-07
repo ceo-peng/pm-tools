@@ -3,55 +3,45 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Block Brawl v4.4 — Fix transform leak + remove ropes</title>
+<title>Block Brawl v4.6 — Gorilla + Cute Pets + Energetic Music</title>
 <style>
   :root{
     --bg:#0e0f13; --panel:#171923; --panel2:#1f2230; --text:#e8ebff;
-    --accent:#6ea8fe; --accent2:#7bf1a8; --danger:#ff6b6b; --warn:#ffd166;
-    --good:#63e6be; --muted:#a8b0d3;
+    --muted:#a8b0d3; --accent:#6ea8fe; --good:#63e6be; --danger:#ff6b6b; --warn:#ffd166;
   }
   html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
   .wrap{display:flex;flex-direction:column;align-items:center;gap:12px;padding:12px;height:100%}
-  .title{font-weight:800;letter-spacing:.5px;margin:8px 0 0 0}
-  .sub{color:var(--muted);font-size:.95rem;margin-top:-6px}
-  .topbar{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap}
+  h1{margin:8px 0 0 0;letter-spacing:.4px}
+  .sub{color:var(--muted);margin-top:-6px}
   .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid #2a2e42;border-radius:14px;box-shadow:0 4px 18px rgba(0,0,0,.25)}
-  .hud{display:flex;align-items:center;gap:12px;padding:8px 12px}
+  .hud{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px}
   .btn{background:var(--panel2);border:1px solid #2a2e42;border-radius:12px;color:var(--text);padding:10px 14px;font-weight:700;cursor:pointer}
-  .btn:hover{filter:brightness(1.1)} .btn:active{transform:translateY(1px)}
+  .btn:hover{filter:brightness(1.08)} .btn:active{transform:translateY(1px)}
   .select,.input{background:var(--panel2);border:1px solid #2a2e42;border-radius:10px;color:var(--text);padding:8px 10px;font-weight:600}
-  .k{background:#272a3d;border-radius:8px;padding:3px 6px;border:1px solid #35395a}
-  canvas{background:#10131f;border-radius:16px;border:1px solid #2a2e42;max-width:100%;height:auto;display:block}
-  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .grow{flex:1}
+  canvas{background:#10131f;border:1px solid #2a2e42;border-radius:16px;display:block;max-width:100%;height:auto}
   .bars{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
   .bar{height:12px;border-radius:8px;background:#2a2e42;position:relative;overflow:hidden}
-  .fill{position:absolute;left:0;top:0;bottom:0;border-radius:8px}
+  .fill{position:absolute;inset:0;right:auto;border-radius:8px}
   .health{background:linear-gradient(90deg,#ff8a8a,#ff6b6b)}
   .stamina{background:linear-gradient(90deg,#a1ffe7,#63e6be)}
   .super{background:linear-gradient(90deg,#9bb8ff,#6ea8fe)}
-  .timer{font-weight:900;font-size:1.1rem;letter-spacing:.5px}
-  .roundtag{font-weight:800;color:#9bb8ff}
-  .center{display:flex;justify-content:center;align-items:center}
-  .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:5}
-  .modal{width:min(960px,96vw);padding:16px}
-  .modal h3{margin:.2rem 0 .6rem 0}
+  .footer{color:#8891bb;font-size:.85rem;margin-top:-6px}
+  .k{background:#272a3d;border-radius:8px;padding:3px 6px;border:1px solid #35395a}
+  .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:10}
+  .modal{width:min(980px,96vw);padding:16px}
   .grid{display:grid;gap:10px}
   .grid2{grid-template-columns:1fr 1fr}
   .small{font-size:.9rem;color:var(--muted)}
-  .stat{font-weight:800}
-  .footer{color:#8891bb;font-size:.85rem;margin-top:-6px}
-  .chip{padding:6px 10px;border:1px solid #2a2e42;border-radius:999px;cursor:pointer;background:#1f2230}
-  input[type="color"]{width:44px;height:32px;border-radius:8px;border:1px solid #2a2e42;background:#1f2230;padding:0}
-  .miniHelp{color:#9bb8ff;font-size:.85rem}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1 class="title">🧱 Block Brawl v4.4</h1>
-  <div class="sub">Fix transform leak • Remove ropes • Vanilla JS + Canvas • Skins • Panda Theme • Pets</div>
+  <h1>🧱 Block Brawl v4.6</h1>
+  <div class="sub">Gorilla enemy • Cute Pets (Panda/Fox/Boston/Frenchie/Crab) • Energetic Music • Vanilla JS + Canvas</div>
 
-  <div class="topbar card hud">
+  <div class="card hud">
     <button id="btnPlay" class="btn">▶ Play</button>
     <div class="row">
       <label>Difficulty</label>
@@ -59,23 +49,19 @@
     </div>
     <div class="row">
       <label>Theme</label>
-      <select id="selTheme" class="select"><option value="Default" selected>Default</option><option value="Panda">Panda (Bamboo Dojo)</option></select>
+      <select id="selTheme" class="select"><option value="Default">Default</option><option value="Panda" selected>Panda (Bamboo Dojo)</option></select>
     </div>
     <button id="btnSkins" class="btn">Skins</button>
     <button id="btnPets" class="btn">Pets</button>
+    <button id="btnMusic" class="btn">Music</button>
     <button id="btnControls" class="btn">Controls</button>
     <button id="btnAccessibility" class="btn">Accessibility</button>
     <button id="btnPause" class="btn">Pause (P)</button>
-    <div class="row">
-      <span class="roundtag" id="roundTag">Round 1 / 3</span>
-      <span class="timer" id="timer">01:00</span>
-    </div>
+    <div class="row"><strong id="roundTag">Round 1 / 3</strong>&nbsp;<span id="timer">01:00</span></div>
   </div>
 
   <div class="card" style="padding:10px;width:min(980px,96vw)">
-    <div class="row" style="justify-content:space-between">
-      <div><strong>Player</strong></div><div><strong>CPU</strong></div>
-    </div>
+    <div class="row" style="justify-content:space-between"><div><strong>Player</strong></div><div><strong>CPU</strong></div></div>
     <div class="bars">
       <div class="grid">
         <div class="bar"><div id="pHealth" class="fill health" style="width:0%"></div></div>
@@ -94,84 +80,111 @@
   <div class="footer">Debug <span class="k">/</span> • Restart <span class="k">R</span> • Super <span class="k">Space</span></div>
 </div>
 
-<div id="modalBackdrop" class="modal-backdrop center">
+<!-- Modal -->
+<div id="modalBackdrop" class="modal-backdrop">
   <div class="modal card">
     <h3 id="modalTitle">Welcome</h3>
     <div id="modalBody" class="grid"></div>
-    <div class="row" style="justify-content:flex-end;margin-top:10px">
-      <button id="modalClose" class="btn">OK</button>
-    </div>
+    <div class="row" style="justify-content:flex-end"><button id="modalClose" class="btn">OK</button></div>
   </div>
 </div>
 
 <script>
-/* README (4.4)
-Fixes:
-- Prevented duplicate “second scene” by hard-resetting canvas transform each frame (ctx.setTransform(...)).
-- Ensured all background helpers have balanced save/restore.
-- Removed ring ropes per request.
-Controls: A/D or ←/→ move; W/S or ↑/↓ step; J/K/L punches; I block; O dodge; Space super; P pause; / debug; R restart.
+/* README (v4.6)
+新增：
+- Gorilla 敵人樣式（Skins → Enemy Body = Gorilla）
+- 寵物：Panda(重畫)、Chonky Fox(圓潤)、Boston Terrier、French Bulldog、Crab
+- 音樂：Music 面板選擇 Arcade Rush / Dojo Drive / Dark Arena（可關閉），WebAudio 合成、循環播放
+維持：
+- Panda 主題背景、無繩索、transform reset、安全 save/restore
+控制：
+A/D或←/→移動；W/S或↑/↓步伐；J/K/L出拳；I格擋；O閃避；Space超級；P暫停；/除錯；R重開
+調難度/AI參數請改 GAME_CONFIG
 */
 
 const GAME_CONFIG = {
-  canvasW: 960, canvasH: 540, groundY: 420,
-  ring: { left: 80, right: 880 },
-  crowd: { layers: 3, amplitude: 3 },
-  theme: 'Default',
-  player:{ width:54,height:104, moveSpeed:4.2, dash:6.5, dashCd:420, maxHealth:100, maxStamina:100, staminaRegen:14, staminaDrainMove:2, blockMitigation:0.6, dodgeIFrames:260, pushback:3.2, superGainOnHit:8, superGainOnBlock:4, maxSuper:100, comboWindowMs:450, hitstunMs:220, gaitSpeed:0.02 },
-  enemy:{  width:54,height:104, moveSpeed:3.8, dash:6.0, dashCd:480, maxHealth:100, maxStamina:100, staminaRegen:12, staminaDrainMove:2, blockMitigation:0.55, dodgeIFrames:220, pushback:3.0, superGainOnHit:8, superGainOnBlock:4, maxSuper:100, comboWindowMs:420, hitstunMs:200, gaitSpeed:0.018 },
-  moves:{ jab:{dmg:8,stamina:10,range:62,startup:90,active:120,recovery:180,knock:0.6}, hook:{dmg:14,stamina:16,range:58,startup:140,active:110,recovery:220,knock:1.0}, upper:{dmg:20,stamina:22,range:58,startup:180,active:120,recovery:260,knock:1.3}, super:{dmg:36,stamina:0,range:76,startup:220,active:160,recovery:340,knock:1.6} },
-  round:{ seconds:60, suddenDeath:15, bestOf:3, koDowns:3 },
-  audio:{ master:0.18, reduceFlashing:false, soundOn:true },
-  UI:{ colorBlind:false },
-  HITBOX:{ upperBox:{w:18,h:18,scaleDmg:0.7}, foreBox:{w:20,h:20,scaleDmg:1.0} },
-  GAIT:{ stepBoost:0.18, minFactor:0.75 },
-  FX:{ afterimage:{ spawnEveryMs:36, life:260, alpha:0.32 }, stars:{ count:4, life:700, radius:16 } },
-  RENDER:{ outline:'#0a0b12', outlineW:2.2, shadeMul:0.65, specPower:0.8, softAO:0.22, headGloss:0.18 },
-  DIFFICULTY:{
-    Easy:{enemyHp:0.9,enemyDmg:0.85,enemySpeed:0.95,aiAggro:0.72,aiDefend:0.85,aiRandom:0.25},
-    Normal:{enemyHp:1.0,enemyDmg:1.0,enemySpeed:1.0,aiAggro:0.92,aiDefend:1.0,aiRandom:0.18},
-    Hard:{enemyHp:1.15,enemyDmg:1.1,enemySpeed:1.05,aiAggro:1.12,aiDefend:1.08,aiRandom:0.12}
-  },
-  PETS:{ enabled:true, type:'None', offsetX:-90, followLerp:0.14, hopVY:-4.2, gravity:0.22, bobAmp:3, cheerMs:600 }
+  canvasW:960, canvasH:540, groundY:420,
+  ring:{left:80,right:880},
+  theme:'Panda',
+  player:{width:54,height:104, moveSpeed:4.2, dash:6.5, dashCd:420, maxHealth:100, maxStamina:100, staminaRegen:14, staminaDrainMove:2, blockMitigation:0.6, dodgeIFrames:260, pushback:3.2, superGainOnHit:8, superGainOnBlock:4, maxSuper:100, comboWindowMs:450, hitstunMs:220, gaitSpeed:0.02},
+  enemy:{ width:54,height:104, moveSpeed:3.8, dash:6.0, dashCd:480, maxHealth:100, maxStamina:100, staminaRegen:12, staminaDrainMove:2, blockMitigation:0.55, dodgeIFrames:220, pushback:3.0, superGainOnHit:8, superGainOnBlock:4, maxSuper:100, comboWindowMs:420, hitstunMs:200, gaitSpeed:0.018},
+  moves:{jab:{dmg:8,stamina:10,range:62,startup:90,active:120,recovery:180,knock:0.6},hook:{dmg:14,stamina:16,range:58,startup:140,active:110,recovery:220,knock:1.0},upper:{dmg:20,stamina:22,range:58,startup:180,active:120,recovery:260,knock:1.3},super:{dmg:36,stamina:0,range:76,startup:220,active:160,recovery:340,knock:1.6}},
+  round:{seconds:60,suddenDeath:15,bestOf:3},
+  UI:{colorBlind:false}, audio:{master:0.2,reduceFlashing:false,soundOn:true},
+  HITBOX:{upperBox:{w:18,h:18,scaleDmg:0.7},foreBox:{w:20,h:20,scaleDmg:1.0}},
+  GAIT:{stepBoost:0.18,minFactor:0.75},
+  FX:{afterimage:{spawnEveryMs:36,life:260,alpha:0.32},stars:{count:4,life:700,radius:16}},
+  RENDER:{outline:'#0a0b12',outlineW:2.2,shadeMul:0.65,specPower:0.8,softAO:0.22,headGloss:0.18},
+  DIFFICULTY:{Easy:{enemyHp:0.9,enemyDmg:0.85,enemySpeed:0.95,aiAggro:0.72,aiDefend:0.85,aiRandom:0.25},Normal:{enemyHp:1.0,enemyDmg:1.0,enemySpeed:1.0,aiAggro:0.92,aiDefend:1.0,aiRandom:0.18},Hard:{enemyHp:1.15,enemyDmg:1.1,enemySpeed:1.05,aiAggro:1.12,aiDefend:1.08,aiRandom:0.12}},
+  PETS:{type:'None', offsetX:-90, followLerp:0.14, hopVY:-4.2, gravity:0.22, bobAmp:3, cheerMs:600}
 };
 
-const PRESETS=[{name:'Classic Green',skin:'#f6c9a0',hair:'#2b2b2b',glove:'#ffd166',top:'#63e6be',pant:'#2a2e42',wrap:'#9bb8ff',face:'smile',hairStyle:'spiky',scale:{height:1.0,arm:1.0,torso:1.0}},
-{name:'Sky Boxer',skin:'#f1d3b3',hair:'#1f3b7a',glove:'#ff6b6b',top:'#6ea8fe',pant:'#1f2a44',wrap:'#ffd166',face:'determined',hairStyle:'bob',scale:{height:1.02,arm:1.02,torso:0.98}}];
+const PRESETS=[
+  {name:'Player', skin:'#f6c9a0', hair:'#2b2b2b', glove:'#ffd166', top:'#63e6be', pant:'#2a2e42', wrap:'#9bb8ff', face:'smile', hairStyle:'spiky', scale:{height:1.0,arm:1.0,torso:1.0}, bodyStyle:'Human'},
+  {name:'CPU',    skin:'#f1d3b3', hair:'#1f3b7a', glove:'#ff6b6b', top:'#6ea8fe', pant:'#1f2a44', wrap:'#ffd166', face:'determined', hairStyle:'short', scale:{height:1.02,arm:1.02,torso:0.98}, bodyStyle:'Human'}
+];
 
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const nowMs=()=>performance.now(); const rand=(a,b)=>Math.random()*(b-a)+a; const chance=p=>Math.random()<p;
-function fmtTime(s){ s=Math.max(0,Math.floor(s)); return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`; }
+function fmtTime(s){s=Math.max(0,Math.floor(s));return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
 
-const DEFAULT_KEYS={ left:['a','arrowleft'], right:['d','arrowright'], stepF:['w','arrowup'], stepB:['s','arrowdown'], jab:['j'], hook:['k'], upper:['l'], block:['i'], dodge:['o'], super:[' '], pause:['p'], debug:['/'], restart:['r'] };
+const DEFAULT_KEYS={left:['a','arrowleft'],right:['d','arrowright'],stepF:['w','arrowup'],stepB:['s','arrowdown'],jab:['j'],hook:['k'],upper:['l'],block:['i'],dodge:['o'],super:[' '],pause:['p'],debug:['/'],restart:['r']};
 let KEY_MAP=JSON.parse(localStorage.getItem('bb_keys')||'null')||DEFAULT_KEYS;
-const pressed=new Set(); addEventListener('keydown',e=>{ pressed.add(e.key.toLowerCase()); if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault(); });
-addEventListener('keyup',e=>pressed.delete(e.key.toLowerCase()));
+const pressed=new Set(); addEventListener('keydown',e=>{pressed.add(e.key.toLowerCase()); if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();}); addEventListener('keyup',e=>pressed.delete(e.key.toLowerCase()));
 const isDown=n=>(KEY_MAP[n]||[]).some(k=>pressed.has(k));
 
-/* Audio */
+/* ===== Audio: sfx + music ===== */
 const audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-function beep(type='sine',freq=440,dur=0.08,gain=0.12){ if(!GAME_CONFIG.audio.soundOn) return;
-  const t=audioCtx.currentTime,o=audioCtx.createOscillator(); o.type=type;o.frequency.setValueAtTime(freq,t);
-  const g=audioCtx.createGain(); g.gain.value=GAME_CONFIG.audio.master*gain; o.connect(g).connect(audioCtx.destination); o.start(); o.stop(t+dur);
+function beep(type='sine',f=440,d=0.08,g=0.12){if(!GAME_CONFIG.audio.soundOn)return; const t=audioCtx.currentTime,o=audioCtx.createOscillator();o.type=type;o.frequency.setValueAtTime(f,t);const gg=audioCtx.createGain();gg.gain.value=GAME_CONFIG.audio.master*g;o.connect(gg).connect(audioCtx.destination);o.start();o.stop(t+d);}
+const SFX={punch:()=>beep('square',260+Math.random()*60,0.05,0.22),hit:()=>beep('triangle',140,0.08,0.24),block:()=>beep('sine',260,0.06,0.16),dodge:()=>beep('sawtooth',300,0.05,0.16),superR:()=>beep('sine',900,0.13,0.24),bell:()=>beep('sine',660,0.25,0.30),ko:()=>beep('triangle',120,0.36,0.34),ui:()=>beep('sine',520,0.06,0.16)};
+let musicTimer=null, currentTrack='Arcade Rush';
+function stopMusic(){ if(musicTimer){ clearInterval(musicTimer); musicTimer=null; } }
+function startMusic(name){ currentTrack=name; stopMusic(); if(!GAME_CONFIG.audio.soundOn) return;
+  const BPM = name==='Dark Arena'? 96 : (name==='Dojo Drive'? 122 : 128);
+  const beatMs = 60000/BPM;
+  musicTimer=setInterval(()=>{
+    const t=audioCtx.currentTime;
+    // kick
+    drumKick(t,0.8);
+    // snare on 2/4
+    drumSnare(t+beatMs/1000,0.5); drumSnare(t+3*beatMs/1000,0.5);
+    // hihat 8th
+    for(let i=0;i<4;i++) hiHat(t+i*beatMs/2000,0.18);
+    // bassline: minor pentatonic riff (non版權)
+    const base=name==='Dark Arena'? 65 : (name==='Dojo Drive'? 73 : 82);
+    bassNote(t, base, 0.24);
+    bassNote(t+beatMs/2000, base-3, 0.22);
+    bassNote(t+beatMs/1000, base-5, 0.22);
+    if(name!=='Dark Arena') bassNote(t+beatMs*0.75/1000, base-7, 0.22);
+    // lead stab（短促）
+    if(name==='Arcade Rush') leadStab(t+beatMs*0.5/1000, base+7, 0.12);
+    if(name==='Dojo Drive') leadStab(t+beatMs*0.375/1000, base+5, 0.12);
+  }, beatMs);
 }
-const SFX={ punch:()=>beep('square', 240+Math.random()*50, 0.05, 0.2), hit:()=>beep('triangle',140,0.08,0.22), block:()=>beep('sine',260,0.06,0.16),
-            dodge:()=>beep('sawtooth',300,0.04,0.16), superR:()=>beep('sine',900,0.12,0.22), bell:()=>beep('sine',660,0.25,0.28), ko:()=>beep('triangle',120,0.35,0.32), ui:()=>beep('sine',520,0.06,0.16) };
+function env(duration=0.12, peak=0.25){ const g=audioCtx.createGain(); g.gain.value=0; const t=audioCtx.currentTime; g.gain.linearRampToValueAtTime(GAME_CONFIG.audio.master*peak, t+0.01); g.gain.exponentialRampToValueAtTime(0.0001, t+duration); return g; }
+function drumKick(t,amp){ const o=audioCtx.createOscillator(); o.type='sine'; const g=env(0.25,amp); o.connect(g).connect(audioCtx.destination); o.frequency.setValueAtTime(150,t); o.frequency.exponentialRampToValueAtTime(55,t+0.25); o.start(t); o.stop(t+0.26);}
+function drumSnare(t,amp){ const n=audioCtx.createBufferSource(); const buf=noiseBuffer(0.12); n.buffer=buf; const g=env(0.16,amp); const bpf=audioCtx.createBiquadFilter(); bpf.type='bandpass'; bpf.frequency.value=1800; n.connect(bpf).connect(g).connect(audioCtx.destination); n.start(t); }
+function hiHat(t,amp){ const n=audioCtx.createBufferSource(); n.buffer=noiseBuffer(0.06); const hp=audioCtx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=4000; const g=env(0.06,amp); n.connect(hp).connect(g).connect(audioCtx.destination); n.start(t); }
+function bassNote(t,f,amp){ const o=audioCtx.createOscillator(); o.type='square'; const g=env(0.28,0.18); o.connect(g).connect(audioCtx.destination); o.frequency.setValueAtTime(f,t); o.start(t); o.stop(t+0.28); }
+function leadStab(t,f,amp){ const o=audioCtx.createOscillator(); o.type='sawtooth'; const g=env(0.14,0.14); const lp=audioCtx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=1200; o.connect(lp).connect(g).connect(audioCtx.destination); o.frequency.setValueAtTime(f,t); o.start(t); o.stop(t+0.14); }
+function noiseBuffer(sec=0.1){ const sr=audioCtx.sampleRate, len=Math.floor(sr*sec), buf=audioCtx.createBuffer(1,len,sr), data=buf.getChannelData(0); for(let i=0;i<len;i++) data[i]=Math.random()*2-1; return buf; }
 
-/* Skins */
+/* ===== Entities / AI ===== */
 function clone(o){return JSON.parse(JSON.stringify(o));}
 let SKIN_PLAYER=JSON.parse(localStorage.getItem('bb_skin_player')||'null')||clone(PRESETS[0]);
 let SKIN_CPU   =JSON.parse(localStorage.getItem('bb_skin_cpu')||'null')||clone(PRESETS[1]);
 
-/* Entities */
 class Fighter{
   constructor(name,x,flip,isCPU,base,skin){
-    const scale=skin.scale||{height:1,arm:1,torso:1};
-    const H=Math.round(base.height*scale.height), W=Math.round(base.width*scale.torso);
-    Object.assign(this,{name,x,y:GAME_CONFIG.groundY,flip,isCPU,w:W,h:H,scale,skin:clone(skin),
+    const sc=skin.scale||{height:1,arm:1,torso:1};
+    Object.assign(this,{
+      name,x,y:GAME_CONFIG.groundY,flip,isCPU, skin:clone(skin), scale:sc,
+      w:Math.round(base.width*sc.torso), h:Math.round(base.height*sc.height),
       health:base.maxHealth,maxHealth:base.maxHealth, stamina:base.maxStamina,maxStamina:base.maxStamina,
-      super:0,maxSuper:base.maxSuper,lastDash:-9999,state:'idle',hitting:false,
-      move:{kind:null,t:0,window:0,_hit:false}, hitstunUntil:0,dodgeUntil:0,comboUntil:0,gaitPhase:0, acc:{swings:0,hits:0}, _nextAfterimage:0 });
+      super:0,maxSuper:base.maxSuper, state:'idle', hitting:false, lastDash:-9999,
+      move:{kind:null,t:0,window:0,_hit:false}, hitstunUntil:0,dodgeUntil:0, comboUntil:0, gaitPhase:0,
+      acc:{swings:0,hits:0}, _nextAfterimage:0
+    });
   }
   rect(){return {x:this.x-this.w/2,y:this.y-this.h,w:this.w,h:this.h};}
   canAct(t){return t>this.hitstunUntil && t>this.dodgeUntil && !this.hitting;}
@@ -180,93 +193,100 @@ function aabb(a,b){return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b
 
 class SimpleAI{
   constructor(f,diff){this.f=f;this.diff=diff;this.state='idle';this.nextThink=0;}
-  think(t,p,dist){ if(t<this.nextThink) return; this.nextThink=t+120+rand(-60,80);
-    const d=this.diff,f=this.f; const low=f.stamina<25, playerAggro=p.move.kind?1:0;
-    const wantDef=chance(0.25*d.aiDefend)||low||playerAggro; const wantAtk=chance(0.35*d.aiAggro)&&!wantDef;
+  think(t,p,dist){ if(t<this.nextThink)return; this.nextThink=t+120+rand(-60,80);
+    const d=this.diff,f=this.f; const low=f.stamina<25, aggro=p.move.kind?1:0;
+    const wantDef=chance(0.25*d.aiDefend)||low||aggro; const wantAtk=chance(0.35*d.aiAggro)&&!wantDef;
     if(dist>150&&wantAtk){this.state='approach';return;}
     if(dist<70&&wantDef){this.state=chance(0.5)?'defend':'retreat';return;}
     if(wantAtk&&f.canAct(t)&&f.stamina>12){const r=Math.random();this.state='attack_'+(r<0.5?'jab':(r<0.8?'hook':'upper'));return;}
     this.state=low?'retreat':'idle';
   }
-  update(t,p,dt){
+  update(t,p){
     const f=this.f, dist=Math.abs(p.x-f.x), dir=Math.sign(p.x-f.x);
-    this.think(t,p,dist);
-    const gaitBoost=gaitSpeedFactor(f);
+    this.think(t,p,dist); const gait=gaitSpeedFactor(f);
     switch(this.state){
-      case'approach': f.x+=dir*GAME_CONFIG.enemy.moveSpeed*this.diff.enemySpeed*gaitBoost; f.gaitPhase=(f.gaitPhase+GAME_CONFIG.enemy.gaitSpeed)%1; break;
-      case'retreat':  f.x-=dir*(GAME_CONFIG.enemy.moveSpeed*0.9)*gaitBoost; f.gaitPhase=(f.gaitPhase+GAME_CONFIG.enemy.gaitSpeed)%1; break;
+      case'approach': f.x+=dir*GAME_CONFIG.enemy.moveSpeed*this.diff.enemySpeed*gait; f.gaitPhase=(f.gaitPhase+GAME_CONFIG.enemy.gaitSpeed)%1; break;
+      case'retreat':  f.x-=dir*(GAME_CONFIG.enemy.moveSpeed*0.9)*gait; f.gaitPhase=(f.gaitPhase+GAME_CONFIG.enemy.gaitSpeed)%1; break;
       case'defend':   if(chance(0.6*this.diff.aiDefend)&&f.canAct(t)) startBlock(f,t); else if(chance(0.35*this.diff.aiDefend)&&f.canAct(t)) startDodge(f,t); break;
       case'attack_jab':
       case'attack_hook':
       case'attack_upper':
-        if(dist<92&&f.canAct(t)) startMove(f,this.state.split('_')[1],t,true); else this.state='approach';
-        break;
+        if(dist<92&&f.canAct(t)) startMove(f,this.state.split('_')[1],t,true); else this.state='approach'; break;
       default: f.x+=rand(-0.4,0.4);
     }
   }
 }
 
-/* Pets */
+/* ===== Pets ===== */
 class Pet{
-  constructor(type='None'){ this.type=type; this.x=0; this.y=GAME_CONFIG.groundY; this.vy=0; this.cheerUntil=0; this.bobSeed=Math.random()*1000; }
-  get enabled(){return GAME_CONFIG.PETS.enabled && this.type!=='None';}
+  constructor(type='None'){this.type=type;this.x=0;this.y=GAME_CONFIG.groundY;this.vy=0;this.cheerUntil=0;this.bobSeed=Math.random()*1000;}
+  get enabled(){return this.type!=='None';}
   placeAtPlayer(p){this.x=p.x+GAME_CONFIG.PETS.offsetX; this.y=GAME_CONFIG.groundY;}
-  triggerCheer(){const t=nowMs(); this.cheerUntil=t+GAME_CONFIG.PETS.cheerMs; if(Math.abs(this.vy)<0.1) this.vy=GAME_CONFIG.PETS.hopVY;}
-  update(dt,player){
-    if(!this.enabled) return;
+  triggerCheer(){const t=nowMs(); this.cheerUntil=t+GAME_CONFIG.PETS.cheerMs; if(Math.abs(this.vy)<0.1)this.vy=GAME_CONFIG.PETS.hopVY;}
+  update(dt,player){ if(!this.enabled) return;
     const targetX=player.x+GAME_CONFIG.PETS.offsetX; this.x += (targetX-this.x)*GAME_CONFIG.PETS.followLerp;
     const onGround=this.y>=GAME_CONFIG.groundY; if(!onGround) this.vy += GAME_CONFIG.PETS.gravity; this.y += this.vy;
-    if(this.y>GAME_CONFIG.groundY){ this.y=GAME_CONFIG.groundY; this.vy=0; }
-    if(onGround && nowMs()>this.cheerUntil){ const t=(performance.now()+this.bobSeed)*0.005; this.y = GAME_CONFIG.groundY - Math.sin(t)*GAME_CONFIG.PETS.bobAmp*0.35; }
+    if(this.y>GAME_CONFIG.groundY){this.y=GAME_CONFIG.groundY; this.vy=0;}
+    if(onGround && nowMs()>this.cheerUntil){ const t=(performance.now()+this.bobSeed)*0.005; this.y=GAME_CONFIG.groundY - Math.sin(t)*GAME_CONFIG.PETS.bobAmp*0.35; }
   }
-  render(ctx){ if(!this.enabled) return; if(this.type==='Panda') drawPetPanda(ctx,this.x,this.y,nowMs()<this.cheerUntil); if(this.type==='Fox') drawPetFox(ctx,this.x,this.y,nowMs()<this.cheerUntil); }
+  render(ctx){
+    if(!this.enabled) return;
+    const cheering = nowMs()<this.cheerUntil;
+    if(this.type==='Panda') drawPetPanda(ctx,this.x,this.y,cheering);
+    if(this.type==='Chonky Fox') drawPetChonkyFox(ctx,this.x,this.y,cheering);
+    if(this.type==='Boston Terrier') drawPetBoston(ctx,this.x,this.y,cheering);
+    if(this.type==='French Bulldog') drawPetFrenchie(ctx,this.x,this.y,cheering);
+    if(this.type==='Crab') drawPetCrab(ctx,this.x,this.y,cheering);
+  }
 }
 
-/* Global */
+/* ===== Global runtime ===== */
 const canvas=document.getElementById('game'); const ctx=canvas.getContext('2d');
-const state={ running:false, paused:false, debug:false, round:1, seconds:GAME_CONFIG.round.seconds, lastTick:performance.now(), acc:0, step:1000/60,
-  comboTexts:[], particles:[], afterimages:[], stars:[], difficulty:'Normal',
-  stats:{player:{swings:0,hits:0,damage:0}, enemy:{swings:0,hits:0,damage:0}} };
+const state={running:false,paused:false,debug:false,round:1,seconds:GAME_CONFIG.round.seconds,lastTick:performance.now(),acc:0,step:1000/60,
+  comboTexts:[],particles:[],afterimages:[],stars:[],difficulty:'Normal',
+  stats:{player:{swings:0,hits:0,damage:0},enemy:{swings:0,hits:0,damage:0}}};
 let player=null, enemy=null, ai=null, pet=null;
 
-/* Round */
+/* ===== Round / Flow ===== */
 function spawnFighters(){
   const d=GAME_CONFIG.DIFFICULTY[state.difficulty]||GAME_CONFIG.DIFFICULTY.Normal;
-  player=new Fighter('Player', GAME_CONFIG.ring.left+140,false,false,GAME_CONFIG.player, SKIN_PLAYER);
-  enemy =new Fighter('CPU',    GAME_CONFIG.ring.right-140,true, true,  GAME_CONFIG.enemy,  SKIN_CPU);
+  player=new Fighter('Player',GAME_CONFIG.ring.left+140,false,false,GAME_CONFIG.player,SKIN_PLAYER);
+  enemy =new Fighter('CPU',   GAME_CONFIG.ring.right-140,true, true, GAME_CONFIG.enemy, SKIN_CPU);
   enemy.health=enemy.maxHealth=Math.round(GAME_CONFIG.enemy.maxHealth*d.enemyHp);
-  ai=new SimpleAI(enemy,d); if(!pet) pet=new Pet(loadPetType()); pet.placeAtPlayer(player);
+  ai=new SimpleAI(enemy,d);
+  if(!pet) pet=new Pet(loadPetType()); pet.placeAtPlayer(player);
 }
 function resetRound(sec=GAME_CONFIG.round.seconds){
   state.seconds=sec; document.getElementById('roundTag').textContent=`Round ${state.round} / ${GAME_CONFIG.round.bestOf}`;
-  document.getElementById('timer').textContent=fmtTime(state.seconds); spawnFighters(); SFX.bell();
+  document.getElementById('timer').textContent=fmtTime(state.seconds);
+  spawnFighters(); SFX.bell();
 }
 
-/* Moves */
-function startMove(f,kind,t,isEnemy=false){
-  const M=GAME_CONFIG.moves[kind]; if(!M||f.stamina<M.stamina) return;
+/* ===== Combat helpers ===== */
+function startMove(f,kind,t,isEnemy=false){ const M=GAME_CONFIG.moves[kind]; if(!M||f.stamina<M.stamina) return;
   f.hitting=true; f.move={kind,t,window:t+(f.isCPU?GAME_CONFIG.enemy.comboWindowMs:GAME_CONFIG.player.comboWindowMs),_hit:false};
-  f.acc.swings++; if(!isEnemy) state.stats.player.swings++; else state.stats.enemy.swings++;
+  f.acc.swings++; if(isEnemy) state.stats.enemy.swings++; else state.stats.player.swings++;
   f.stamina=Math.max(0,f.stamina-M.stamina); SFX.punch(); if(!f.isCPU && pet?.enabled) pet.triggerCheer();
 }
-function startBlock(f,t){ f.state='block'; f.blockUntil=t+240; SFX.block(); }
-function startDodge(f,t){ f.state='dodge'; f.dodgeUntil=t+(f.isCPU?GAME_CONFIG.enemy.dodgeIFrames:GAME_CONFIG.player.dodgeIFrames); SFX.dodge(); }
+function startBlock(f,t){f.state='block'; f.blockUntil=t+240; SFX.block();}
+function startDodge(f,t){f.state='dodge'; f.dodgeUntil=t+(f.isCPU?GAME_CONFIG.enemy.dodgeIFrames:GAME_CONFIG.player.dodgeIFrames); SFX.dodge();}
 function startSuper(f,t){ if(f.super<f.maxSuper) return; f.super=0; startMove(f,'super',t,f.isCPU); SFX.superR(); }
 
-/* Poses */
-function movePhase(f,t){ const m=f.move; if(!m||!m.kind) return null; const M=GAME_CONFIG.moves[m.kind]; const e=t-m.t; const total=M.startup+M.active+M.recovery; if(e<=0) return 0; if(e>=total) return 1; return e/total; }
-const easeIn=x=>x*x*(3-2*x); const easeOut=x=>1-Math.pow(1-x,2);
-function gaitSpeedFactor(f){ const s=Math.sin(f.gaitPhase*2*Math.PI); const boost=GAME_CONFIG.GAIT.stepBoost*s; return Math.max(GAME_CONFIG.GAIT.minFactor,1+boost); }
+function movePhase(f,t){ const m=f.move; if(!m||!m.kind) return null; const M=GAME_CONFIG.moves[m.kind]; const e=t-m.t; const total=M.startup+M.active+M.recovery; if(e<=0)return 0; if(e>=total)return 1; return e/total; }
+const easeIn=x=>x*x*(3-2*x), easeOut=x=>1-Math.pow(1-x,2);
+function gaitSpeedFactor(f){const s=Math.sin(f.gaitPhase*2*Math.PI);return Math.max(GAME_CONFIG.GAIT.minFactor,1+GAME_CONFIG.GAIT.stepBoost*s);}
+
 function computePose(f,t){
-  const phase=movePhase(f,t), facing=f.flip?-1:1, bob=Math.sin(t*0.005 + (f.isCPU?1.4:0))*2, gait=Math.sin(f.gaitPhase*2*Math.PI), gaitOpp=Math.sin(f.gaitPhase*2*Math.PI+Math.PI);
+  const phase=movePhase(f,t), facing=f.flip?-1:1, bob=Math.sin(t*0.005 + (f.isCPU?1.2:0))*2, gait=Math.sin(f.gaitPhase*2*Math.PI), gaitOpp=Math.sin(f.gaitPhase*2*Math.PI+Math.PI);
   let torsoLean=0, torsoTwist=0;
   let frontUpper=facing*0.15 + gaitOpp*0.12*facing, frontFore=facing*0.25, backUpper=facing*-0.15 + gait*0.12*facing, backFore=facing*-0.10;
   let frontHip=-gait*0.25, frontKnee=Math.max(0,gait)*0.5, backHip=gait*0.25, backKnee=Math.max(0,-gait)*0.5;
   if(f.state==='block'){ frontUpper=facing*-0.35; frontFore=facing*-0.45; backUpper=facing*-0.55; torsoLean=-0.08; }
   if(t<f.dodgeUntil){ torsoLean=-0.25; torsoTwist=-facing*0.15; }
   if(phase!==null){
-    const kind=f.move.kind,M=GAME_CONFIG.moves[kind],total=M.startup+M.active+M.recovery;
-    const s=M.startup/total,a=(M.startup+M.active)/total; let p; if(phase<=s)p=easeIn(phase/s); else if(phase<=a)p=1; else p=easeOut(1-(phase-a)/(1-a));
+    const kind=f.move.kind, M=GAME_CONFIG.moves[kind], total=M.startup+M.active+M.recovery;
+    const s=M.startup/total, a=(M.startup+M.active)/total;
+    let p; if(phase<=s)p=easeIn(phase/s); else if(phase<=a)p=1; else p=easeOut(1-(phase-a)/(1-a));
     const MAX={jab:{arm:1.15,twist:0.14,lean:0.10},hook:{arm:1.6,twist:0.28,lean:0.12},upper:{arm:1.9,twist:0.20,lean:0.18},super:{arm:2.1,twist:0.32,lean:0.24}}[kind];
     frontUpper=facing*(0.1 + MAX.arm*0.6*p); frontFore=facing*(0.25 + MAX.arm*0.4*p); backUpper=facing*(-0.25 + 0.3*p); backFore=facing*(-0.15 + 0.25*p);
     torsoTwist=facing*(MAX.twist*p); torsoLean=0.02 + MAX.lean*p; if(kind==='upper'){frontUpper-=facing*0.35*p; frontFore+=facing*0.15*p;} if(kind==='hook'){frontFore+=facing*0.25*p;}
@@ -289,40 +309,29 @@ function armJoints(f,which,t){
 function armSegmentBoxes(f,which,t){
   const j=armJoints(f,which,t), up=GAME_CONFIG.HITBOX.upperBox, fo=GAME_CONFIG.HITBOX.foreBox;
   const midUpper={x:(j.shoulder.x+j.elbow.x)/2,y:(j.shoulder.y+j.elbow.y)/2}, midFore={x:(j.elbow.x+j.glove.x)/2,y:(j.elbow.y+j.glove.y)/2};
-  return { upperBox:{x:midUpper.x-up.w/2,y:midUpper.y-up.h/2,w:up.w,h:up.h,scale:up.scaleDmg}, foreBox:{x:midFore.x-fo.w/2,y:midFore.y-fo.h/2,w:fo.w,h:fo.h,scale:fo.scaleDmg} };
+  return {upperBox:{x:midUpper.x-up.w/2,y:midUpper.y-up.h/2,w:up.w,h:up.h,scale:up.scaleDmg}, foreBox:{x:midFore.x-fo.w/2,y:midFore.y-fo.h/2,w:fo.w,h:fo.h,scale:fo.scaleDmg}};
 }
-
-/* Damage / FX */
 function applyHit(att,vic,baseDmg,knock,t,scale=1){
   if(t<vic.dodgeUntil) return;
   let dealt=Math.round(baseDmg*scale); const cfg=vic.isCPU?GAME_CONFIG.enemy:GAME_CONFIG.player;
   if(vic.state==='block'){ dealt=Math.round(dealt*(1-cfg.blockMitigation)); SFX.block(); } else SFX.hit();
-  vic.health=Math.max(0,vic.health-dealt);
-  if(att.isCPU){state.stats.enemy.damage+=dealt; state.stats.enemy.hits++;} else {state.stats.player.damage+=dealt; state.stats.player.hits++;}
-  att.super=clamp(att.super + (att.isCPU?GAME_CONFIG.enemy.superGainOnHit:GAME_CONFIG.player.superGainOnHit),0,att.maxSuper);
-  vic.super=clamp(vic.super + (vic.isCPU?GAME_CONFIG.enemy.superGainOnBlock:GAME_CONFIG.player.superGainOnBlock),0,vic.maxSuper);
+  vic.health=Math.max(0,vic.health-dealt); (att.isCPU?state.stats.enemy:state.stats.player).damage+=dealt; (att.isCPU?state.stats.enemy:state.stats.player).hits++;
+  att.super=clamp(att.super+(att.isCPU?GAME_CONFIG.enemy.superGainOnHit:GAME_CONFIG.player.superGainOnHit),0,att.maxSuper);
+  vic.super=clamp(vic.super+(vic.isCPU?GAME_CONFIG.enemy.superGainOnBlock:GAME_CONFIG.player.superGainOnBlock),0,vic.maxSuper);
   const push=(att.isCPU?GAME_CONFIG.enemy.pushback:GAME_CONFIG.player.pushback)*knock*(att.flip?-1:1); vic.x+=push*8; vic.hitstunUntil=t+(vic.isCPU?GAME_CONFIG.enemy.hitstunMs:GAME_CONFIG.player.hitstunMs);
   if(vic.health<=0) SFX.ko();
 }
-function spawnFloating(txt,x,y,color){ state.comboTexts.push({txt,x,y,vy:-0.3,a:1,color}); }
-function spawnSpark(x,y){ state.particles.push({x,y,dx:rand(-1,1),dy:rand(-2,-0.4),life:300}); }
-function spawnStunStars(f){ const c=headWorldPos(f); for(let i=0;i<GAME_CONFIG.FX.stars.count;i++) state.stars.push({x:c.x,y:c.y-6,angle:(i/GAME_CONFIG.FX.stars.count)*Math.PI*2,radius:GAME_CONFIG.FX.stars.radius,life:GAME_CONFIG.FX.stars.life,t:0}); }
-function headWorldPos(f){ const pose=computePose(f,performance.now()); const waistX=f.x, waistY=f.y - f.h*0.5 + pose.bob; const headY=-50/2 - 24; return {x:waistX,y:waistY+headY}; }
-function leaveAfterimage(f,t){ if(t<f._nextAfterimage) return; f._nextAfterimage=t+GAME_CONFIG.FX.afterimage.spawnEveryMs; const pose=computePose(f,t);
-  state.afterimages.push({x:f.x,y:f.y,w:f.w,h:f.h,flip:f.flip,isCPU:f.isCPU,pose,skin:clone(f.skin),life:GAME_CONFIG.FX.afterimage.life,alpha:GAME_CONFIG.FX.afterimage.alpha,scale:clone(f.scale)});
-}
+function leaveAfterimage(f,t){ if(t<f._nextAfterimage) return; f._nextAfterimage=t+GAME_CONFIG.FX.afterimage.spawnEveryMs; const pose=computePose(f,t); state.afterimages.push({x:f.x,y:f.y,w:f.w,h:f.h,flip:f.flip,isCPU:f.isCPU,pose,skin:clone(f.skin),life:GAME_CONFIG.FX.afterimage.life,alpha:GAME_CONFIG.FX.afterimage.alpha,scale:clone(f.scale)}); }
 
-/* Update */
 function update(dt){
   const t=nowMs(); if(state.paused||!state.running) return;
-  state._secAcc=(state._secAcc||0)+dt/1000; if(state._secAcc>=1){ state._secAcc=0; state.seconds=Math.max(0,state.seconds-1); document.getElementById('timer').textContent=fmtTime(state.seconds);
-    if(state.seconds===0){ if(!state.sudden){ state.sudden=true; state.seconds=GAME_CONFIG.round.suddenDeath; SFX.bell(); } else { endRoundByHP(); return; } } }
+  state._secAcc=(state._secAcc||0)+dt/1000; if(state._secAcc>=1){state._secAcc=0; state.seconds=Math.max(0,state.seconds-1); document.getElementById('timer').textContent=fmtTime(state.seconds); if(state.seconds===0){ if(!state.sudden){state.sudden=true; state.seconds=GAME_CONFIG.round.suddenDeath; SFX.bell();} else { endRoundByHP(); return; } } }
   if(player&&enemy){
     player.flip = enemy.x<player.x; enemy.flip = player.x<enemy.x;
-    const mv=(isDown('left')?-1:0)+(isDown('right')?1:0); const gaitBoost=gaitSpeedFactor(player);
-    player.x += mv*GAME_CONFIG.player.moveSpeed*gaitBoost; if(mv!==0) player.gaitPhase=(player.gaitPhase+GAME_CONFIG.player.gaitSpeed)%1;
-    if(isDown('stepF')&&t>player.lastDash+GAME_CONFIG.player.dashCd){ player.lastDash=t; const dir=player.flip?-1:1; player.x+=dir*(GAME_CONFIG.player.dash*10); player.stamina=Math.max(0,player.stamina-GAME_CONFIG.player.staminaDrainMove); }
-    if(isDown('stepB')&&t>player.lastDash+GAME_CONFIG.player.dashCd){ player.lastDash=t; const dir=player.flip?-1:1; player.x-=dir*(GAME_CONFIG.player.dash*10); player.stamina=Math.max(0,player.stamina-GAME_CONFIG.player.staminaDrainMove); }
+    const mv=(isDown('left')?-1:0)+(isDown('right')?1:0), gait=gaitSpeedFactor(player);
+    player.x += mv*GAME_CONFIG.player.moveSpeed*gait; if(mv!==0) player.gaitPhase=(player.gaitPhase+GAME_CONFIG.player.gaitSpeed)%1;
+    if(isDown('stepF')&&t>player.lastDash+GAME_CONFIG.player.dashCd){ player.lastDash=t; const dir=player.flip?-1:1; player.x+=dir*(GAME_CONFIG.player.dash*10); player.stamina=Math.max(0,player.stamina-GAME_CONFIG.player.staminaDrainMove);}
+    if(isDown('stepB')&&t>player.lastDash+GAME_CONFIG.player.dashCd){ player.lastDash=t; const dir=player.flip?-1:1; player.x-=dir*(GAME_CONFIG.player.dash*10); player.stamina=Math.max(0,player.stamina-GAME_CONFIG.player.staminaDrainMove);}
     if(player.canAct(t)){
       if(isDown('block')) startBlock(player,t);
       else if(isDown('dodge')) startDodge(player,t);
@@ -339,66 +348,43 @@ function update(dt){
     stepMoveWithSegments(player,enemy,t); stepMoveWithSegments(enemy,player,t);
     if(player.health<=0||enemy.health<=0){ endRoundByKO(); }
   }
-  if(pet) pet.update(dt, player||{x:GAME_CONFIG.canvasW/2});
-  for(const fx of state.comboTexts){ fx.y+=fx.vy; fx.a-=0.01; } state.comboTexts=state.comboTexts.filter(fx=>fx.a>0);
-  for(const p of state.particles){ p.x+=p.dx; p.y+=p.dy; p.dy+=0.03; p.life-=dt; } state.particles=state.particles.filter(p=>p.life>0);
-  for(const g of state.afterimages){ g.life-=dt; g.alpha*=0.94; } state.afterimages=state.afterimages.filter(g=>g.life>0);
-  for(const s of state.stars){ s.t+=dt; s.life-=dt; } state.stars=state.stars.filter(s=>s.life>0);
+  if(pet) pet.update(dt,player||{x:GAME_CONFIG.canvasW/2});
+  for(const fx of state.comboTexts){fx.y+=fx.vy; fx.a-=0.01;} state.comboTexts=state.comboTexts.filter(fx=>fx.a>0);
+  for(const p of state.particles){p.x+=p.dx; p.y+=p.dy; p.dy+=0.03; p.life-=dt;} state.particles=state.particles.filter(p=>p.life>0);
+  for(const g of state.afterimages){g.life-=dt; g.alpha*=0.94;} state.afterimages=state.afterimages.filter(g=>g.life>0);
+  for(const s of state.stars){s.t+=dt; s.life-=dt;} state.stars=state.stars.filter(s=>s.life>0);
   setBars();
 }
 function stepMoveWithSegments(att,vic,t){
   const m=att.move; if(!m.kind) return; const M=GAME_CONFIG.moves[m.kind]; const elapsed=t-m.t;
   if(elapsed>M.startup && elapsed<M.startup+M.active && !m._hit){
     const {upperBox,foreBox}=armSegmentBoxes(att,'front',t);
-    if(vic && aabb(foreBox,vic.rect())){ applyHit(att,vic,M.dmg,M.knock,t,foreBox.scale); spawnSpark(foreBox.x+foreBox.w/2, foreBox.y+foreBox.h/2); m._hit=true; }
-    else if(vic && aabb(upperBox,vic.rect())){ applyHit(att,vic,M.dmg,M.knock*0.8,t,upperBox.scale); spawnSpark(upperBox.x+upperBox.w/2, upperBox.y+upperBox.h/2); m._hit=true; }
+    if(vic && aabb(foreBox,vic.rect())){ applyHit(att,vic,M.dmg,M.knock,t,foreBox.scale); spawnSpark(foreBox.x+foreBox.w/2,foreBox.y+foreBox.h/2); m._hit=true; }
+    else if(vic && aabb(upperBox,vic.rect())){ applyHit(att,vic,M.dmg,M.knock*0.8,t,upperBox.scale); spawnSpark(upperBox.x+upperBox.w/2,upperBox.y+upperBox.h/2); m._hit=true; }
   }
-  if(elapsed > (M.startup+M.active+M.recovery)){ att.hitting=false; att.move={kind:null,t:0,window:0,_hit:false}; }
+  if(elapsed>(M.startup+M.active+M.recovery)){ att.hitting=false; att.move={kind:null,t:0,window:0,_hit:false}; }
 }
 
-/* Background (Panda / Default) */
-function renderBackgroundDefault(w,h){
-  ctx.save();
-  const bg=ctx.createLinearGradient(0,0,0,h); bg.addColorStop(0,'#0b0f1d'); bg.addColorStop(1,'#0b0c10'); ctx.fillStyle=bg; ctx.fillRect(0,0,w,h);
-  for(let i=0;i<GAME_CONFIG.crowd.layers;i++){
-    const y=120+i*28; ctx.fillStyle=`rgba(${40+i*20},${45+i*20},${70+i*25},${0.35-i*0.07})`;
-    for(let x=0;x<w;x+=24){ const j=Math.sin((x+i*130+performance.now()*0.0007*(i+1)))*GAME_CONFIG.crowd.amplitude; ctx.fillRect(x,y+j,16,16); }
-  }
-  drawRing(w,h);
-  ctx.restore();
-}
+/* ===== Background ===== */
 function renderBackgroundPanda(w,h){
   ctx.save();
   const t=performance.now()/1000;
   const sky=ctx.createLinearGradient(0,0,0,h); sky.addColorStop(0,'#ffdf9e'); sky.addColorStop(0.4,'#ffb77e'); sky.addColorStop(1,'#1a1d29'); ctx.fillStyle=sky; ctx.fillRect(0,0,w,h);
-  const sunX=w*0.68, sunY=h*0.22, sunR=56; ctx.globalAlpha=0.9; ctx.fillStyle='#ffd166'; ctx.beginPath(); ctx.arc(sunX,sunY,sunR,0,Math.PI*2); ctx.fill();
-  ctx.globalAlpha=0.2; ctx.beginPath(); ctx.arc(sunX,sunY,sunR*1.8,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  const sunX=w*0.68, sunY=h*0.22, sunR=56; ctx.globalAlpha=0.9; ctx.fillStyle='#ffd166'; ctx.beginPath(); ctx.arc(sunX,sunY,sunR,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=0.2; ctx.beginPath(); ctx.arc(sunX,sunY,sunR*1.8,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
   drawMountains(3,h*0.58,'#2a2d3d',0.15,0.003,0.8); drawMountains(2,h*0.66,'#202334',0.22,0.004,0.9); drawMountains(1,h*0.74,'#161a2a',0.30,0.006,1.0);
-  for(let i=0;i<3;i++){ const fog=ctx.createLinearGradient(0,h*0.45+i*40,0,h*0.60+i*50); fog.addColorStop(0,'rgba(255,255,255,0.05)'); fog.addColorStop(1,'rgba(255,255,255,0.0)'); ctx.fillStyle=fog; ctx.fillRect(0,h*0.45+i*40,w,70); }
-  ctx.fillStyle='#1a1e2d'; const bx=w*0.46,by=h*0.54; ctx.fillRect(bx-60,by,120,8); ctx.fillRect(bx-38,by-24,76,24); ctx.beginPath(); ctx.moveTo(bx-42,by-24); ctx.lineTo(bx,by-48); ctx.lineTo(bx+42,by-24); ctx.closePath(); ctx.fill();
-  drawBambooWall('left',14,w*0.08,h,t); drawBambooWall('right',14,w*0.92,h,t); drawLanternCluster(w*0.20,h*0.28,t); drawLanternCluster(w*0.80,h*0.26,t);
-  drawRing(w,h);
+  drawBambooWall('left',14,w*0.08,h,t); drawBambooWall('right',14,w*0.92,h,t);
+  // ring platform (no ropes)
+  ctx.fillStyle='#1c2030'; ctx.fillRect(60,GAME_CONFIG.groundY-10,w-120,20);
   ctx.restore();
 }
-function drawRing(w,h){
-  ctx.save();
-  ctx.fillStyle='#1c2030'; ctx.fillRect(60, GAME_CONFIG.groundY-10, w-120, 20);
-  // Ropes removed intentionally (as requested).
-  ctx.globalAlpha=0.12; const glow=ctx.createRadialGradient(w/2,GAME_CONFIG.groundY-40,40,w/2,GAME_CONFIG.groundY-40,340);
-  glow.addColorStop(0,'#6ea8fe'); glow.addColorStop(1,'transparent'); ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(w/2,GAME_CONFIG.groundY-40,340,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
-  ctx.restore();
-}
+function renderBackgroundDefault(w,h){ ctx.save(); ctx.fillStyle='#0b0f1d'; ctx.fillRect(0,0,w,h); ctx.fillStyle='#111722'; ctx.fillRect(60,GAME_CONFIG.groundY-10,w-120,20); ctx.restore(); }
 function drawMountains(layers,baseY,color,amp,speed,scaleX){
   ctx.save(); const t=performance.now()*speed; ctx.fillStyle=color;
-  for(let L=0;L<layers;L++){ ctx.beginPath(); const y=baseY+L*16; ctx.moveTo(0,y);
-    for(let x=0;x<=960;x+=32){ const n=Math.sin((x*scaleX+t*0.04)+L)*amp*60 + Math.cos((x*scaleX*0.6+t*0.03)-L)*amp*30; ctx.lineTo(x,y-n); }
-    ctx.lineTo(960,540); ctx.lineTo(0,540); ctx.closePath(); ctx.fill();
-  }
+  for(let L=0;L<layers;L++){ ctx.beginPath(); const y=baseY+L*16; ctx.moveTo(0,y); for(let x=0;x<=960;x+=32){ const n=Math.sin((x*scaleX+t*0.04)+L)*amp*60 + Math.cos((x*scaleX*0.6+t*0.03)-L)*amp*30; ctx.lineTo(x,y-n); } ctx.lineTo(960,540); ctx.lineTo(0,540); ctx.closePath(); ctx.fill(); }
   ctx.restore();
 }
 function drawBambooWall(side,count,anchorX,h,t){
-  ctx.save();
-  const sway=Math.sin(t*1.2)*0.06;
+  ctx.save(); const sway=Math.sin(t*1.2)*0.06;
   for(let i=0;i<count;i++){ const off=(i/(count-1))*120-60; const x=side==='left'?anchorX+off:anchorX-off; const height=220+(i%5)*14; drawSingleBamboo(x,h*0.60,height,sway*(0.6+(i%3)*0.15)); }
   ctx.restore();
 }
@@ -409,271 +395,278 @@ function drawSingleBamboo(x,baseY,height,angle){
   for(let k=0;k<5;k++){ ctx.save(); ctx.translate(0,-height*0.2 - k*height*0.15); ctx.rotate(-0.6 + k*0.25); ctx.fillStyle='rgba(49,201,120,0.8)'; ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(28,-6,46,0); ctx.quadraticCurveTo(28,6,0,0); ctx.fill(); ctx.restore(); }
   ctx.restore();
 }
-function drawLanternCluster(cx,cy,t){ ctx.save(); for(let i=0;i<3;i++){ const phase=t*1.4+i*0.7; const x=cx+Math.sin(phase)*6; const y=cy+i*44+Math.cos(phase*0.8)*2; drawLantern(x,y); } ctx.restore(); }
-function drawLantern(x,y){
-  ctx.save(); ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x,y-18); ctx.lineTo(x,y-30); ctx.stroke();
-  const g=ctx.createRadialGradient(x,y,4,x,y,22); g.addColorStop(0,'#ff8e6e'); g.addColorStop(1,'#a42e20'); ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(x,y,14,18,0,0,Math.PI*2); ctx.fill();
-  ctx.globalAlpha=0.35; ctx.fillStyle='#fff'; ctx.beginPath(); ctx.ellipse(x-4,y-4,6,8,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
-  ctx.globalAlpha=0.18; ctx.fillStyle='#ff7a50'; ctx.beginPath(); ctx.ellipse(x,y,30,22,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+
+/* ===== Render Fighters ===== */
+function drawFighter(f,isGhost=false){
+  if(f.skin.bodyStyle==='Gorilla') return drawGorillaFighter(f,isGhost);
+  const t=performance.now(), pose=computePose(f,t), facing=f.flip?-1:1;
+  const waistX=f.x, waistY=f.y - f.h*0.5 + pose.bob, s=f.skin, R=GAME_CONFIG.RENDER, sc=f.scale;
+  // shadow
+  ctx.globalAlpha=isGhost?0.15:0.3; ctx.fillStyle='#000'; ctx.beginPath(); ctx.ellipse(f.x,f.y-4,30,8,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  ctx.save(); ctx.translate(waistX,waistY); ctx.rotate(pose.torsoLean*(f.flip?-1:1)+pose.torsoTwist);
+  const torsoW=f.w, torsoH=50*sc.torso, headW=f.w-12, headH=24*sc.torso;
+  ctx.globalAlpha=R.softAO; ctx.fillStyle='#000'; roundedRect(-torsoW/2,torsoH/2-6,torsoW,10,6,true); ctx.globalAlpha=1;
+  drawLeg(-torsoW*0.25,+f.h*0.5-36,pose.backHip,pose.backKnee,s.pant,R.outline);
+  drawLeg(+torsoW*0.25,+f.h*0.5-36,pose.frontHip,pose.frontKnee,s.pant,R.outline);
+  const torsoGrad=ctx.createLinearGradient(0,-torsoH/2,0,torsoH/2); torsoGrad.addColorStop(0,shade(s.top,1.10)); torsoGrad.addColorStop(0.7,s.top); torsoGrad.addColorStop(1,shade(s.top,R.shadeMul));
+  ctx.fillStyle=torsoGrad; roundedRect(-torsoW/2,-torsoH/2,torsoW,torsoH,8,true,R.outline);
+  const headGrad=ctx.createLinearGradient(0,-torsoH/2-headH,0,-torsoH/2); headGrad.addColorStop(0,shade(s.skin,1.02)); headGrad.addColorStop(1,shade(s.skin,R.shadeMul));
+  ctx.fillStyle=headGrad; roundedRect(-headW/2,-torsoH/2-headH,headW,headH,6,true,R.outline);
+  ctx.globalAlpha=R.headGloss; ctx.fillStyle='#fff'; roundedRect(-headW*0.25,-torsoH/2-headH+4,headW*0.22,headH*0.25,4,true); ctx.globalAlpha=1;
+  drawFace(headW,torsoH,s.face);
+  const shoulderY=-torsoH/2+26, shoulderFront=(f.flip? -torsoW/2 : +torsoW/2), shoulderBack=-shoulderFront;
+  drawArm(shoulderBack,shoulderY,pose.backUpper,pose.backFore,s.skin,s.glove,s.wrap,R.outline,sc);
+  drawArm(shoulderFront,shoulderY,pose.frontUpper,pose.frontFore,s.skin,s.glove,s.wrap,R.outline,sc);
+  drawHair(headW,torsoH,s.hair,s.hairStyle,R.outline);
+  if(f.hitting && !isGhost){ const j=armJoints(f,'front',performance.now()); ctx.strokeStyle='#ffffff33'; ctx.beginPath(); ctx.arc(j.glove.x-waistX, j.glove.y-waistY,14,0,Math.PI*2); ctx.stroke(); }
+  ctx.restore();
+}
+function drawGorillaFighter(f,isGhost=false){
+  const t=performance.now(), pose=computePose(f,t), facing=f.flip?-1:1, R=GAME_CONFIG.RENDER;
+  const waistX=f.x, waistY=f.y - f.h*0.5 + pose.bob;
+  const body='#3b3b46', chest='#555565', faceC='#d8c6b0', glove='#ff6b6b';
+  // shadow
+  ctx.globalAlpha=isGhost?0.15:0.35; ctx.fillStyle='#000'; ctx.beginPath(); ctx.ellipse(f.x,f.y-4,34,9,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  ctx.save(); ctx.translate(waistX,waistY); ctx.rotate(pose.torsoLean*(f.flip?-1:1)+pose.torsoTwist);
+  const torsoW=f.w*1.2, torsoH=60;
+  // belly
+  const g=ctx.createLinearGradient(0,-torsoH/2,0,torsoH/2); g.addColorStop(0,shade(chest,1.05)); g.addColorStop(1,shade(chest,0.7));
+  ctx.fillStyle=g; roundedRect(-torsoW/2,-torsoH/2,torsoW,torsoH,12,true,R.outline);
+  // back plate
+  ctx.fillStyle=body; roundedRect(-torsoW/2-6,-torsoH/2-6,torsoW+12,torsoH+12,14,true);
+  // head (muzzle)
+  ctx.fillStyle=body; roundedRect(-36,-torsoH/2-32,72,30,10,true,R.outline);
+  ctx.fillStyle=faceC; roundedRect(-22,-torsoH/2-24,44,18,8,true);
+  // eyes
+  ctx.fillStyle='#111'; roundedRect(-10,-torsoH/2-18,8,6,2,true); roundedRect(2,-torsoH/2-18,8,6,2,true);
+  // long arms
+  const armScale={arm:1.25}; drawArm(-torsoW*0.38,-torsoH*0.2,pose.backUpper,pose.backFore,faceC,glove,'#444',R.outline,armScale);
+  drawArm(+torsoW*0.38,-torsoH*0.2,pose.frontUpper,pose.frontFore,faceC,glove,'#444',R.outline,armScale);
+  // legs
+  drawLeg(-torsoW*0.28,+f.h*0.5-36,pose.backHip,pose.backKnee,body,R.outline);
+  drawLeg(+torsoW*0.28,+f.h*0.5-36,pose.frontHip,pose.frontKnee,body,R.outline);
   ctx.restore();
 }
 
-/* Render */
+/* ===== Small draw helpers ===== */
+function drawArm(sx,sy,upper,fore,skin,glove,wrap,outlineCol,scale={arm:1}){
+  const arm1=26*(scale.arm||1), arm2=22*(scale.arm||1), th=18;
+  ctx.save(); ctx.translate(sx,sy); ctx.rotate(upper);
+  const g1=ctx.createLinearGradient(0,-th/2,0,th/2); g1.addColorStop(0,shade(skin,1.05)); g1.addColorStop(1,shade(skin,GAME_CONFIG.RENDER.shadeMul)); ctx.fillStyle=g1; roundedRect(0,-th/2,arm1,th,8,true,outlineCol);
+  ctx.fillStyle=wrap; roundedRect(arm1*0.35,-th/2,10,th,4,true);
+  ctx.translate(arm1,0); ctx.rotate(fore*0.8);
+  const g2=ctx.createLinearGradient(0,-th/2,0,th/2); g2.addColorStop(0,shade(skin,1.02)); g2.addColorStop(1,shade(skin,GAME_CONFIG.RENDER.shadeMul)); ctx.fillStyle=g2; roundedRect(0,-th/2,arm2,th,8,true,outlineCol);
+  const gg=ctx.createLinearGradient(0,-th/2,0,th/2); gg.addColorStop(0,shade(glove,1.08)); gg.addColorStop(1,shade(glove,GAME_CONFIG.RENDER.shadeMul)); ctx.fillStyle=gg; roundedRect(arm2-2,-th/2+6,18,12,6,true,outlineCol);
+  ctx.restore();
+}
+function drawLeg(hx,baseY,hip,knee,color,outlineCol){ const th=16, upper=26, lower=22; ctx.save(); ctx.translate(hx,baseY); ctx.rotate(hip);
+  const g1=ctx.createLinearGradient(-th/2,0,th/2,0); g1.addColorStop(0,shade(color,1.1)); g1.addColorStop(1,shade(color,GAME_CONFIG.RENDER.shadeMul)); ctx.fillStyle=g1; roundedRect(-th/2,0,th,upper,7,true,outlineCol);
+  ctx.translate(0,upper); ctx.rotate(knee); const g2=ctx.createLinearGradient(-th/2,0,th/2,0); g2.addColorStop(0,shade(color,1.06)); g2.addColorStop(1,shade(color,GAME_CONFIG.RENDER.shadeMul)); ctx.fillStyle=g2; roundedRect(-th/2,0,th,lower,7,true,outlineCol); ctx.restore(); }
+function roundedRect(x,y,w,h,r,fill=true,strokeCol=null){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); if(fill) ctx.fill(); if(strokeCol){ ctx.lineWidth=GAME_CONFIG.RENDER.outlineW; ctx.strokeStyle=strokeCol; ctx.stroke(); } }
+function shade(hex,mul){ const {r,g,b}=hexToRgb(hex); return `rgb(${clamp(Math.round(r*mul),0,255)},${clamp(Math.round(g*mul),0,255)},${clamp(Math.round(b*mul),0,255)})`; }
+function hexToRgb(hex){ const m=hex.replace('#',''); const n=parseInt(m,16); return {r:(n>>16)&255,g:(n>>8)&255,b:n&255}; }
+function drawFace(headW,torsoH,kind){ ctx.save(); ctx.translate(0,-torsoH/2 - headW*0.22); ctx.fillStyle='#111'; roundedRect(-headW*0.26,-4,6,6,2,true); roundedRect(+headW*0.20,-4,6,6,2,true); if(kind==='determined'){ roundedRect(-8,6,16,2,1,true);} else { ctx.fillRect(-6,6,12,2);} ctx.restore(); }
+
+/* ===== Cute Pets drawing (幾何/零圖片) ===== */
+function petShadow(x,y){ ctx.globalAlpha=0.2; ctx.fillStyle='#000'; ctx.beginPath(); ctx.ellipse(x,y-2,20,6,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1; }
+function drawPetPanda(ctx,x,y,cheer){ const base=y-6; petShadow(x,y);
+  // 身體+黑肚兜
+  ctx.fillStyle='#fff'; roundedRect(x-18,base-28,36,30,14,true);
+  ctx.fillStyle='#111'; roundedRect(x-18,base-16,36,18,12,true);
+  // 頭（明顯大些，熊貓比例）
+  ctx.fillStyle='#fff'; roundedRect(x-20,base-44,40,28,12,true);
+  // 耳
+  ctx.fillStyle='#111'; ctx.beginPath(); ctx.arc(x-12,base-44,6,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(x+12,base-44,6,0,Math.PI*2); ctx.fill();
+  // 眼圈+眼
+  ctx.fillStyle='#222'; ctx.beginPath(); ctx.ellipse(x-8,base-34,6,7,0.2,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.ellipse(x+8,base-34,6,7,-0.2,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(x-8,base-34,2,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(x+8,base-34,2,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#111'; ctx.fillRect(x-1,base-30,2,2); ctx.fillRect(x-4,base-28,8,2);
+  // 手手加油
+  const a = cheer? Math.sin(performance.now()*0.02)*0.7 : Math.sin(performance.now()*0.005)*0.3;
+  ctx.save(); ctx.translate(x-16,base-20); ctx.rotate(-0.7+a); roundedRect(-3,-3,6,12,3,true); ctx.restore();
+  ctx.save(); ctx.translate(x+16,base-20); ctx.rotate(0.7-a);  roundedRect(-3,-3,6,12,3,true); ctx.restore();
+}
+function drawPetChonkyFox(ctx,x,y,cheer){ const base=y-6; petShadow(x,y);
+  ctx.fillStyle='#e5732a'; roundedRect(x-22,base-22,44,26,14,true); // 胖身體
+  ctx.fillStyle='#ffd9b0'; roundedRect(x-8,base-18,16,14,7,true);   // 胸口白
+  ctx.fillStyle='#e5732a'; roundedRect(x-16,base-40,32,20,10,true); // 頭
+  // 耳
+  ctx.beginPath(); ctx.moveTo(x-12,base-36); ctx.lineTo(x-4,base-52); ctx.lineTo(x,base-36); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x+12,base-36); ctx.lineTo(x+4,base-52); ctx.lineTo(x,base-36); ctx.closePath(); ctx.fill();
+  // 眼鼻
+  ctx.fillStyle='#111'; ctx.fillRect(x-6,base-34,4,3); ctx.fillRect(x+2,base-34,4,3); ctx.fillRect(x-1,base-30,2,2);
+  // 尾巴
+  ctx.save(); ctx.translate(x+22,base-14); ctx.rotate(Math.sin(performance.now()*0.007)*(cheer?0.9:0.5)); ctx.fillStyle='#e5732a'; roundedRect(0,-5,22,10,5,true); ctx.fillStyle='#ffd9b0'; roundedRect(14,-5,8,10,5,true); ctx.restore();
+}
+function drawDogBaseHead(x,y,w,h,earW,earH,color){ ctx.fillStyle=color; roundedRect(x-w/2,y-h, w,h,10,true); // 耳
+  ctx.beginPath(); ctx.moveTo(x-w/2+6,y-h+6); ctx.lineTo(x-w/2+6,y-h-earH); ctx.lineTo(x-w/2+6+earW,y-h+6); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x+w/2-6,y-h+6); ctx.lineTo(x+w/2-6,y-h-earH); ctx.lineTo(x+w/2-6-earW,y-h+6); ctx.closePath(); ctx.fill();
+}
+function drawPetBoston(ctx,x,y,cheer){ const base=y-6; petShadow(x,y);
+  // 身體
+  ctx.fillStyle='#2d2f3a'; roundedRect(x-20,base-20,40,24,12,true);
+  // 頭（黑白對半）
+  drawDogBaseHead(x,base-34,32,20,10,12,'#2d2f3a');
+  ctx.fillStyle='#fff'; roundedRect(x-16,base-32,32,10,5,true);
+  // 臉
+  ctx.fillStyle='#fff'; roundedRect(x-6,base-26,12,10,4,true);
+  ctx.fillStyle='#111'; ctx.fillRect(x-6,base-29,3,3); ctx.fillRect(x+3,base-29,3,3); ctx.fillRect(x-1,base-24,2,2);
+  // 小短尾
+  ctx.fillStyle='#2d2f3a'; roundedRect(x+18,base-14,8,6,3,true);
+}
+function drawPetFrenchie(ctx,x,y,cheer){ const base=y-6; petShadow(x,y);
+  ctx.fillStyle='#6a5750'; roundedRect(x-22,base-22,44,26,14,true);
+  drawDogBaseHead(x,base-36,34,22,8,18,'#6a5750'); // 立耳大
+  ctx.fillStyle='#111'; ctx.fillRect(x-7,base-30,4,3); ctx.fillRect(x+3,base-30,4,3); ctx.fillRect(x-1,base-26,2,2);
+  ctx.fillStyle='#6a5750'; roundedRect(x+18,base-14,8,6,3,true);
+}
+function drawPetCrab(ctx,x,y,cheer){ const base=y-4; // 稍微低一點
+  ctx.globalAlpha=0.2; ctx.fillStyle='#000'; ctx.beginPath(); ctx.ellipse(x, y, 22, 6, 0, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  ctx.fillStyle='#e44134'; roundedRect(x-24,base-16,48,18,10,true); // 殼
+  // 腿
+  for(let i=-2;i<=2;i++){ ctx.fillStyle='#d9362b'; const yy=base-2+Math.sin(performance.now()*0.01+i)*2; roundedRect(x+i*10-3,yy,6,10,3,true); }
+  // 大螯
+  ctx.save(); const swing=Math.sin(performance.now()*0.01)*(cheer?0.8:0.4);
+  ctx.translate(x-28,base-10); ctx.rotate(-0.4+swing); roundedRect(-6,-6,12,12,6,true); ctx.restore();
+  ctx.save(); ctx.translate(x+28,base-10); ctx.rotate(0.4-swing);  roundedRect(-6,-6,12,12,6,true); ctx.restore();
+  // 眼睛
+  ctx.fillStyle='#111'; ctx.fillRect(x-8,base-18,4,4); ctx.fillRect(x+4,base-18,4,4);
+}
+
+/* ===== HUD / Stars / Sparks ===== */
+function spawnSpark(x,y){ state.particles.push({x,y,dx:rand(-1,1),dy:rand(-2,-0.4),life:300}); }
+function setBars(){ const pH=pHealth,pS=pStamina,pSu=pSuper,eH=eHealth,eS=eStamina,eSu=eSuper;
+  if(player){pH.style.width=`${(player.health/player.maxHealth)*100}%`; pS.style.width=`${(player.stamina/player.maxStamina)*100}%`; pSu.style.width=`${(player.super/player.maxSuper)*100}%`;}
+  else {pH.style.width=pS.style.width=pSu.style.width='0%';}
+  if(enemy){eH.style.width=`${(enemy.health/enemy.maxHealth)*100}%`; eS.style.width=`${(enemy.stamina/enemy.maxStamina)*100}%`; eSu.style.width=`${(enemy.super/enemy.maxSuper)*100}%`;}
+}
+function endRoundByKO(){ state.paused=true; state.running=false; showModal('KO!', resultsHTML((player&&player.health>0)?'You Win!':'CPU Wins!')); }
+function endRoundByHP(){ state.paused=true; state.running=false; const p=player?player.health:0,e=enemy?enemy.health:0; showModal('Time!', resultsHTML(p>=e?'You Win (decision)!':'CPU Wins (decision)!')); }
+function resultsHTML(winner){ const accP=state.stats.player.swings?Math.round(100*state.stats.player.hits/state.stats.player.swings):0; const accE=state.stats.enemy.swings?Math.round(100*state.stats.enemy.hits/state.stats.enemy.swings):0;
+  return `<div class="grid"><div style="font-weight:800;font-size:1.2rem">${winner}</div>
+  <div class="grid grid2"><div><strong>Player</strong><div>Damage: ${state.stats.player.damage}</div><div>Accuracy: ${accP}%</div></div>
+  <div><strong>CPU</strong><div>Damage: ${state.stats.enemy.damage}</div><div>Accuracy: ${accE}%</div></div></div>
+  <div class="row" style="justify-content:flex-end"><button class="btn" id="btnPlayAgain">Play Again</button></div></div>`; }
+
+/* ===== Render Loop ===== */
 function render(){
-  // 🔒 Reset any leaked transforms/alpha before drawing
+  // reset transform to avoid leaks
   ctx.setTransform(1,0,0,1,0,0);
-  const w=canvas.width,h=canvas.height;
-  ctx.clearRect(0,0,w,h);
-
-  if(GAME_CONFIG.theme==='Panda') renderBackgroundPanda(w,h); else renderBackgroundDefault(w,h);
-
+  const w=canvas.width,h=canvas.height; ctx.clearRect(0,0,w,h);
+  (GAME_CONFIG.theme==='Panda'?renderBackgroundPanda:renderBackgroundDefault)(w,h);
   if(pet) pet.render(ctx);
   for(const g of state.afterimages){ drawFighter(g,true); }
   if(player&&enemy){ drawFighter(player); drawFighter(enemy); }
   else { ctx.fillStyle='#9bb8ff'; ctx.font='700 20px Arial'; ctx.fillText('Press ▶ Play to start', w/2-120, GAME_CONFIG.groundY-140); }
-
   for(const p of state.particles){ ctx.fillStyle='rgba(255,255,255,0.7)'; ctx.fillRect(p.x,p.y,3,3); }
-  for(const fx of state.comboTexts){ ctx.globalAlpha=Math.max(0,fx.a); ctx.fillStyle=fx.color||'#fff'; ctx.font='700 16px Arial'; ctx.fillText(fx.txt,fx.x,fx.y); ctx.globalAlpha=1; }
-  for(const s of state.stars){ const ang=s.angle+s.t*0.02; const rx=s.x+Math.cos(ang)*s.radius; const ry=s.y+Math.sin(ang)*s.radius*0.6; drawStar(rx,ry,5,6,3,Math.max(0,s.life/GAME_CONFIG.FX.stars.life)); }
-
-  if(state.debug&&player&&enemy){
-    ctx.strokeStyle='#00ff88'; const pr=player.rect(); ctx.strokeRect(pr.x,pr.y,pr.w,pr.h);
-    ctx.strokeStyle='#ff00aa'; const er=enemy.rect(); ctx.strokeRect(er.x,er.y,er.w,er.h);
-  }
 }
-function drawStar(cx,cy,points,outerR,innerR,alpha){
-  ctx.save(); ctx.globalAlpha=0.7*alpha; ctx.fillStyle='#ffd166';
-  ctx.beginPath(); for(let i=0;i<points*2;i++){ const r=(i%2===0)?outerR:innerR; const a=(Math.PI*i)/points; const x=cx+Math.cos(a)*r; const y=cy+Math.sin(a)*r; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }
-  ctx.closePath(); ctx.fill(); ctx.globalAlpha=1; ctx.restore();
-}
+function loop(ts){ try{ const dt=ts-state.lastTick; state.lastTick=ts; state.acc+=dt; while(state.acc>=state.step){ update(state.step); state.acc-=state.step; } render(); }catch(e){ console.error(e); state.running=false; } requestAnimationFrame(loop); }
 
-/* Fighter draw (stylized) — same as 4.3, omitted for brevity in comments */
-function drawFighter(f,isGhost=false){
-  const t=performance.now(), facing=f.flip?-1:1, pose=computePose(f,t);
-  const waistX=f.x, waistY=f.y - f.h*0.5 + pose.bob;
-  const s=f.skin, R=GAME_CONFIG.RENDER, scale=f.scale;
-
-  ctx.globalAlpha=isGhost?0.15:0.35; ctx.fillStyle='black'; ctx.beginPath(); ctx.ellipse(f.x, f.y-4, 30, 8, 0, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
-
-  ctx.save(); ctx.translate(waistX,waistY); ctx.rotate(pose.torsoLean*(f.flip?-1:1) + pose.torsoTwist);
-  const torsoW=f.w, torsoH=50*scale.torso, headW=f.w-12, headH=24*scale.torso;
-
-  ctx.globalAlpha=R.softAO; ctx.fillStyle='#000'; roundedRect(-torsoW/2, torsoH/2-6, torsoW, 10, 6, true); ctx.globalAlpha=1;
-
-  drawLeg(-torsoW*0.25, +f.h*0.5-36, pose.backHip, pose.backKnee, s.pant, R.outline, isGhost);
-  drawLeg(+torsoW*0.25, +f.h*0.5-36, pose.frontHip, pose.frontKnee, s.pant, R.outline, isGhost);
-
-  const torsoGrad=ctx.createLinearGradient(0,-torsoH/2,0,torsoH/2); torsoGrad.addColorStop(0,shade(s.top,1.10)); torsoGrad.addColorStop(0.7,s.top); torsoGrad.addColorStop(1,shade(s.top,R.shadeMul));
-  ctx.fillStyle=torsoGrad; roundedRect(-torsoW/2,-torsoH/2,torsoW,torsoH,8,true,R.outline);
-
-  const headGrad=ctx.createLinearGradient(0,-torsoH/2-headH,0,-torsoH/2); headGrad.addColorStop(0,shade(s.skin,1.02)); headGrad.addColorStop(1,shade(s.skin,R.shadeMul));
-  ctx.fillStyle=headGrad; roundedRect(-headW/2,-torsoH/2-headH,headW,headH,6,true,R.outline);
-  if(!isGhost){ ctx.globalAlpha=R.headGloss; ctx.fillStyle='#fff'; roundedRect(-headW*0.25,-torsoH/2-headH+4, headW*0.22, headH*0.25, 4, true); ctx.globalAlpha=1; }
-
-  drawFace(headW,torsoH, s.face, R.outline);
-
-  const shoulderY=-torsoH/2+26, shoulderFrontX=(f.flip? -torsoW/2 : +torsoW/2), shoulderBackX=-shoulderFrontX;
-  drawArm(shoulderBackX, shoulderY, pose.backUpper, pose.backFore, s.skin, s.glove, s.wrap, R.outline, scale, isGhost);
-  drawArm(shoulderFrontX, shoulderY, pose.frontUpper, pose.frontFore, s.skin, s.glove, s.wrap, R.outline, scale, isGhost);
-
-  drawHair(headW,torsoH, s.hair, s.hairStyle, R.outline);
-
-  if(f.hitting && !isGhost){ const j=armJoints(f,'front',performance.now()); ctx.strokeStyle='#ffffff33'; ctx.beginPath(); ctx.arc(j.glove.x-waistX, j.glove.y-waistY, 14, 0, Math.PI*2); ctx.stroke(); }
-  ctx.restore();
-}
-function drawArm(sx,sy,upper,fore,skin,glove,wrap,outlineCol,scale,isGhost){
-  const arm1=26*scale.arm, arm2=22*scale.arm, th=18;
-  ctx.save(); ctx.translate(sx,sy); ctx.rotate(upper);
-  const armGrad=ctx.createLinearGradient(0,-th/2,0,th/2); armGrad.addColorStop(0,shade(skin,1.05)); armGrad.addColorStop(1,shade(skin,GAME_CONFIG.RENDER.shadeMul));
-  ctx.fillStyle=armGrad; roundedRect(0,-th/2,arm1,th,8,true,outlineCol);
-  ctx.fillStyle=wrap; roundedRect(arm1*0.35,-th/2,10,th,4,true);
-  ctx.translate(arm1,0); ctx.rotate(fore*0.8);
-  const foreGrad=ctx.createLinearGradient(0,-th/2,0,th/2); foreGrad.addColorStop(0,shade(skin,1.02)); foreGrad.addColorStop(1,shade(skin,GAME_CONFIG.RENDER.shadeMul));
-  ctx.fillStyle=foreGrad; roundedRect(0,-th/2,arm2,th,8,true,outlineCol);
-  const gloveGrad=ctx.createLinearGradient(0,-th/2,0,th/2); gloveGrad.addColorStop(0,shade(glove,1.08)); gloveGrad.addColorStop(1,shade(glove,GAME_CONFIG.RENDER.shadeMul));
-  ctx.fillStyle=gloveGrad; roundedRect(arm2-2,-th/2+6,18,12,6,true,outlineCol);
-  if(!isGhost){ ctx.globalAlpha=GAME_CONFIG.RENDER.specPower; ctx.fillStyle='#fff'; roundedRect(arm2-0,-th/2+8,8,4,2,true); ctx.globalAlpha=1; }
-  ctx.restore();
-}
-function drawLeg(hx,baseY,hip,knee,color,outlineCol){
-  const th=16, upper=26, lower=22;
-  ctx.save(); ctx.translate(hx,baseY); ctx.rotate(hip);
-  const g1=ctx.createLinearGradient(-th/2,0,th/2,0); g1.addColorStop(0,shade(color,1.1)); g1.addColorStop(1,shade(color,GAME_CONFIG.RENDER.shadeMul));
-  ctx.fillStyle=g1; roundedRect(-th/2,0,th,upper,7,true,outlineCol);
-  ctx.translate(0,upper); ctx.rotate(knee);
-  const g2=ctx.createLinearGradient(-th/2,0,th/2,0); g2.addColorStop(0,shade(color,1.06)); g2.addColorStop(1,shade(color,GAME_CONFIG.RENDER.shadeMul));
-  ctx.fillStyle=g2; roundedRect(-th/2,0,th,lower,7,true,outlineCol);
-  ctx.restore();
-}
-function roundedRect(x,y,w,h,r,fill=true,strokeCol=null){
-  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y,h? r:0); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r);
-  if(fill) ctx.fill(); if(strokeCol){ ctx.lineWidth=GAME_CONFIG.RENDER.outlineW; ctx.strokeStyle=strokeCol; ctx.stroke(); }
-}
-function shade(hex,mul){ const {r,g,b}=hexToRgb(hex); const rr=clamp(Math.round(r*mul),0,255), gg=clamp(Math.round(g*mul),0,255), bb=clamp(Math.round(b*mul),0,255); return `rgb(${rr},${gg},${bb})`; }
-function hexToRgb(hex){ const m=hex.replace('#',''); const bigint=parseInt(m,16); return {r:(bigint>>16)&255,g:(bigint>>8)&255,b:bigint&255}; }
-function drawFace(headW,torsoH,kind){ ctx.save(); ctx.translate(0,-torsoH/2 - headW*0.22); ctx.fillStyle='#111'; roundedRect(-headW*0.26,-4,6,6,2,true); roundedRect(+headW*0.20,-4,6,6,2,true);
-  if(kind==='smile'){ ctx.fillRect(-6,6,12,2); } else if(kind==='determined'){ roundedRect(-8,6,16,2,1,true); } else { ctx.fillRect(-6,6,12,2); } ctx.restore(); }
-function drawHair(headW,torsoH,color,style,outlineCol){
-  if(style==='none') return; ctx.save(); ctx.translate(0,-torsoH/2 - headW*0.24); ctx.fillStyle=shade(color,1.05);
-  const w=headW*0.9,h=headW*0.5;
-  if(style==='spiky'){ roundedRect(-w/2,-h,w,h,6,true,outlineCol); for(let i=-2;i<=2;i++){ ctx.beginPath(); ctx.moveTo(i*8,-h); ctx.lineTo(i*8+6,-h-10); ctx.lineTo(i*8+12,-h); ctx.closePath(); ctx.fill(); } }
-  else if(style==='bob'){ roundedRect(-w/2,-h*0.9,w,h*0.9,12,true,outlineCol); }
-  else if(style==='long'){ roundedRect(-w/2,-h,w,h+14,12,true,outlineCol); }
-  else if(style==='short'){ roundedRect(-w/2,-h*0.8,w,h*0.8,10,true,outlineCol); }
-  ctx.restore();
-}
-
-/* Pets drawings */
-function drawPetPanda(ctx,x,y,cheering){
-  const baseY=y-6, t=performance.now()*0.005, sway=Math.sin(t)*(cheering?3:2);
-  ctx.globalAlpha=0.2; ctx.fillStyle='black'; ctx.beginPath(); ctx.ellipse(x,y-2,20,6,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
-  ctx.fillStyle='#fff'; roundedRect(x-16,baseY-26,32,28,12,true); ctx.fillStyle='#111'; roundedRect(x-16,baseY-14,32,16,10,true);
-  ctx.save(); ctx.translate(x,baseY-36); ctx.rotate(sway*0.01); ctx.fillStyle='#fff'; ctx.beginPath(); ctx.ellipse(0,0,15,13,0,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle='#111'; ctx.beginPath(); ctx.ellipse(-9,-10,5,5,0,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.ellipse(+9,-10,5,5,0,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle='#222'; ctx.beginPath(); ctx.ellipse(-5,-2,4,5,0.2,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.ellipse(+5,-2,4,5,-0.2,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.ellipse(-5,-2,2,2,0,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.ellipse(+5,-2,2,2,0,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle='#111'; ctx.fillRect(-1,2,2,2); ctx.fillRect(-3,4,6,1);
-  ctx.save(); const armA=cheering?Math.sin(performance.now()*0.02)*0.6:Math.sin(t)*0.3; ctx.translate(-12,2); ctx.rotate(-0.6+armA); roundedRect(-3,-3,6,10,3,true); ctx.restore();
-  ctx.save(); ctx.translate(+12,2); ctx.rotate(0.6-armA);  roundedRect(-3,-3,6,10,3,true); ctx.restore();
-  ctx.restore();
-  if(cheering){ ctx.globalAlpha=0.9; ctx.fillStyle='#ffd166'; ctx.fillRect(x+16,baseY-48,3,10); ctx.fillRect(x+16,baseY-35,3,3); ctx.globalAlpha=1; }
-}
-function drawPetFox(ctx,x,y,cheering){
-  const baseY=y-6, t=performance.now()*0.005, tailSwing=Math.sin(t*1.6)*(cheering?0.8:0.4);
-  ctx.globalAlpha=0.2; ctx.fillStyle='black'; ctx.beginPath(); ctx.ellipse(x,y-2,20,6,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
-  ctx.fillStyle='#d66a1f'; roundedRect(x-18,baseY-20,34,22,10,true); ctx.fillStyle='#ffe4c7'; roundedRect(x-6,baseY-16,12,12,6,true);
-  ctx.fillStyle='#d66a1f'; roundedRect(x-12,baseY-36,24,18,8,true);
-  ctx.fillStyle='#d66a1f'; ctx.beginPath(); ctx.moveTo(x-10,baseY-33); ctx.lineTo(x-2,baseY-47); ctx.lineTo(x-0,baseY-33); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(x+10,baseY-33); ctx.lineTo(x+2,baseY-47); ctx.lineTo(x+0,baseY-33); ctx.closePath(); ctx.fill();
-  ctx.fillStyle='#111'; ctx.fillRect(x-5,baseY-30,3,3); ctx.fillRect(x+2,baseY-30,3,3);
-  ctx.fillStyle='#111'; ctx.fillRect(x-1,baseY-26,2,2);
-  ctx.save(); ctx.translate(x+14,baseY-12); ctx.rotate(tailSwing); ctx.fillStyle='#d66a1f'; roundedRect(0,-4,18,8,4,true); ctx.fillStyle='#ffe4c7'; roundedRect(12,-4,6,8,4,true); ctx.restore();
-  if(cheering){ ctx.globalAlpha=0.25; ctx.fillStyle='#ffd166'; ctx.beginPath(); ctx.arc(x,baseY-36,10,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1; }
-}
-
-/* HUD / End */
-function endRoundByKO(){ state.paused=true; state.running=false; showModal('KO!', modalResultsHTML((player&&player.health>0)?'You Win!':'CPU Wins!'), ()=>SFX.ko()); }
-function endRoundByHP(){ state.paused=true; state.running=false; const p=player?player.health:0,e=enemy?enemy.health:0; showModal('Time!', modalResultsHTML(p>=e?'You Win (decision)!':'CPU Wins (decision)!'), ()=>SFX.bell()); }
-function modalResultsHTML(winner){
-  const accP=state.stats.player.swings?Math.round(100*state.stats.player.hits/state.stats.player.swings):0;
-  const accE=state.stats.enemy.swings?Math.round(100*state.stats.enemy.hits/state.stats.enemy.swings):0;
-  return `<div class="grid"><div class="stat" style="font-size:1.2rem">${winner}</div>
-    <div class="grid grid2"><div><strong>Player</strong><div>Damage: ${state.stats.player.damage}</div><div>Accuracy: ${accP}%</div></div>
-    <div><strong>CPU</strong><div>Damage: ${state.stats.enemy.damage}</div><div>Accuracy: ${accE}%</div></div></div>
-    <div class="row" style="justify-content:flex-end"><button class="btn" id="btnPlayAgain">Play Again</button></div></div>`;
-}
-function setBars(){
-  const pH=document.getElementById('pHealth'), pS=document.getElementById('pStamina'), pSu=document.getElementById('pSuper');
-  const eH=document.getElementById('eHealth'), eS=document.getElementById('eStamina'), eSu=document.getElementById('eSuper');
-  if(player){ pH.style.width=`${(player.health/player.maxHealth)*100}%`; pS.style.width=`${(player.stamina/player.maxStamina)*100}%`; pSu.style.width=`${(player.super/player.maxSuper)*100}%`; } else { pH.style.width=pS.style.width=pSu.style.width='0%'; }
-  if(enemy){ eH.style.width=`${(enemy.health/enemy.maxHealth)*100}%`; eS.style.width=`${(enemy.stamina/enemy.maxStamina)*100}%`; eSu.style.width=`${(enemy.super/enemy.maxSuper)*100}%`; }
-}
-
-/* Loop */
-function loop(ts){ try{ const dt=ts-state.lastTick; state.lastTick=ts; state.acc+=dt; while(state.acc>=state.step){ update(state.step); state.acc-=state.step; } render(); }catch(err){ console.error('[v4.4] runtime error:',err); state.running=false; } requestAnimationFrame(loop); }
-
-/* UI / Modals */
+/* ===== UI / Modal ===== */
 const modal={root:document.getElementById('modalBackdrop'),title:document.getElementById('modalTitle'),body:document.getElementById('modalBody')};
-function showModal(title,html,onOpen){ modal.title.textContent=title; modal.body.innerHTML=html; modal.root.style.display='flex'; if(onOpen) onOpen(); }
+function showModal(title,html){ modal.title.textContent=title; modal.body.innerHTML=html; modal.root.style.display='flex'; }
 function closeModal(){ modal.root.style.display='none'; SFX.ui(); }
 document.getElementById('modalClose').addEventListener('click',closeModal);
 modal.root.addEventListener('click',e=>{ if(e.target===modal.root) closeModal(); });
 
-(function tutorial(){
-  if(!localStorage.getItem('bb_seen')){
-    localStorage.setItem('bb_seen','1');
-    showModal('How to Play', `<div class="grid">
-      <div>Move <span class="k">A/D</span> or <span class="k">←/→</span>, Dash <span class="k">W/S</span> or <span class="k">↑/↓</span></div>
-      <div>Punches: <span class="k">J</span>/<span class="k">K</span>/<span class="k">L</span>, Block <span class="k">I</span>, Dodge <span class="k">O</span>, Super <span class="k">Space</span></div>
-      <div class="miniHelp">Theme → Panda；Pets → Panda/Fox</div></div>`);
-  }
-})();
-
-/* Skins UI (short) */
+/* ===== UI Panels ===== */
 document.getElementById('btnSkins').addEventListener('click',()=>{
-  const color=(id,label,val)=>`<label class="row"><span class="grow">${label}</span><input type="color" id="${id}" value="${val}"/></label>`;
-  const sel=(id,label,options,val)=>`<label class="row"><span class="grow">${label}</span><select id="${id}" class="select">${options.map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join('')}</select></label>`;
-  const scale=(id,label,val)=>`<label class="row"><span class="grow">${label}</span><input type="range" id="${id}" min="0.85" max="1.15" step="0.01" value="${val}" oninput="this.nextElementSibling.textContent=this.value"/><span class="miniHelp">${val}</span></label>`;
-  const hair=['none','short','spiky','bob','long']; const face=['smile','determined','stoic'];
-  const body=`<div class="grid grid2">
+  const color=(id,label,val)=>`<label class="row"><span class="grow">${label}</span><input id="${id}" type="color" class="select" value="${val}"/></label>`;
+  const sel=(id,label,ops,val)=>`<label class="row"><span class="grow">${label}</span><select id="${id}" class="select">${ops.map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join('')}</select></label>`;
+  const scale=(id,label,val)=>`<label class="row"><span class="grow">${label}</span><input id="${id}" type="range" min="0.85" max="1.15" step="0.01" value="${val}" oninput="this.nextElementSibling.textContent=this.value"/><span class="small">${val}</span></label>`;
+  const hair=['none','short','spiky','bob','long']; const face=['smile','determined','stoic']; const bodyStyle=['Human','Gorilla'];
+  const body=`
+  <div class="grid grid2">
     <div class="card" style="padding:10px">
       <div><strong>Player</strong></div>
       ${color('pl_skin','Skin',SKIN_PLAYER.skin)} ${color('pl_hair','Hair',SKIN_PLAYER.hair)} ${color('pl_glove','Glove',SKIN_PLAYER.glove)}
       ${color('pl_top','Top',SKIN_PLAYER.top)} ${color('pl_pant','Pants',SKIN_PLAYER.pant)} ${color('pl_wrap','Wrap',SKIN_PLAYER.wrap)}
-      ${sel('pl_face','Face',face,SKIN_PLAYER.face)} ${sel('pl_hairStyle','Hair Style',hair,SKIN_PLAYER.hairStyle)}
-      ${scale('pl_h','Height',SKIN_PLAYER.scale?.height??1)} ${scale('pl_arm','Arm Length',SKIN_PLAYER.scale?.arm??1)} ${scale('pl_torso','Torso Width',SKIN_PLAYER.scale?.torso??1)}
+      ${sel('pl_face','Face',face,SKIN_PLAYER.face)} ${sel('pl_hairStyle','Hair',hair,SKIN_PLAYER.hairStyle)} ${sel('pl_body','Body',bodyStyle,SKIN_PLAYER.bodyStyle||'Human')}
+      ${scale('pl_h','Height',SKIN_PLAYER.scale?.height??1)} ${scale('pl_arm','Arm',SKIN_PLAYER.scale?.arm??1)} ${scale('pl_torso','Torso',SKIN_PLAYER.scale?.torso??1)}
       <div class="row" style="justify-content:flex-end"><button id="skinsSave" class="btn">Save</button></div>
     </div>
     <div class="card" style="padding:10px">
       <div><strong>CPU</strong></div>
       ${color('cpu_skin','Skin',SKIN_CPU.skin)} ${color('cpu_hair','Hair',SKIN_CPU.hair)} ${color('cpu_glove','Glove',SKIN_CPU.glove)}
       ${color('cpu_top','Top',SKIN_CPU.top)} ${color('cpu_pant','Pants',SKIN_CPU.pant)} ${color('cpu_wrap','Wrap',SKIN_CPU.wrap)}
-      ${sel('cpu_face','Face',face,SKIN_CPU.face)} ${sel('cpu_hairStyle','Hair Style',hair,SKIN_CPU.hairStyle)}
-      ${scale('cpu_h','Height',SKIN_CPU.scale?.height??1)} ${scale('cpu_arm','Arm Length',SKIN_CPU.scale?.arm??1)} ${scale('cpu_torso','Torso Width',SKIN_CPU.scale?.torso??1)}
-    </div></div>`;
-  showModal('Skins',body,()=>{ modal.body.querySelector('#skinsSave').addEventListener('click',()=>{ SKIN_PLAYER=readSkinFromUI('pl'); SKIN_CPU=readSkinFromUI('cpu'); localStorage.setItem('bb_skin_player',JSON.stringify(SKIN_PLAYER)); localStorage.setItem('bb_skin_cpu',JSON.stringify(SKIN_CPU)); closeModal(); }); });
-});
-function readSkinFromUI(prefix){ const g=id=>modal.body.querySelector('#'+id).value;
-  return { skin:g(`${prefix}_skin`), hair:g(`${prefix}_hair`), glove:g(`${prefix}_glove`), top:g(`${prefix}_top`), pant:g(`${prefix}_pant`), wrap:g(`${prefix}_wrap`),
-           face:g(`${prefix}_face`), hairStyle:g(`${prefix}_hairStyle`),
-           scale:{height:parseFloat(g(`${prefix}_h`)), arm:parseFloat(g(`${prefix}_arm`)), torso:parseFloat(g(`${prefix}_torso`))} };
-}
-
-/* Pets UI */
-document.getElementById('btnPets').addEventListener('click',()=>{
-  const saved=loadPetType();
-  const body=`<div class="grid">
-    <div class="small">Choose a companion. It follows and cheers (cosmetic only).</div>
-    <label class="row"><span class="grow">Type</span><select id="petType" class="select">
-      <option ${saved==='None'?'selected':''}>None</option><option ${saved==='Panda'?'selected':''}>Panda</option><option ${saved==='Fox'?'selected':''}>Fox</option></select></label>
-    <label class="row"><span class="grow">Stand Offset</span>
-      <input id="petOffset" type="range" min="-150" max="150" step="2" value="${GAME_CONFIG.PETS.offsetX}" oninput="this.nextElementSibling.textContent=this.value"/><span class="miniHelp">${GAME_CONFIG.PETS.offsetX}</span></label>
-    <div class="row" style="justify-content:flex-end"><button id="petSave" class="btn">Save</button></div></div>`;
-  showModal('Pets',body,()=>{ modal.body.querySelector('#petSave').addEventListener('click',()=>{ const tp=modal.body.querySelector('#petType').value;
-    GAME_CONFIG.PETS.offsetX=parseInt(modal.body.querySelector('#petOffset').value,10); localStorage.setItem('bb_pet_type',tp); localStorage.setItem('bb_pet_offset',String(GAME_CONFIG.PETS.offsetX));
-    if(!pet) pet=new Pet(tp); else pet.type=tp; closeModal(); }); });
-});
-function loadPetType(){ const tp=localStorage.getItem('bb_pet_type')||GAME_CONFIG.PETS.type; GAME_CONFIG.PETS.offsetX=parseInt(localStorage.getItem('bb_pet_offset')||GAME_CONFIG.PETS.offsetX,10); return tp; }
-
-/* Controls / Accessibility / Theme */
-document.getElementById('selTheme').addEventListener('change',e=>{ GAME_CONFIG.theme=e.target.value; localStorage.setItem('bb_theme',GAME_CONFIG.theme); SFX.ui(); });
-document.getElementById('btnControls').addEventListener('click',()=>{
-  const names=Object.keys(KEY_MAP); let html=`<div class="grid">`; for(const n of names){ const val=KEY_MAP[n].join(', '); html+=`<div class="row"><div class="grow"><strong>${n}</strong></div><input data-k="${n}" class="select" value="${val}"/></div>`; }
-  html+=`<div class="row" style="justify-content:flex-end"><button id="saveKeys" class="btn">Save</button></div></div>`;
-  showModal('Controls',html); modal.body.querySelector('#saveKeys').addEventListener('click',()=>{ modal.body.querySelectorAll('input[data-k]').forEach(inp=>{ const name=inp.getAttribute('data-k'); KEY_MAP[name]=inp.value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean); }); localStorage.setItem('bb_keys',JSON.stringify(KEY_MAP)); closeModal(); });
-});
-document.getElementById('btnAccessibility').addEventListener('click',()=>{
-  const chk=(id,label,checked)=>`<label class="row"><input type="checkbox" id="${id}" ${checked?'checked':''}/>&nbsp;${label}</label>`;
-  showModal('Accessibility', `<div class="grid">
-    ${chk('accSound','Sound On',GAME_CONFIG.audio.soundOn)}
-    ${chk('accReduce','Reduce flashing / screenshake', GAME_CONFIG.audio.reduceFlashing)}
-    ${chk('accCB','Color-blind friendly HUD', GAME_CONFIG.UI.colorBlind)}
-    <div class="small">Settings save automatically.</div></div>`);
-  ['accSound','accReduce','accCB'].forEach(id=>{
-    modal.body.querySelector('#'+id).addEventListener('change',e=>{
-      if(id==='accSound'){ GAME_CONFIG.audio.soundOn=e.target.checked; }
-      if(id==='accReduce'){ GAME_CONFIG.audio.reduceFlashing=e.target.checked; }
-      if(id==='accCB'){ GAME_CONFIG.UI.colorBlind=e.target.checked; }
-      localStorage.setItem('bb_cfg', JSON.stringify({audio:GAME_CONFIG.audio, UI:GAME_CONFIG.UI}));
-    });
+      ${sel('cpu_face','Face',face,SKIN_CPU.face)} ${sel('cpu_hairStyle','Hair',hair,SKIN_CPU.hairStyle)} ${sel('cpu_body','Enemy Body',bodyStyle,SKIN_CPU.bodyStyle||'Human')}
+      ${scale('cpu_h','Height',SKIN_CPU.scale?.height??1)} ${scale('cpu_arm','Arm',SKIN_CPU.scale?.arm??1)} ${scale('cpu_torso','Torso',SKIN_CPU.scale?.torso??1)}
+    </div>
+  </div>`;
+  showModal('Skins',body);
+  modal.body.querySelector('#skinsSave').addEventListener('click',()=>{
+    const g=id=>modal.body.querySelector('#'+id).value;
+    SKIN_PLAYER={skin:g('pl_skin'),hair:g('pl_hair'),glove:g('pl_glove'),top:g('pl_top'),pant:g('pl_pant'),wrap:g('pl_wrap'),face:g('pl_face'),hairStyle:g('pl_hairStyle'),bodyStyle:g('pl_body'),scale:{height:+g('pl_h'),arm:+g('pl_arm'),torso:+g('pl_torso')}};
+    SKIN_CPU   ={skin:g('cpu_skin'),hair:g('cpu_hair'),glove:g('cpu_glove'),top:g('cpu_top'),pant:g('cpu_pant'),wrap:g('cpu_wrap'),face:g('cpu_face'),hairStyle:g('cpu_hairStyle'),bodyStyle:g('cpu_body'),scale:{height:+g('cpu_h'),arm:+g('cpu_arm'),torso:+g('cpu_torso')}};
+    localStorage.setItem('bb_skin_player',JSON.stringify(SKIN_PLAYER));
+    localStorage.setItem('bb_skin_cpu',JSON.stringify(SKIN_CPU));
+    closeModal();
   });
 });
 
-/* Start / Pause */
-function startGame(){ if(audioCtx.state==='suspended') audioCtx.resume(); state.stats={player:{swings:0,hits:0,damage:0},enemy:{swings:0,hits:0,damage:0}}; state.round=1; resetRound(); state.running=true; state.paused=false; }
+document.getElementById('btnPets').addEventListener('click',()=>{
+  const saved=loadPetType(); const options=['None','Panda','Chonky Fox','Boston Terrier','French Bulldog','Crab'];
+  const body=`<div class="grid">
+    <div class="small">Choose a companion. Cosmetic only; follows you and cheers when you punch.</div>
+    <label class="row"><span class="grow">Type</span>
+      <select id="petType" class="select">${options.map(o=>`<option ${o===saved?'selected':''}>${o}</option>`).join('')}</select></label>
+    <label class="row"><span class="grow">Stand Offset</span>
+      <input id="petOffset" type="range" min="-150" max="150" step="2" value="${GAME_CONFIG.PETS.offsetX}" oninput="this.nextElementSibling.textContent=this.value"/><span class="small">${GAME_CONFIG.PETS.offsetX}</span></label>
+    <div class="row" style="justify-content:flex-end"><button id="petSave" class="btn">Save</button></div></div>`;
+  showModal('Pets',body);
+  modal.body.querySelector('#petSave').addEventListener('click',()=>{
+    const tp=modal.body.querySelector('#petType').value; GAME_CONFIG.PETS.offsetX=parseInt(modal.body.querySelector('#petOffset').value,10);
+    localStorage.setItem('bb_pet_type',tp); localStorage.setItem('bb_pet_offset',String(GAME_CONFIG.PETS.offsetX));
+    if(!pet) pet=new Pet(tp); else pet.type=tp; closeModal();
+  });
+});
+function loadPetType(){ const tp=localStorage.getItem('bb_pet_type')||GAME_CONFIG.PETS.type; const off=parseInt(localStorage.getItem('bb_pet_offset')||GAME_CONFIG.PETS.offsetX,10); GAME_CONFIG.PETS.offsetX=off; return tp; }
+
+document.getElementById('btnMusic').addEventListener('click',()=>{
+  const tracks=['Arcade Rush','Dojo Drive','Dark Arena','Off'];
+  const cur=currentTrack; const body=`<div class="grid">
+    <div class="small">Energetic synth music generated in-browser. No external files.</div>
+    <label class="row"><span class="grow">Track</span><select id="selTrack" class="select">${tracks.map(t=>`<option ${t===cur?'selected':''}>${t}</option>`).join('')}</select></label>
+    <div class="row" style="justify-content:flex-end"><button id="musicApply" class="btn">Apply</button></div>
+  </div>`;
+  showModal('Music',body);
+  modal.body.querySelector('#musicApply').addEventListener('click',()=>{
+    const name=modal.body.querySelector('#selTrack').value;
+    if(name==='Off'){ stopMusic(); } else { startMusic(name); }
+    closeModal();
+  });
+});
+
+document.getElementById('btnControls').addEventListener('click',()=>{
+  const names=Object.keys(KEY_MAP); let html='<div class="grid">'; for(const n of names){ html+=`<div class="row"><div class="grow"><strong>${n}</strong></div><input class="select" data-k="${n}" value="${KEY_MAP[n].join(', ')}"/></div>`; } html+=`<div class="row" style="justify-content:flex-end"><button id="saveKeys" class="btn">Save</button></div></div>`;
+  showModal('Controls',html);
+  modal.body.querySelector('#saveKeys').addEventListener('click',()=>{ modal.body.querySelectorAll('[data-k]').forEach(i=>{ const k=i.getAttribute('data-k'); KEY_MAP[k]=i.value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean); }); localStorage.setItem('bb_keys',JSON.stringify(KEY_MAP)); closeModal(); });
+});
+document.getElementById('btnAccessibility').addEventListener('click',()=>{
+  const chk=(id,label,checked)=>`<label class="row"><input type="checkbox" id="${id}" ${checked?'checked':''}/> ${label}</label>`;
+  showModal('Accessibility', `<div class="grid">${chk('accSound','Sound On',GAME_CONFIG.audio.soundOn)}${chk('accReduce','Reduce flashing',GAME_CONFIG.audio.reduceFlashing)}${chk('accCB','Color-blind HUD',GAME_CONFIG.UI.colorBlind)}</div>`);
+  ['accSound','accReduce','accCB'].forEach(id=>modal.body.querySelector('#'+id).addEventListener('change',e=>{
+    if(id==='accSound') GAME_CONFIG.audio.soundOn=e.target.checked;
+    if(id==='accReduce') GAME_CONFIG.audio.reduceFlashing=e.target.checked;
+    if(id==='accCB') GAME_CONFIG.UI.colorBlind=e.target.checked;
+    localStorage.setItem('bb_cfg', JSON.stringify({audio:GAME_CONFIG.audio,UI:GAME_CONFIG.UI}));
+  }));
+});
+
+/* ===== Start / Pause / Restore ===== */
+function startGame(){ if(audioCtx.state==='suspended') audioCtx.resume(); state.stats={player:{swings:0,hits:0,damage:0},enemy:{swings:0,hits:0,damage:0}}; state.round=1; resetRound(); state.running=true; state.paused=false; if(!musicTimer) startMusic(currentTrack); }
 document.getElementById('btnPlay').addEventListener('click',startGame);
 document.getElementById('btnPause').addEventListener('click',()=>{ state.paused=!state.paused; SFX.ui(); });
 addEventListener('keydown',e=>{ if(e.key==='p'||e.key==='P') state.paused=!state.paused; if(e.key==='/') state.debug=!state.debug; if(e.key==='r'||e.key==='R') startGame(); });
 
-/* Restore */
+/* ===== Boot ===== */
+const pHealth=document.getElementById('pHealth'), pStamina=document.getElementById('pStamina'), pSuper=document.getElementById('pSuper');
+const eHealth=document.getElementById('eHealth'), eStamina=document.getElementById('eStamina'), eSuper=document.getElementById('eSuper');
 (function restore(){
   const saved=JSON.parse(localStorage.getItem('bb_cfg')||'null'); if(saved){ Object.assign(GAME_CONFIG.audio,saved.audio||{}); Object.assign(GAME_CONFIG.UI,saved.UI||{}); }
-  GAME_CONFIG.theme=localStorage.getItem('bb_theme')||GAME_CONFIG.theme;
-  document.getElementById('selDiff').value=state.difficulty; document.getElementById('selTheme').value=GAME_CONFIG.theme;
-  const tp=loadPetType(); if(!pet) pet=new Pet(tp);
+  GAME_CONFIG.theme=localStorage.getItem('bb_theme')||GAME_CONFIG.theme; document.getElementById('selTheme').value=GAME_CONFIG.theme;
+  pet=new Pet(loadPetType());
 })();
-
-/* Boot */
 requestAnimationFrame(loop);
 </script>
 </body>
