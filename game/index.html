@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Block Brawl v4.2 — Panda Theme Background</title>
+<title>Block Brawl v4.3 — Pets (Panda/Fox) Follower + Panda Theme</title>
 <style>
   :root{
     --bg:#0e0f13; --panel:#171923; --panel2:#1f2230; --text:#e8ebff;
@@ -42,15 +42,14 @@
   .stat{font-weight:800}
   .footer{color:#8891bb;font-size:.85rem;margin-top:-6px}
   .chip{padding:6px 10px;border:1px solid #2a2e42;border-radius:999px;cursor:pointer;background:#1f2230}
-  .chip.sel{outline:2px solid var(--accent)}
   input[type="color"]{width:44px;height:32px;border-radius:8px;border:1px solid #2a2e42;background:#1f2230;padding:0}
   .miniHelp{color:#9bb8ff;font-size:.85rem}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1 class="title">🧱 Block Brawl v4.2</h1>
-  <div class="sub">Vanilla JS + Canvas • Skins • Stylized Rendering • Panda Theme Background</div>
+  <h1 class="title">🧱 Block Brawl v4.3</h1>
+  <div class="sub">Vanilla JS + Canvas • Skins • Panda Theme • <strong>Pets Follower</strong></div>
 
   <div class="topbar card hud">
     <button id="btnPlay" class="btn">▶ Play</button>
@@ -63,6 +62,7 @@
       <select id="selTheme" class="select"><option value="Default" selected>Default</option><option value="Panda">Panda (Bamboo Dojo)</option></select>
     </div>
     <button id="btnSkins" class="btn">Skins</button>
+    <button id="btnPets" class="btn">Pets</button>
     <button id="btnControls" class="btn">Controls</button>
     <button id="btnAccessibility" class="btn">Accessibility</button>
     <button id="btnPause" class="btn">Pause (P)</button>
@@ -105,14 +105,15 @@
 </div>
 
 <script>
-/* README（v4.2）
-- 新增主題：Theme = "Panda (Bamboo Dojo)"。完全程式繪製（夕陽天空 / 水墨群山 / 竹林 / 紅燈籠 / 薄霧 / 柔光），無任何外部圖片與版權角色。
-- 切換方式：上方 Theme 下拉。選擇即時套用。
-- 其他：沿用 v4.1（Skins、關節小命中盒、步態加速、閃避殘影、暈眩星星、難度修正）。
-- 控制：A/D 或 ←→ 移動；W/S 或 ↑↓ 微衝；J/K/L 出拳；I 格擋；O 閃避；Space 超級；P 暫停；/ Debug；R 重開。
+/* README（v4.3）
+新增：夥伴小動物（Panda/Fox）
+- 開啟：按頂部「Pets」，選擇 None / Panda / Fox，會存到 localStorage。
+- 行為：自動跟隨玩家（X 偏移＋平滑插值），待機左右擺動；玩家出拳/超級時跳起加油（不造成傷害）。
+- 全部以 Canvas 幾何繪製、無外部圖片。
+其他：沿用 v4.2（Panda 主題背景、Skins、關節命中盒、殘影、暈眩星星、難度修正）。
+控制：A/D 或 ←→ 移動；W/S 或 ↑↓ 微衝；J/K/L 出拳；I 格擋；O 閃避；Space 超級；P 暫停；/ Debug；R 重開。
 */
 
-/* ========= GAME CONFIG ========= */
 const GAME_CONFIG = {
   canvasW: 960, canvasH: 540, groundY: 420,
   ring: { left: 80, right: 880, ropeY: 260 },
@@ -150,10 +151,20 @@ const GAME_CONFIG = {
     Easy:   { enemyHp:0.9,  enemyDmg:0.85, enemySpeed:0.95, aiAggro:0.72, aiDefend:0.85, aiRandom:0.25 },
     Normal: { enemyHp:1.0,  enemyDmg:1.0,  enemySpeed:1.0,  aiAggro:0.92, aiDefend:1.0,  aiRandom:0.18 },
     Hard:   { enemyHp:1.15, enemyDmg:1.1,  enemySpeed:1.05, aiAggro:1.12, aiDefend:1.08, aiRandom:0.12 }
+  },
+  PETS:{
+    enabled:true,
+    type:'None', // 'None' | 'Panda' | 'Fox'
+    offsetX: -90, // 站位（預設在玩家左後側）
+    followLerp: 0.14,
+    hopVY: -4.2,
+    gravity: 0.22,
+    bobAmp: 3,
+    cheerMs: 600
   }
 };
 
-/* ========= SKIN PRESETS ========= */
+/* ======= SKINS (同前) ======= */
 const PRESETS = [
   {name:'Classic Green', skin:'#f6c9a0', hair:'#2b2b2b', glove:'#ffd166', top:'#63e6be', pant:'#2a2e42', wrap:'#9bb8ff', face:'smile', hairStyle:'spiky', scale:{height:1.0, arm:1.0, torso:1.0}},
   {name:'Sky Boxer',     skin:'#f1d3b3', hair:'#1f3b7a', glove:'#ff6b6b', top:'#6ea8fe', pant:'#1f2a44', wrap:'#ffd166', face:'determined', hairStyle:'bob', scale:{height:1.02,arm:1.02,torso:0.98}},
@@ -163,7 +174,6 @@ const PRESETS = [
   {name:'Cool Mint',     skin:'#efcaa6', hair:'#1e2d2f', glove:'#7bf1a8', top:'#63e6be', pant:'#203234', wrap:'#b0ffe1', face:'determined', hairStyle:'short', scale:{height:1.0,arm:1.0,torso:1.0}}
 ];
 
-/* ========= UTILS / INPUT ========= */
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const nowMs = ()=>performance.now();
 const rand = (a,b)=>Math.random()*(b-a)+a;
@@ -183,7 +193,7 @@ addEventListener('keydown',e=>{ pressed.add(e.key.toLowerCase()); if(['ArrowUp',
 addEventListener('keyup',e=>pressed.delete(e.key.toLowerCase()));
 const isDown=(name)=> (KEY_MAP[name]||[]).some(k=>pressed.has(k));
 
-/* ========= AUDIO ========= */
+/* ======= Audio ======= */
 const audioCtx = new (window.AudioContext||window.webkitAudioContext)();
 function beep(type='sine', freq=440, dur=0.08, gain=0.12){
   if(!GAME_CONFIG.audio.soundOn) return;
@@ -203,12 +213,12 @@ const SFX = {
   ui:    ()=>beep('sine', 520, 0.06, 0.16)
 };
 
-/* ========= SKIN STATE ========= */
+/* ======= Skins State ======= */
 function clone(o){ return JSON.parse(JSON.stringify(o)); }
 let SKIN_PLAYER = JSON.parse(localStorage.getItem('bb_skin_player')||'null') || clone(PRESETS[0]);
 let SKIN_CPU    = JSON.parse(localStorage.getItem('bb_skin_cpu')||'null')    || clone(PRESETS[1]);
 
-/* ========= ENTITIES & AI ========= */
+/* ======= Entities & AI ======= */
 class Fighter{
   constructor(name,x,flip,isCPU,base,skin){
     const scale=skin.scale||{height:1,arm:1,torso:1};
@@ -265,7 +275,50 @@ class SimpleAI{
   }
 }
 
-/* ========= GLOBAL ========= */
+/* ======= Pets System ======= */
+class Pet {
+  constructor(type='None'){
+    this.type = type;              // 'None' | 'Panda' | 'Fox'
+    this.x = 0; this.y = GAME_CONFIG.groundY; this.vy=0;
+    this.cheerUntil = 0;
+    this.bobSeed = Math.random()*1000;
+  }
+  get enabled(){ return GAME_CONFIG.PETS.enabled && this.type!=='None'; }
+  placeAtPlayer(p){
+    this.x = p.x + GAME_CONFIG.PETS.offsetX;
+    this.y = GAME_CONFIG.groundY;
+  }
+  triggerCheer(){
+    const t=nowMs();
+    this.cheerUntil = t + GAME_CONFIG.PETS.cheerMs;
+    if(Math.abs(this.vy)<0.1) this.vy = GAME_CONFIG.PETS.hopVY;
+  }
+  update(dt, player){
+    if(!this.enabled) return;
+    // 跟隨（X 平滑）、地面物理（Y）
+    const targetX = player.x + GAME_CONFIG.PETS.offsetX;
+    this.x += (targetX - this.x) * GAME_CONFIG.PETS.followLerp;
+
+    // 地面 + 跳躍
+    const onGround = this.y >= GAME_CONFIG.groundY;
+    if(!onGround) this.vy += GAME_CONFIG.PETS.gravity;
+    this.y += this.vy;
+    if(this.y > GAME_CONFIG.groundY){ this.y = GAME_CONFIG.groundY; this.vy = 0; }
+
+    // 待機 bob
+    if(onGround && nowMs() > this.cheerUntil){
+      const t = (performance.now()+this.bobSeed)*0.005;
+      this.y = GAME_CONFIG.groundY - Math.sin(t)*GAME_CONFIG.PETS.bobAmp*0.35;
+    }
+  }
+  render(ctx){
+    if(!this.enabled) return;
+    if(this.type==='Panda') drawPetPanda(ctx,this.x,this.y, nowMs()<this.cheerUntil);
+    if(this.type==='Fox')   drawPetFox(ctx,this.x,this.y, nowMs()<this.cheerUntil);
+  }
+}
+
+/* ======= Global ======= */
 const canvas=document.getElementById('game'); const ctx=canvas.getContext('2d');
 const state={
   running:false, paused:false, debug:false, round:1, seconds:GAME_CONFIG.round.seconds,
@@ -274,15 +327,17 @@ const state={
   difficulty:'Normal',
   stats:{player:{swings:0,hits:0,damage:0}, enemy:{swings:0,hits:0,damage:0}}
 };
-let player=null, enemy=null, ai=null;
+let player=null, enemy=null, ai=null, pet=null;
 
-/* ========= ROUND ========= */
+/* ======= Round ======= */
 function spawnFighters(){
   const d = GAME_CONFIG.DIFFICULTY[state.difficulty] || GAME_CONFIG.DIFFICULTY.Normal;
   player=new Fighter('Player', GAME_CONFIG.ring.left+140,false,false,GAME_CONFIG.player, SKIN_PLAYER);
   enemy =new Fighter('CPU',    GAME_CONFIG.ring.right-140,true, true, GAME_CONFIG.enemy,  SKIN_CPU);
   enemy.health=enemy.maxHealth=Math.round(GAME_CONFIG.enemy.maxHealth*d.enemyHp);
   ai=new SimpleAI(enemy,d);
+  if(!pet) pet = new Pet(loadPetType());
+  pet.placeAtPlayer(player);
 }
 function resetRound(sec=GAME_CONFIG.round.seconds){
   state.seconds=sec; document.getElementById('roundTag').textContent=`Round ${state.round} / ${GAME_CONFIG.round.bestOf}`;
@@ -290,19 +345,21 @@ function resetRound(sec=GAME_CONFIG.round.seconds){
   spawnFighters(); SFX.bell();
 }
 
-/* ========= MOVES ========= */
+/* ======= Moves ======= */
 function startMove(f,kind,t,isEnemy=false){
   const M=GAME_CONFIG.moves[kind]; if(!M) return;
   if(f.stamina<M.stamina) return;
   f.hitting=true; f.move={kind,t,window:t+(f.isCPU?GAME_CONFIG.enemy.comboWindowMs:GAME_CONFIG.player.comboWindowMs),_hit:false};
   f.acc.swings++; if(!isEnemy) state.stats.player.swings++; else state.stats.enemy.swings++;
   f.stamina=Math.max(0,f.stamina-M.stamina); SFX.punch();
+  // 夥伴加油：只有玩家出拳時觸發
+  if(!f.isCPU && pet?.enabled) pet.triggerCheer();
 }
 function startBlock(f,t){ f.state='block'; f.blockUntil=t+240; SFX.block(); }
 function startDodge(f,t){ f.state='dodge'; f.dodgeUntil=t+(f.isCPU?GAME_CONFIG.enemy.dodgeIFrames:GAME_CONFIG.player.dodgeIFrames); SFX.dodge(); }
 function startSuper(f,t){ const max=f.maxSuper; if(f.super<max) return; f.super=0; startMove(f,'super',t,f.isCPU); SFX.superR(); }
 
-/* ========= POSE / GAIT ========= */
+/* ======= Pose / Gait（同前） ======= */
 function movePhase(f,t){
   const m=f.move; if(!m||!m.kind) return null;
   const M=GAME_CONFIG.moves[m.kind]; const e=t-m.t; const total=M.startup+M.active+M.recovery;
@@ -388,7 +445,7 @@ function armSegmentBoxes(f, which, t){
   return { upperBox, foreBox };
 }
 
-/* ========= DAMAGE / FX ========= */
+/* ======= Damage / FX ======= */
 function applyHit(att,vic,baseDmg,knock,t,scale=1){
   if(t<vic.dodgeUntil) return;
   let dealt=Math.round(baseDmg*scale);
@@ -432,7 +489,7 @@ function leaveAfterimage(f,t){
   state.afterimages.push({ x:f.x, y:f.y, w:f.w, h:f.h, flip:f.flip, isCPU:f.isCPU, pose, skin:clone(f.skin), life:GAME_CONFIG.FX.afterimage.life, alpha:GAME_CONFIG.FX.afterimage.alpha, scale:clone(f.scale) });
 }
 
-/* ========= UPDATE ========= */
+/* ======= Update ======= */
 function update(dt){
   const t=nowMs(); if(state.paused||!state.running) return;
   state._secAcc=(state._secAcc||0)+dt/1000;
@@ -478,6 +535,9 @@ function update(dt){
     if(player.health<=0||enemy.health<=0){ endRoundByKO(); }
   }
 
+  // Pets
+  if(pet) pet.update(dt, player||{x:GAME_CONFIG.canvasW/2});
+
   for(const fx of state.comboTexts){ fx.y+=fx.vy; fx.a-=0.01; }
   state.comboTexts=state.comboTexts.filter(fx=>fx.a>0);
   for(const p of state.particles){ p.x+=p.dx; p.y+=p.dy; p.dy+=0.03; p.life-=dt; }
@@ -507,13 +567,11 @@ function stepMoveWithSegments(att,vic,t){
   if(elapsed > (M.startup+M.active+M.recovery)){ att.hitting=false; att.move={kind:null,t:0,window:0,_hit:false}; }
 }
 
-/* ========= BACKGROUND RENDER ========= */
+/* ======= Background (含 Panda) ======= */
 function renderBackgroundDefault(w,h){
-  // 原本簡單 crowd + rope + glow
   const bgGrad = ctx.createLinearGradient(0,0,0,h);
   bgGrad.addColorStop(0,'#0b0f1d'); bgGrad.addColorStop(1,'#0b0c10');
   ctx.fillStyle=bgGrad; ctx.fillRect(0,0,w,h);
-
   for(let i=0;i<GAME_CONFIG.crowd.layers;i++){
     const y=120+i*28; ctx.fillStyle=`rgba(${40+i*20},${45+i*20},${70+i*25},${0.35-i*0.07})`;
     for(let x=0;x<w;x+=24){ const j=Math.sin((x+i*130+performance.now()*0.0007*(i+1)))*GAME_CONFIG.crowd.amplitude; ctx.fillRect(x,y+j,16,16); }
@@ -522,62 +580,40 @@ function renderBackgroundDefault(w,h){
 }
 function renderBackgroundPanda(w,h){
   const t=performance.now()/1000;
-  // 天空（夕陽漸層）
   const sky=ctx.createLinearGradient(0,0,0,h);
   sky.addColorStop(0,'#ffdf9e'); sky.addColorStop(0.4,'#ffb77e'); sky.addColorStop(1,'#1a1d29');
   ctx.fillStyle=sky; ctx.fillRect(0,0,w,h);
-
-  // 夕陽太陽
   const sunX=w*0.68, sunY=h*0.22, sunR=56;
   ctx.globalAlpha=0.9; ctx.fillStyle='#ffd166'; ctx.beginPath(); ctx.arc(sunX,sunY,sunR,0,Math.PI*2); ctx.fill();
   ctx.globalAlpha=0.2; ctx.beginPath(); ctx.arc(sunX,sunY,sunR*1.8,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
-
-  // 遠山層（墨色，三層視差）
   drawMountains(3, h*0.58, '#2a2d3d', 0.15, 0.003, 0.8);
   drawMountains(2, h*0.66, '#202334', 0.22, 0.004, 0.9);
   drawMountains(1, h*0.74, '#161a2a', 0.30, 0.006, 1.0);
-
-  // 薄霧
   for(let i=0;i<3;i++){
     const fog=ctx.createLinearGradient(0,h*0.45+i*40,0,h*0.60+i*50);
     fog.addColorStop(0, 'rgba(255,255,255,0.05)');
     fog.addColorStop(1, 'rgba(255,255,255,0.0)');
     ctx.fillStyle=fog; ctx.fillRect(0,h*0.45+i*40,w,70);
   }
-
-  // 寺廟剪影（中景）
-  ctx.fillStyle='#1a1e2d';
-  const bx=w*0.46, by=h*0.54;
-  ctx.fillRect(bx-60,by,120,8);
-  ctx.fillRect(bx-38,by-24,76,24);
+  ctx.fillStyle='#1a1e2d'; const bx=w*0.46, by=h*0.54;
+  ctx.fillRect(bx-60,by,120,8); ctx.fillRect(bx-38,by-24,76,24);
   ctx.beginPath(); ctx.moveTo(bx-42,by-24); ctx.lineTo(bx,by-48); ctx.lineTo(bx+42,by-24); ctx.closePath(); ctx.fill();
-
-  // 近景竹林（左右兩側，輕微搖擺）
-  drawBambooWall('left',  14, w*0.08, h, t);
-  drawBambooWall('right', 14, w*0.92, h, t);
-
-  // 紅燈籠（左右各 3 個，微擺 + 柔光）
-  drawLanternCluster(w*0.20, h*0.28, t);
-  drawLanternCluster(w*0.80, h*0.26, t);
-
-  drawRing(w,h); // 前景擂台與繩索
+  drawBambooWall('left',14,w*0.08,h,t); drawBambooWall('right',14,w*0.92,h,t);
+  drawLanternCluster(w*0.20, h*0.28, t); drawLanternCluster(w*0.80, h*0.26, t);
+  drawRing(w,h);
 }
 function drawRing(w,h){
   ctx.fillStyle='#1c2030'; ctx.fillRect(60, GAME_CONFIG.groundY-10, w-120, 20);
   ctx.strokeStyle='#9bb8ff'; ctx.lineWidth=3;
   for(let r=0;r<3;r++){ const ry=GAME_CONFIG.ring.ropeY+r*20; ctx.beginPath(); ctx.moveTo(80,ry); ctx.lineTo(w-80,ry); ctx.stroke(); }
-  ctx.globalAlpha=0.12;
-  const glow=ctx.createRadialGradient(w/2,GAME_CONFIG.groundY-40,40,w/2,GAME_CONFIG.groundY-40,340);
-  glow.addColorStop(0,'#6ea8fe'); glow.addColorStop(1,'transparent'); ctx.fillStyle=glow;
-  ctx.beginPath(); ctx.arc(w/2,GAME_CONFIG.groundY-40,340,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  ctx.globalAlpha=0.12; const glow=ctx.createRadialGradient(w/2,GAME_CONFIG.groundY-40,40,w/2,GAME_CONFIG.groundY-40,340);
+  glow.addColorStop(0,'#6ea8fe'); glow.addColorStop(1,'transparent'); ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(w/2,GAME_CONFIG.groundY-40,340,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
 }
 function drawMountains(layers, baseY, color, amp, speed, scaleX){
   const t=performance.now()*speed;
   ctx.fillStyle=color;
   for(let L=0; L<layers; L++){
-    ctx.beginPath();
-    const y=baseY + L*16;
-    ctx.moveTo(0,y);
+    ctx.beginPath(); const y=baseY + L*16; ctx.moveTo(0,y);
     for(let x=0;x<=960;x+=32){
       const n=Math.sin((x*scaleX + t*0.04) + L)*amp*60 + Math.cos((x*scaleX*0.6 + t*0.03)-L)*amp*30;
       ctx.lineTo(x, y - n);
@@ -595,25 +631,17 @@ function drawBambooWall(side, count, anchorX, h, t){
   }
 }
 function drawSingleBamboo(x, baseY, height, angle){
-  ctx.save();
-  ctx.translate(x, baseY);
-  ctx.rotate(angle);
-  // 竿
+  ctx.save(); ctx.translate(x, baseY); ctx.rotate(angle);
   const w=10, seg=18, segH=Math.max(8, height/seg);
   for(let s=0;s<seg;s++){
     const y=-s*segH;
     const g=ctx.createLinearGradient(-w/2,y, w/2,y);
     g.addColorStop(0,'#0b2e1f'); g.addColorStop(0.5,'#145c3e'); g.addColorStop(1,'#0b2e1f');
-    ctx.fillStyle=g;
-    roundedRect(-w/2, y-segH, w, segH, 4, true);
-    // 節
-    ctx.fillStyle='rgba(255,255,255,0.06)';
-    ctx.fillRect(-w/2, y-segH-1, w, 2);
+    ctx.fillStyle=g; roundedRect(-w/2, y-segH, w, segH, 4, true);
+    ctx.fillStyle='rgba(255,255,255,0.06)'; ctx.fillRect(-w/2, y-segH-1, w, 2);
   }
-  // 葉
   for(let k=0;k<5;k++){
-    ctx.save(); ctx.translate(0, -height*0.2 - k*height*0.15);
-    ctx.rotate( (-0.6) + k*0.25 );
+    ctx.save(); ctx.translate(0, -height*0.2 - k*height*0.15); ctx.rotate( (-0.6) + k*0.25 );
     ctx.fillStyle='rgba(49,201,120,0.8)';
     ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(28,-6,46,0); ctx.quadraticCurveTo(28,6,0,0); ctx.fill();
     ctx.restore();
@@ -629,33 +657,29 @@ function drawLanternCluster(cx, cy, t){
   }
 }
 function drawLantern(x,y){
-  // 線
   ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=1;
   ctx.beginPath(); ctx.moveTo(x, y-18); ctx.lineTo(x, y-30); ctx.stroke();
-  // 燈籠體
   const g=ctx.createRadialGradient(x,y,4,x,y,22);
   g.addColorStop(0,'#ff8e6e'); g.addColorStop(1,'#a42e20');
   ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(x,y,14,18,0,0,Math.PI*2); ctx.fill();
-  // 高光
   ctx.globalAlpha=0.35; ctx.fillStyle='#fff'; ctx.beginPath(); ctx.ellipse(x-4,y-4,6,8,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
-  // 光暈
   ctx.globalAlpha=0.18; ctx.fillStyle='#ff7a50'; ctx.beginPath(); ctx.ellipse(x,y,30,22,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
 }
 
-/* ========= RENDER ========= */
-let debugBoxes=[];
+/* ======= Render ======= */
 function render(){
-  const w=canvas.width,h=canvas.height; ctx.clearRect(0,0,w,h); debugBoxes.length=0;
+  const w=canvas.width,h=canvas.height; ctx.clearRect(0,0,w,h);
 
   if(GAME_CONFIG.theme==='Panda') renderBackgroundPanda(w,h);
   else renderBackgroundDefault(w,h);
 
-  // 殘影
+  // Pet 在拳台與角色之間
+  if(pet) pet.render(ctx);
+
   for(const g of state.afterimages){ drawFighter(g, true); }
   if(player&&enemy){ drawFighter(player); drawFighter(enemy); }
   else { ctx.fillStyle='#9bb8ff'; ctx.font='700 20px Arial'; ctx.fillText('Press ▶ Play to start', w/2-120, GAME_CONFIG.groundY-140); }
 
-  // 粒子 / 浮字 / 星星
   for(const p of state.particles){ ctx.fillStyle='rgba(255,255,255,0.7)'; ctx.fillRect(p.x,p.y,3,3); }
   for(const fx of state.comboTexts){ ctx.globalAlpha=Math.max(0,fx.a); ctx.fillStyle=fx.color||'#fff'; ctx.font='700 16px Arial'; ctx.fillText(fx.txt,fx.x,fx.y); ctx.globalAlpha=1; }
   for(const s of state.stars){
@@ -683,7 +707,7 @@ function drawStar(cx,cy,points,outerR,innerR,alpha){
   ctx.closePath(); ctx.fill(); ctx.globalAlpha=1; ctx.restore();
 }
 
-/* ========= FIGHTER DRAW (stylized) ========= */
+/* ======= Fighter Draw (Stylized) ======= */
 function drawFighter(f, isGhost=false){
   const t=performance.now(), facing=f.flip?-1:1, pose=computePose(f,t);
   const waistX=f.x, waistY=f.y - f.h*0.5 + pose.bob;
@@ -693,7 +717,7 @@ function drawFighter(f, isGhost=false){
   ctx.fillStyle='black'; ctx.beginPath(); ctx.ellipse(f.x, f.y-4, 30, 8, 0, 0, Math.PI*2); ctx.fill();
   ctx.globalAlpha = 1;
 
-  ctx.save(); ctx.translate(waistX,waistY); ctx.rotate(pose.torsoLean*facing + pose.torsoTwist);
+  ctx.save(); ctx.translate(waistX,waistY); ctx.rotate(pose.torsoLean*(f.flip?-1:1) + pose.torsoTwist);
   const torsoW=f.w, torsoH=50*scale.torso, headW=f.w-12, headH=24*scale.torso;
   const outlineCol = R.outline;
 
@@ -717,8 +741,7 @@ function drawFighter(f, isGhost=false){
 
   drawFace(headW,torsoH, s.face, outlineCol);
 
-  const shoulderY=-torsoH/2+26, shoulderFrontX=(facing>0? +torsoW/2 : -torsoW/2), shoulderBackX= -shoulderFrontX;
-
+  const shoulderY=-torsoH/2+26, shoulderFrontX=(flip ? -torsoW/2 : +torsoW/2), shoulderBackX= -shoulderFrontX;
   drawArm(shoulderBackX, shoulderY, pose.backUpper, pose.backFore, s.skin, s.glove, s.wrap, outlineCol, scale, isGhost);
   drawArm(shoulderFrontX, shoulderY, pose.frontUpper, pose.frontFore, s.skin, s.glove, s.wrap, outlineCol, scale, isGhost);
 
@@ -744,11 +767,7 @@ function drawArm(sx,sy,upper,fore,skin,glove,wrap,outlineCol, scale, isGhost){
   const gloveGrad = ctx.createLinearGradient(0,-th/2, 0, th/2);
   gloveGrad.addColorStop(0, shade(glove,1.08)); gloveGrad.addColorStop(1, shade(glove,GAME_CONFIG.RENDER.shadeMul));
   ctx.fillStyle=gloveGrad; roundedRect(arm2-2, -th/2+6, 18, 12, 6, true, outlineCol);
-  if(!isGhost){
-    ctx.globalAlpha=GAME_CONFIG.RENDER.specPower; ctx.fillStyle='#fff';
-    roundedRect(arm2-0, -th/2+8, 8, 4, 2, true);
-    ctx.globalAlpha=1;
-  }
+  if(!isGhost){ ctx.globalAlpha=GAME_CONFIG.RENDER.specPower; ctx.fillStyle='#fff'; roundedRect(arm2-0, -th/2+8, 8, 4, 2, true); ctx.globalAlpha=1; }
   ctx.restore();
 }
 function drawLeg(hx,baseY,hip,knee,color,outlineCol, isGhost){
@@ -797,20 +816,103 @@ function drawHair(headW,torsoH, color, style, outlineCol){
   const w=headW*0.9, h=headW*0.5;
   if(style==='spiky'){
     roundedRect(-w/2,-h, w,h,6,true,outlineCol);
-    for(let i=-2;i<=2;i++){
-      ctx.beginPath(); ctx.moveTo(i*8,-h); ctx.lineTo(i*8+6,-h-10); ctx.lineTo(i*8+12,-h); ctx.closePath(); ctx.fill();
-    }
-  }else if(style==='bob'){
-    roundedRect(-w/2,-h*0.9, w,h*0.9,12,true,outlineCol);
-  }else if(style==='long'){
-    roundedRect(-w/2,-h, w,h+14,12,true,outlineCol);
-  }else if(style==='short'){
-    roundedRect(-w/2,-h*0.8, w,h*0.8,10,true,outlineCol);
-  }
+    for(let i=-2;i<=2;i++){ ctx.beginPath(); ctx.moveTo(i*8,-h); ctx.lineTo(i*8+6,-h-10); ctx.lineTo(i*8+12,-h); ctx.closePath(); ctx.fill(); }
+  }else if(style==='bob'){ roundedRect(-w/2,-h*0.9, w,h*0.9,12,true,outlineCol); }
+  else if(style==='long'){ roundedRect(-w/2,-h, w,h+14,12,true,outlineCol); }
+  else if(style==='short'){ roundedRect(-w/2,-h*0.8, w,h*0.8,10,true,outlineCol); }
   ctx.restore();
 }
 
-/* ========= HUD / END ========= */
+/* ======= Pets Draw Helpers ======= */
+// 可愛小熊貓（黑白圓形組合）
+function drawPetPanda(ctx, x, y, cheering){
+  const baseY = y-6; // 貼地
+  const t = performance.now()*0.005;
+  const sway = Math.sin(t)* (cheering? 3 : 2);
+
+  // 影子
+  ctx.globalAlpha=0.2; ctx.fillStyle='black'; ctx.beginPath(); ctx.ellipse(x, y-2, 20, 6, 0, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+
+  // 身體
+  ctx.fillStyle='#ffffff'; roundedRect(x-16, baseY-26, 32, 28, 12, true);
+  ctx.fillStyle='#111111'; roundedRect(x-16, baseY-14, 32, 16, 10, true);
+
+  // 頭
+  ctx.save(); ctx.translate(x, baseY-36); ctx.rotate(sway*0.01);
+  ctx.fillStyle='#ffffff'; ctx.beginPath(); ctx.ellipse(0,0,15,13,0,0,Math.PI*2); ctx.fill();
+
+  // 耳朵
+  ctx.fillStyle='#111'; ctx.beginPath(); ctx.ellipse(-9,-10,5,5,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(+9,-10,5,5,0,0,Math.PI*2); ctx.fill();
+
+  // 眼圈
+  ctx.fillStyle='#222'; ctx.beginPath(); ctx.ellipse(-5,-2,4,5,0.2,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(+5,-2,4,5,-0.2,0,Math.PI*2); ctx.fill();
+
+  // 眼睛
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.ellipse(-5,-2,2,2,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(+5,-2,2,2,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#111'; ctx.beginPath(); ctx.ellipse(-5,-2,1,1,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(+5,-2,1,1,0,0,Math.PI*2); ctx.fill();
+
+  // 鼻子嘴
+  ctx.fillStyle='#111'; ctx.fillRect(-1,2,2,2); ctx.fillRect(-3,4,6,1);
+
+  // 小手（加油擺動）
+  ctx.save();
+  const armA = cheering? Math.sin(performance.now()*0.02)*0.6 : Math.sin(t)*0.3;
+  ctx.translate(-12, 2); ctx.rotate(-0.6+armA); roundedRect(-3,-3,6,10,3,true); ctx.restore();
+  ctx.save(); ctx.translate(+12, 2); ctx.rotate(0.6-armA);  roundedRect(-3,-3,6,10,3,true); ctx.restore();
+
+  ctx.restore();
+
+  // 感嘆號
+  if(cheering){
+    ctx.globalAlpha=0.9; ctx.fillStyle='#ffd166';
+    ctx.fillRect(x+16, baseY-48, 3, 10);
+    ctx.fillRect(x+16, baseY-35, 3, 3);
+    ctx.globalAlpha=1;
+  }
+}
+
+// 小狐狸（橘白＋尾巴晃）
+function drawPetFox(ctx, x, y, cheering){
+  const baseY = y-6;
+  const t = performance.now()*0.005;
+  const tailSwing = Math.sin(t*1.6)*(cheering? 0.8:0.4);
+
+  ctx.globalAlpha=0.2; ctx.fillStyle='black'; ctx.beginPath(); ctx.ellipse(x, y-2, 20, 6, 0, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+
+  // 身體
+  ctx.fillStyle='#d66a1f'; roundedRect(x-18, baseY-20, 34, 22, 10, true);
+  // 胸口白
+  ctx.fillStyle='#ffe4c7'; roundedRect(x-6, baseY-16, 12, 12, 6, true);
+
+  // 頭
+  ctx.fillStyle='#d66a1f'; roundedRect(x-12, baseY-36, 24, 18, 8, true);
+  // 耳
+  ctx.fillStyle='#d66a1f'; ctx.beginPath(); ctx.moveTo(x-10,baseY-33); ctx.lineTo(x-2,baseY-47); ctx.lineTo(x-0,baseY-33); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x+10,baseY-33); ctx.lineTo(x+2,baseY-47); ctx.lineTo(x+0,baseY-33); ctx.closePath(); ctx.fill();
+
+  // 眼
+  ctx.fillStyle='#111'; ctx.fillRect(x-5,baseY-30,3,3); ctx.fillRect(x+2,baseY-30,3,3);
+  // 鼻
+  ctx.fillStyle='#111'; ctx.fillRect(x-1,baseY-26,2,2);
+
+  // 尾巴
+  ctx.save(); ctx.translate(x+14, baseY-12); ctx.rotate(tailSwing);
+  ctx.fillStyle='#d66a1f'; roundedRect(0,-4, 18, 8, 4, true);
+  ctx.fillStyle='#ffe4c7'; roundedRect(12,-4, 6, 8, 4, true);
+  ctx.restore();
+
+  // 跳躍閃光
+  if(cheering){
+    ctx.globalAlpha=0.25; ctx.fillStyle='#ffd166';
+    ctx.beginPath(); ctx.arc(x, baseY-36, 10, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+  }
+}
+
+/* ======= HUD / End ======= */
 function endRoundByKO(){ state.paused=true; state.running=false; showModal('KO!', modalResultsHTML((player&&player.health>0)?'You Win!':'CPU Wins!'), ()=>SFX.ko()); }
 function endRoundByHP(){
   state.paused=true; state.running=false;
@@ -837,17 +939,17 @@ function setBars(){
   if(enemy){ eH.style.width=`${(enemy.health/enemy.maxHealth)*100}%`; eS.style.width=`${(enemy.stamina/enemy.maxStamina)*100}%`; eSu.style.width=`${(enemy.super/enemy.maxSuper)*100}%`; }
 }
 
-/* ========= LOOP ========= */
+/* ======= Loop ======= */
 function loop(ts){
   try{
     const dt=ts-state.lastTick; state.lastTick=ts; state.acc+=dt;
     while(state.acc>=state.step){ update(state.step); state.acc-=state.step; }
     render();
-  }catch(err){ console.error('[Block Brawl v4.2] runtime error:',err); state.running=false; }
+  }catch(err){ console.error('[Block Brawl v4.3] runtime error:',err); state.running=false; }
   requestAnimationFrame(loop);
 }
 
-/* ========= UI / MODALS ========= */
+/* ======= UI / Modals ======= */
 const modal={root:document.getElementById('modalBackdrop'),title:document.getElementById('modalTitle'),body:document.getElementById('modalBody')};
 function showModal(title,html,onOpen){ modal.title.textContent=title; modal.body.innerHTML=html; modal.root.style.display='flex'; if(onOpen) onOpen(); }
 function closeModal(){ modal.root.style.display='none'; SFX.ui(); }
@@ -860,94 +962,44 @@ modal.root.addEventListener('click',e=>{ if(e.target===modal.root) closeModal();
     showModal('How to Play', `<div class="grid">
       <div>Move <span class="k">A/D</span> or <span class="k">←/→</span>, Dash <span class="k">W/S</span> or <span class="k">↑/↓</span></div>
       <div>Punches: <span class="k">J</span>/<span class="k">K</span>/<span class="k">L</span>, Block <span class="k">I</span>, Dodge <span class="k">O</span>, Super <span class="k">Space</span></div>
-      <div>Pause <span class="k">P</span> • Debug <span class="k">/</span> • Restart <span class="k">R</span></div>
-      <div class="miniHelp">New: Theme → Panda（Bamboo Dojo）</div>
+      <div class="miniHelp">New: Theme → Panda、Pets → Panda/Fox</div>
     </div>`);
   }
 })();
 
-/* Skins UI（同 v4.1，略） */
+/* ======= Skins UI（同前，精簡保留） ======= */
 document.getElementById('btnSkins').addEventListener('click',()=>{
   const color=(id,label,val)=>`<label class="row"><span class="grow">${label}</span><input type="color" id="${id}" value="${val}"/></label>`;
   const sel=(id,label,options,val)=>`<label class="row"><span class="grow">${label}</span><select id="${id}" class="select">${options.map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join('')}</select></label>`;
   const scale=(id,label,val,min=0.85,max=1.15,step=0.01)=>`<label class="row"><span class="grow">${label}</span><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}" oninput="this.nextElementSibling.textContent=this.value"/><span class="miniHelp">${val}</span></label>`;
-  const hairStyles=['none','short','spiky','bob','long'];
-  const faces=['smile','determined','stoic'];
-  const presetChips = PRESETS.map((p,i)=>`<span class="chip" data-preset="${i}">${p.name}</span>`).join(' ');
+  const hairStyles=['none','short','spiky','bob','long']; const faces=['smile','determined','stoic'];
   const body=`
-  <div class="grid">
-    <div class="small">Choose a preset or customize. Player on the left, CPU on the right.</div>
-    <div class="grid grid2">
-      <div class="card" style="padding:10px">
-        <div><strong>Player Presets</strong></div>
-        <div class="row" id="playerPresetRow">${presetChips}</div>
-        ${color('pl_skin','Skin',SKIN_PLAYER.skin)}
-        ${color('pl_hair','Hair',SKIN_PLAYER.hair)}
-        ${color('pl_glove','Glove',SKIN_PLAYER.glove)}
-        ${color('pl_top','Top',SKIN_PLAYER.top)}
-        ${color('pl_pant','Pants',SKIN_PLAYER.pant)}
-        ${color('pl_wrap','Wrap',SKIN_PLAYER.wrap)}
-        ${sel('pl_face','Face',faces,SKIN_PLAYER.face)}
-        ${sel('pl_hairStyle','Hair Style',hairStyles,SKIN_PLAYER.hairStyle)}
-        ${scale('pl_h','Height',SKIN_PLAYER.scale?.height??1)}
-        ${scale('pl_arm','Arm Length',SKIN_PLAYER.scale?.arm??1)}
-        ${scale('pl_torso','Torso Width',SKIN_PLAYER.scale?.torso??1)}
-      </div>
-      <div class="card" style="padding:10px">
-        <div class="row" style="justify-content:space-between"><strong>CPU Presets</strong><button id="cpuRandom" class="btn">Randomize</button></div>
-        <div class="row" id="cpuPresetRow">${presetChips}</div>
-        ${color('cpu_skin','Skin',SKIN_CPU.skin)}
-        ${color('cpu_hair','Hair',SKIN_CPU.hair)}
-        ${color('cpu_glove','Glove',SKIN_CPU.glove)}
-        ${color('cpu_top','Top',SKIN_CPU.top)}
-        ${color('cpu_pant','Pants',SKIN_CPU.pant)}
-        ${color('cpu_wrap','Wrap',SKIN_CPU.wrap)}
-        ${sel('cpu_face','Face',faces,SKIN_CPU.face)}
-        ${sel('cpu_hairStyle','Hair Style',hairStyles,SKIN_CPU.hairStyle)}
-        ${scale('cpu_h','Height',SKIN_CPU.scale?.height??1)}
-        ${scale('cpu_arm','Arm Length',SKIN_CPU.scale?.arm??1)}
-        ${scale('cpu_torso','Torso Width',SKIN_CPU.scale?.torso??1)}
-      </div>
+  <div class="grid grid2">
+    <div class="card" style="padding:10px">
+      <div><strong>Player</strong></div>
+      ${color('pl_skin','Skin',SKIN_PLAYER.skin)} ${color('pl_hair','Hair',SKIN_PLAYER.hair)} ${color('pl_glove','Glove',SKIN_PLAYER.glove)}
+      ${color('pl_top','Top',SKIN_PLAYER.top)} ${color('pl_pant','Pants',SKIN_PLAYER.pant)} ${color('pl_wrap','Wrap',SKIN_PLAYER.wrap)}
+      ${sel('pl_face','Face',faces,SKIN_PLAYER.face)} ${sel('pl_hairStyle','Hair Style',hairStyles,SKIN_PLAYER.hairStyle)}
+      ${scale('pl_h','Height',SKIN_PLAYER.scale?.height??1)} ${scale('pl_arm','Arm Length',SKIN_PLAYER.scale?.arm??1)} ${scale('pl_torso','Torso Width',SKIN_PLAYER.scale?.torso??1)}
+      <div class="row" style="justify-content:flex-end"><button id="skinsSave" class="btn">Save</button></div>
     </div>
-    <div class="row" style="justify-content:flex-end">
-      <button id="skinsSave" class="btn">Save</button>
+    <div class="card" style="padding:10px">
+      <div><strong>CPU</strong></div>
+      ${color('cpu_skin','Skin',SKIN_CPU.skin)} ${color('cpu_hair','Hair',SKIN_CPU.hair)} ${color('cpu_glove','Glove',SKIN_CPU.glove)}
+      ${color('cpu_top','Top',SKIN_CPU.top)} ${color('cpu_pant','Pants',SKIN_CPU.pant)} ${color('cpu_wrap','Wrap',SKIN_CPU.wrap)}
+      ${sel('cpu_face','Face',faces,SKIN_CPU.face)} ${sel('cpu_hairStyle','Hair Style',hairStyles,SKIN_CPU.hairStyle)}
+      ${scale('cpu_h','Height',SKIN_CPU.scale?.height??1)} ${scale('cpu_arm','Arm Length',SKIN_CPU.scale?.arm??1)} ${scale('cpu_torso','Torso Width',SKIN_CPU.scale?.torso??1)}
     </div>
   </div>`;
   showModal('Skins', body, ()=>{
-    modal.body.querySelectorAll('#playerPresetRow .chip').forEach(ch=>{
-      ch.addEventListener('click',()=>{ modal.body.querySelectorAll('#playerPresetRow .chip').forEach(c=>c.classList.remove('sel')); ch.classList.add('sel');
-        const p=PRESETS[+ch.dataset.preset]; applySkinToUI('pl', p);
-      });
-    });
-    modal.body.querySelectorAll('#cpuPresetRow .chip').forEach(ch=>{
-      ch.addEventListener('click',()=>{ modal.body.querySelectorAll('#cpuPresetRow .chip').forEach(c=>c.classList.remove('sel')); ch.classList.add('sel');
-        const p=PRESETS[+ch.dataset.preset]; applySkinToUI('cpu', p);
-      });
-    });
-    modal.body.querySelector('#cpuRandom')?.addEventListener('click',()=>{
-      const p=clone(PRESETS[Math.floor(Math.random()*PRESETS.length)]);
-      applySkinToUI('cpu', p);
-    });
     modal.body.querySelector('#skinsSave').addEventListener('click',()=>{
-      SKIN_PLAYER = readSkinFromUI('pl');
-      SKIN_CPU    = readSkinFromUI('cpu');
+      SKIN_PLAYER = readSkinFromUI('pl'); SKIN_CPU = readSkinFromUI('cpu');
       localStorage.setItem('bb_skin_player', JSON.stringify(SKIN_PLAYER));
       localStorage.setItem('bb_skin_cpu',    JSON.stringify(SKIN_CPU));
       closeModal();
     });
   });
 });
-function applySkinToUI(prefix, skin){
-  ['skin','hair','glove','top','pant','wrap'].forEach(k=>{
-    const el=modal.body.querySelector(`#${prefix}_${k}`); if(el) el.value=skin[k];
-  });
-  modal.body.querySelector(`#${prefix}_face`).value=skin.face;
-  modal.body.querySelector(`#${prefix}_hairStyle`).value=skin.hairStyle;
-  const sc = skin.scale||{height:1,arm:1,torso:1};
-  const h = modal.body.querySelector(`#${prefix}_h`);   h.value=sc.height; h.nextElementSibling.textContent=sc.height;
-  const a = modal.body.querySelector(`#${prefix}_arm`); a.value=sc.arm;    a.nextElementSibling.textContent=sc.arm;
-  const to= modal.body.querySelector(`#${prefix}_torso`); to.value=sc.torso; to.nextElementSibling.textContent=sc.torso;
-}
 function readSkinFromUI(prefix){
   const g=id=>modal.body.querySelector(`#${id}`).value;
   return {
@@ -957,14 +1009,47 @@ function readSkinFromUI(prefix){
   };
 }
 
-/* ========= THEME SELECT ========= */
-document.getElementById('selTheme').addEventListener('change',e=>{
-  GAME_CONFIG.theme = e.target.value;
-  localStorage.setItem('bb_theme', GAME_CONFIG.theme);
-  SFX.ui();
+/* ======= Pets UI ======= */
+document.getElementById('btnPets').addEventListener('click', ()=>{
+  const saved = loadPetType();
+  const body = `
+  <div class="grid">
+    <div class="small">Choose a companion. It follows you and cheers when you punch. Purely cosmetic ❤</div>
+    <label class="row"><span class="grow">Type</span>
+      <select id="petType" class="select">
+        <option ${saved==='None'?'selected':''}>None</option>
+        <option ${saved==='Panda'?'selected':''}>Panda</option>
+        <option ${saved==='Fox'?'selected':''}>Fox</option>
+      </select>
+    </label>
+    <label class="row"><span class="grow">Stand Offset (left/right)</span>
+      <input id="petOffset" type="range" min="-150" max="150" step="2" value="${GAME_CONFIG.PETS.offsetX}" oninput="this.nextElementSibling.textContent=this.value"/>
+      <span class="miniHelp">${GAME_CONFIG.PETS.offsetX}</span>
+    </label>
+    <div class="row" style="justify-content:flex-end"><button id="petSave" class="btn">Save</button></div>
+  </div>`;
+  showModal('Pets', body, ()=>{
+    modal.body.querySelector('#petSave').addEventListener('click', ()=>{
+      const tp = modal.body.querySelector('#petType').value;
+      GAME_CONFIG.PETS.offsetX = parseInt(modal.body.querySelector('#petOffset').value,10);
+      localStorage.setItem('bb_pet_type', tp);
+      localStorage.setItem('bb_pet_offset', String(GAME_CONFIG.PETS.offsetX));
+      if(!pet) pet = new Pet(tp); else pet.type = tp;
+      closeModal();
+    });
+  });
 });
+function loadPetType(){
+  const tp = localStorage.getItem('bb_pet_type') || GAME_CONFIG.PETS.type;
+  const off = parseInt(localStorage.getItem('bb_pet_offset')||GAME_CONFIG.PETS.offsetX,10);
+  GAME_CONFIG.PETS.offsetX = off;
+  return tp;
+}
 
-/* ========= CONTROLS / ACCESSIBILITY ========= */
+/* ======= Theme / Controls / Accessibility ======= */
+document.getElementById('selTheme').addEventListener('change',e=>{
+  GAME_CONFIG.theme = e.target.value; localStorage.setItem('bb_theme', GAME_CONFIG.theme); SFX.ui();
+});
 document.getElementById('btnControls').addEventListener('click',()=>{
   const names=Object.keys(KEY_MAP); let html=`<div class="grid">`;
   for(const n of names){ const val=KEY_MAP[n].join(', '); html+=`<div class="row"><div class="grow"><strong>${n}</strong></div><input data-k="${n}" class="select" value="${val}"/></div>`; }
@@ -989,7 +1074,7 @@ document.getElementById('btnAccessibility').addEventListener('click',()=>{
   });
 });
 
-/* ========= START / PAUSE ========= */
+/* ======= Start / Pause ======= */
 function startGame(){ if(audioCtx.state==='suspended') audioCtx.resume();
   state.stats={player:{swings:0,hits:0,damage:0}, enemy:{swings:0,hits:0,damage:0}}; state.round=1; resetRound(); state.running=true; state.paused=false;
 }
@@ -997,16 +1082,18 @@ document.getElementById('btnPlay').addEventListener('click', startGame);
 document.getElementById('btnPause').addEventListener('click', ()=>{ state.paused=!state.paused; SFX.ui(); });
 addEventListener('keydown',e=>{ if(e.key==='p'||e.key==='P') state.paused=!state.paused; if(e.key==='/') state.debug=!state.debug; if(e.key==='r'||e.key==='R') startGame(); });
 
-/* ========= RESTORE ========= */
+/* ======= Restore ======= */
 (function restore(){
   const saved=JSON.parse(localStorage.getItem('bb_cfg')||'null');
   if(saved){ Object.assign(GAME_CONFIG.audio,saved.audio||{}); Object.assign(GAME_CONFIG.UI,saved.UI||{}); }
   GAME_CONFIG.theme = localStorage.getItem('bb_theme') || GAME_CONFIG.theme;
   document.getElementById('selDiff').value=state.difficulty;
   document.getElementById('selTheme').value=GAME_CONFIG.theme;
+  // 預載寵物設定
+  const tp = loadPetType(); if(!pet) pet = new Pet(tp);
 })();
 
-/* ========= BOOT ========= */
+/* ======= Boot ======= */
 requestAnimationFrame(loop);
 </script>
 </body>
