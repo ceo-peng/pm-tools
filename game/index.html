@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Block Brawl v3 — Roblox-Style Boxing (Segment Hitboxes + Gait Boost + FX)</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Block Brawl v4 — Skins + Stylized Rendering</title>
 <style>
   :root{
     --bg:#0e0f13; --panel:#171923; --panel2:#1f2230; --text:#e8ebff;
@@ -20,9 +20,9 @@
   .btn{background:var(--panel2);border:1px solid #2a2e42;border-radius:12px;color:var(--text);padding:10px 14px;font-weight:700;cursor:pointer}
   .btn:hover{filter:brightness(1.1)}
   .btn:active{transform:translateY(1px)}
-  .select{background:var(--panel2);border:1px solid #2a2e42;border-radius:10px;color:var(--text);padding:8px 10px;font-weight:600}
+  .select,.input{background:var(--panel2);border:1px solid #2a2e42;border-radius:10px;color:var(--text);padding:8px 10px;font-weight:600}
   .k{background:#272a3d;border-radius:8px;padding:3px 6px;border:1px solid #35395a}
-  canvas{background:#121420;border-radius:16px;border:1px solid #2a2e42;max-width:100%;height:auto}
+  canvas{background:#10131f;border-radius:16px;border:1px solid #2a2e42;max-width:100%;height:auto}
   .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   .grow{flex:1}
   .bars{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
@@ -35,19 +35,25 @@
   .roundtag{font-weight:800;color:#9bb8ff}
   .center{display:flex;justify-content:center;align-items:center}
   .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:5}
-  .modal{width:min(680px,92vw);padding:16px}
+  .modal{width:min(960px,96vw);padding:16px}
   .modal h3{margin:.2rem 0 .6rem 0}
   .grid{display:grid;gap:10px}
   .grid2{grid-template-columns:1fr 1fr}
+  .grid3{grid-template-columns:repeat(3,1fr)}
+  .grid4{grid-template-columns:repeat(4,1fr)}
   .small{font-size:.9rem;color:var(--muted)}
   .stat{font-weight:800}
   .footer{color:#8891bb;font-size:.85rem;margin-top:-6px}
+  .chip{padding:6px 10px;border:1px solid #2a2e42;border-radius:999px;cursor:pointer;background:#1f2230}
+  .chip.sel{outline:2px solid var(--accent)}
+  input[type="color"]{width:44px;height:32px;border-radius:8px;border:1px solid #2a2e42;background:#1f2230;padding:0}
+  .miniHelp{color:#9bb8ff;font-size:.85rem}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1 class="title">🧱 Block Brawl v3</h1>
-  <div class="sub">Roblox-style • Vanilla JS + Canvas • Segment Hitboxes • Gait Boost • FX</div>
+  <h1 class="title">🧱 Block Brawl v4</h1>
+  <div class="sub">Roblox-style • Vanilla JS + Canvas • Skins + Stylized Rendering</div>
 
   <div class="topbar card hud">
     <button id="btnPlay" class="btn">▶ Play</button>
@@ -55,6 +61,7 @@
       <label>Difficulty</label>
       <select id="selDiff" class="select"><option>Easy</option><option selected>Normal</option><option>Hard</option></select>
     </div>
+    <button id="btnSkins" class="btn">Skins</button>
     <button id="btnControls" class="btn">Controls</button>
     <button id="btnAccessibility" class="btn">Accessibility</button>
     <button id="btnPause" class="btn">Pause (P)</button>
@@ -86,6 +93,7 @@
   <div class="footer">Debug <span class="k">/</span> • Restart <span class="k">R</span> • Super <span class="k">Space</span></div>
 </div>
 
+<!-- Modal -->
 <div id="modalBackdrop" class="modal-backdrop center">
   <div class="modal card">
     <h3 id="modalTitle">Welcome</h3>
@@ -98,17 +106,18 @@
 
 <script>
 /* README
-- 新增：
-  (1) 多段關節命中盒（前手：上臂/前臂）— 精度更高；前臂=100%傷害，上臂=70%傷害。
-  (2) 踩踏步態加速/減速（移動時依 gait 相位微調速度，CPU 同步）。
-  (3) 閃避殘影 + 命中暈眩星星特效。
-- 可於 GAME_CONFIG 調整傷害比例、步態速度增益、殘影/星星壽命等。
-- Controls: A/D or ←/→ 移動；W/S 或 ↑/↓ 微衝；J/K/L 出拳；I 格擋；O 閃避；Space 超級；P 暫停；/ Debug；R 重開。
+- v4 新增「Skins」系統與更細膩的 toon/漸層渲染（圓角、陰影、手套高光、頭髮、臉型）。
+- 進入 Skins：點上方「Skins」，可選預設外觀或自訂（含身形比例）。
+- 調整點：
+  - GAME_CONFIG.RENDER（光影/線條/高光強度）
+  - PRESETS（預設造型）
+  - 角色外觀儲存在 localStorage 'bb_skin_player' / 'bb_skin_cpu'
+- Controls: A/D / ←→ 移動；W/S / ↑↓ 微衝；J/K/L 出拳；I 格擋；O 閃避；Space 超級；P 暫停；/ Debug；R 重開。
 */
 
-/* ========================
+/* ==============
    GAME CONFIG
-   ======================== */
+   ============== */
 const GAME_CONFIG = {
   canvasW: 960, canvasH: 540, groundY: 420,
   ring: { left: 80, right: 880, ropeY: 260 },
@@ -138,30 +147,38 @@ const GAME_CONFIG = {
   round:{ seconds:60, suddenDeath:15, bestOf:3, koDowns:3 },
   audio:{ master:0.18, reduceFlashing:false, soundOn:true },
   UI:{ colorBlind:false },
-
-  // 新增可調參數
-  HITBOX:{
-    upperBox: {w:18,h:18, scaleDmg:0.7},
-    foreBox:  {w:20,h:20, scaleDmg:1.0}
-  },
-  GAIT:{
-    stepBoost:0.18, // +/− 18% 速度起伏
-    minFactor:0.75, // 不會低於 75% 基礎速度
-  },
+  // 命中盒/步態/特效（沿用 v3）
+  HITBOX:{ upperBox:{w:18,h:18,scaleDmg:0.7}, foreBox:{w:20,h:20,scaleDmg:1.0} },
+  GAIT:{ stepBoost:0.18, minFactor:0.75 },
   FX:{
-    afterimage: { spawnEveryMs:36, life:260, alpha:0.32 },
-    stars: { count:4, life:700, radius:16 }
+    afterimage:{ spawnEveryMs:36, life:260, alpha:0.32 },
+    stars:{ count:4, life:700, radius:16 }
   },
-  DIFFICULTY:{
-    Easy:   { enemyHp:0.9, enemyDmg:0.85, enemySpeed:0.95, aiAggro:0.72, aiDefend:0.85, aiRandom:0.25 },
-    Normal: { enemyHp:1.0, enemyDmg:1.0,   enemySpeed:1.0,  aiAggro:0.92, aiDefend:1.0,  aiRandom:0.18 },
-    Hard:   { enemyHp:1.15,enemyDmg:1.1,   enemySpeed:1.05, aiAggro:1.12, aiDefend:1.08, aiRandom:0.12 }
+  // 新增：渲染參數
+  RENDER:{
+    outline:'#0a0b12', outlineW:2.2,
+    shadeMul:0.65, // 陰影乘數 (0~1)
+    specPower:0.8, // 手套高光
+    softAO:0.22,   // 接觸陰影強度
+    headGloss:0.18 // 額頭亮斑
   }
 };
 
-/* ========================
+/* ==============
+   PRESET SKINS
+   ============== */
+const PRESETS = [
+  {name:'Classic Green', skin:'#f6c9a0', hair:'#2b2b2b', glove:'#ffd166', top:'#63e6be', pant:'#2a2e42', wrap:'#9bb8ff', face:'smile', hairStyle:'spiky', scale:{height:1.0, arm:1.0, torso:1.0}},
+  {name:'Sky Boxer',     skin:'#f1d3b3', hair:'#1f3b7a', glove:'#ff6b6b', top:'#6ea8fe', pant:'#1f2a44', wrap:'#ffd166', face:'determined', hairStyle:'bob', scale:{height:1.02,arm:1.02,torso:0.98}},
+  {name:'Desert Rose',   skin:'#e9b087', hair:'#613a2b', glove:'#ff8a8a', top:'#e07a5f', pant:'#2a2e42', wrap:'#f2cc8f', face:'smile', hairStyle:'long', scale:{height:0.98,arm:1.05,torso:0.95}},
+  {name:'Midnight',      skin:'#d9b290', hair:'#0e0f13', glove:'#9bb8ff', top:'#3c5aa6', pant:'#151a2b', wrap:'#7bf1a8', face:'stoic', hairStyle:'none', scale:{height:1.03,arm:0.98,torso:1.02}},
+  {name:'Sunset Kid',    skin:'#f8c7a8', hair:'#7a3e1f', glove:'#ffad66', top:'#ff9566', pant:'#23263a', wrap:'#ffe28a', face:'smile', hairStyle:'spiky', scale:{height:0.97,arm:1.08,torso:0.93}},
+  {name:'Cool Mint',     skin:'#efcaa6', hair:'#1e2d2f', glove:'#7bf1a8', top:'#63e6be', pant:'#203234', wrap:'#b0ffe1', face:'determined', hairStyle:'short', scale:{height:1.0,arm:1.0,torso:1.0}}
+];
+
+/* ==============
    UTILS / INPUT
-   ======================== */
+   ============== */
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const nowMs = ()=>performance.now();
 const rand = (a,b)=>Math.random()*(b-a)+a;
@@ -181,9 +198,9 @@ addEventListener('keydown',e=>{ pressed.add(e.key.toLowerCase()); if(['ArrowUp',
 addEventListener('keyup',e=>pressed.delete(e.key.toLowerCase()));
 const isDown=(name)=> (KEY_MAP[name]||[]).some(k=>pressed.has(k));
 
-/* ========================
-   AUDIO (WebAudio)
-   ======================== */
+/* ==============
+   AUDIO
+   ============== */
 const audioCtx = new (window.AudioContext||window.webkitAudioContext)();
 function beep(type='sine', freq=440, dur=0.08, gain=0.12){
   if(!GAME_CONFIG.audio.soundOn) return;
@@ -203,21 +220,32 @@ const SFX = {
   ui:    ()=>beep('sine', 520, 0.06, 0.16)
 };
 
-/* ========================
+/* ==============
+   SKIN DATA
+   ============== */
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+let SKIN_PLAYER = JSON.parse(localStorage.getItem('bb_skin_player')||'null') || clone(PRESETS[0]);
+let SKIN_CPU    = JSON.parse(localStorage.getItem('bb_skin_cpu')||'null')    || clone(PRESETS[1]);
+
+/* ==============
    ENTITY / AI
-   ======================== */
+   ============== */
 class Fighter{
-  constructor(name,x,flip,isCPU,base){
+  constructor(name,x,flip,isCPU,base,skin){
+    const scale=skin.scale||{height:1,arm:1,torso:1};
+    const H = Math.round(base.height*scale.height);
+    const W = Math.round(base.width*scale.torso);
     Object.assign(this,{
       name,x, y:GAME_CONFIG.groundY, flip, isCPU,
-      w:base.width, h:base.height,
+      w:W, h:H, scale,
+      skin:clone(skin),
       health:base.maxHealth, maxHealth:base.maxHealth,
       stamina:base.maxStamina, maxStamina:base.maxStamina,
       super:0, maxSuper:base.maxSuper,
       lastDash:-9999, state:'idle', hitting:false,
       move:{kind:null,t:0,window:0,_hit:false},
       hitstunUntil:0, dodgeUntil:0, comboUntil:0, lastHitAt:0,
-      gaitPhase:0, // 走路相位
+      gaitPhase:0,
       acc:{swings:0,hits:0},
       _nextAfterimage:0
     });
@@ -261,9 +289,9 @@ class SimpleAI{
   }
 }
 
-/* ========================
+/* ==============
    GLOBAL STATE
-   ======================== */
+   ============== */
 const canvas=document.getElementById('game'); const ctx=canvas.getContext('2d');
 const state={
   running:false, paused:false, debug:false, round:1, seconds:GAME_CONFIG.round.seconds,
@@ -274,13 +302,13 @@ const state={
 };
 let player=null, enemy=null, ai=null;
 
-/* ========================
+/* ==============
    SPAWN / ROUND
-   ======================== */
+   ============== */
 function spawnFighters(){
   const d=GAME_CONFIG.DIFFICULTY[state.difficulty];
-  player=new Fighter('Player', GAME_CONFIG.ring.left+140,false,false,GAME_CONFIG.player);
-  enemy =new Fighter('CPU',    GAME_CONFIG.ring.right-140,true, true, GAME_CONFIG.enemy);
+  player=new Fighter('Player', GAME_CONFIG.ring.left+140,false,false,GAME_CONFIG.player, SKIN_PLAYER);
+  enemy =new Fighter('CPU',    GAME_CONFIG.ring.right-140,true, true, GAME_CONFIG.enemy,  SKIN_CPU);
   enemy.health=enemy.maxHealth=Math.round(GAME_CONFIG.enemy.maxHealth*d.enemyHp);
   ai=new SimpleAI(enemy,d);
 }
@@ -290,9 +318,9 @@ function resetRound(sec=GAME_CONFIG.round.seconds){
   spawnFighters(); SFX.bell();
 }
 
-/* ========================
+/* ==============
    MOVES / ACTIONS
-   ======================== */
+   ============== */
 function startMove(f,kind,t,isEnemy=false){
   const M=GAME_CONFIG.moves[kind]; if(!M) return;
   if(f.stamina<M.stamina) return;
@@ -304,10 +332,9 @@ function startBlock(f,t){ f.state='block'; f.blockUntil=t+240; SFX.block(); }
 function startDodge(f,t){ f.state='dodge'; f.dodgeUntil=t+(f.isCPU?GAME_CONFIG.enemy.dodgeIFrames:GAME_CONFIG.player.dodgeIFrames); SFX.dodge(); }
 function startSuper(f,t){ const max=f.maxSuper; if(f.super<max) return; f.super=0; startMove(f,'super',t,f.isCPU); SFX.superR(); }
 
-/* ========================
-   ANIMATION / POSE
-   ======================== */
-// 動作相位
+/* ==============
+   POSE / GAIT
+   ============== */
 function movePhase(f,t){
   const m=f.move; if(!m||!m.kind) return null;
   const M=GAME_CONFIG.moves[m.kind]; const e=t-m.t; const total=M.startup+M.active+M.recovery;
@@ -315,53 +342,37 @@ function movePhase(f,t){
 }
 const easeIn = x=>x*x*(3-2*x);
 const easeOut= x=>1-Math.pow(1-x,2);
-
-// 步態加減速係數
 function gaitSpeedFactor(f){
   const s = Math.sin(f.gaitPhase*2*Math.PI);
   const boost = GAME_CONFIG.GAIT.stepBoost * s;
   const factor = Math.max(GAME_CONFIG.GAIT.minFactor, 1 + boost);
   return factor;
 }
-
-// 計算全身姿勢（回傳關節角度 + 腰位移）
 function computePose(f,t){
   const phase = movePhase(f,t);
   const facing = f.flip?-1:1;
-  // Idle & gait
   const bob = Math.sin(t*0.005 + (f.isCPU?1.4:0))*2;
   const gait = Math.sin(f.gaitPhase*2*Math.PI);
   const gaitOpp = Math.sin(f.gaitPhase*2*Math.PI + Math.PI);
 
-  // 預設角度（弧度）
   let torsoLean=0, torsoTwist=0;
   let frontUpper=facing*0.15 + gaitOpp*0.12*facing;
   let frontFore =facing*0.25;
   let backUpper =facing*-0.15 + gait*0.12*facing;
   let backFore  =facing*-0.10;
 
-  // 腿：走路踏步（髖/膝，僅視覺）
   let frontHip= -gait*0.25; let frontKnee= Math.max(0,gait)*0.5;
   let backHip =  gait*0.25;  let backKnee = Math.max(0,-gait)*0.5;
 
-  // 防禦/閃避
   if(f.state==='block'){ frontUpper=facing*-0.35; frontFore=facing*-0.45; backUpper=facing*-0.55; torsoLean=-0.08; }
   if(t<f.dodgeUntil){ torsoLean=-0.25; torsoTwist=-facing*0.15; }
 
-  // 出拳動畫
   if(phase!==null){
     const kind=f.move.kind, M=GAME_CONFIG.moves[kind];
     const total=M.startup+M.active+M.recovery;
     const s=M.startup/total, a=(M.startup+M.active)/total;
     let p; if(phase<=s) p=easeIn(phase/s); else if(phase<=a) p=1; else p=easeOut(1-(phase-a)/(1-a));
-
-    const MAX={
-      jab:{arm:1.15, twist:0.14, lean:0.10},
-      hook:{arm:1.6, twist:0.28, lean:0.12},
-      upper:{arm:1.9, twist:0.20, lean:0.18},
-      super:{arm:2.1, twist:0.32, lean:0.24}
-    }[kind];
-
+    const MAX={ jab:{arm:1.15,twist:0.14,lean:0.10}, hook:{arm:1.6,twist:0.28,lean:0.12}, upper:{arm:1.9,twist:0.20,lean:0.18}, super:{arm:2.1,twist:0.32,lean:0.24} }[kind];
     frontUpper = facing*(0.1 + MAX.arm*0.6*p);
     frontFore  = facing*(0.25 + MAX.arm*0.4*p);
     backUpper  = facing*(-0.25 + 0.3*p);
@@ -369,19 +380,17 @@ function computePose(f,t){
     torsoTwist = facing*(MAX.twist*p);
     torsoLean  = 0.02 + MAX.lean*p;
     if(kind==='upper'){ frontUpper -= facing*0.35*(p); frontFore += facing*0.15*(p); }
-    if(kind==='hook'){ frontFore += facing*0.25*p; }
+    if(kind==='hook'){  frontFore  += facing*0.25*p; }
   }
 
-  return { bob, torsoLean, torsoTwist, frontUpper, frontFore, backUpper, backFore,
-           frontHip, frontKnee, backHip, backKnee };
+  // 依比例調臂長、軀幹寬度在繪製時處理
+  return { bob, torsoLean, torsoTwist, frontUpper, frontFore, backUpper, backFore, frontHip, frontKnee, backHip, backKnee };
 }
-
-/* 計算手臂關節位置（肩→肘→拳套） */
 function armJoints(f, which, t){
   const facing=f.flip?-1:1;
   const pose=computePose(f,t);
   const waistX=f.x, waistY=f.y - f.h*0.5 + pose.bob;
-  const torsoW=f.w, torsoH=50;
+  const torsoW=f.w, torsoH=50*f.scale.torso;
   const shoulderY = -torsoH/2 + 26;
   const shoulderX = (which==='front' ? (facing>0? +torsoW/2 : -torsoW/2)
                                       : (facing>0? -torsoW/2 : +torsoW/2));
@@ -392,7 +401,7 @@ function armJoints(f, which, t){
 
   const upper = which==='front'?pose.frontUpper:pose.backUpper;
   const fore  = which==='front'?pose.frontFore :pose.backFore;
-  const armLen1=26, armLen2=22;
+  const armLen1=26*f.scale.arm, armLen2=22*f.scale.arm;
 
   const a1 = rotTorso + upper;
   const ex = sx + Math.cos(a1)*armLen1;
@@ -404,8 +413,6 @@ function armJoints(f, which, t){
 
   return { shoulder:{x:sx,y:sy}, elbow:{x:ex,y:ey}, glove:{x:gx,y:gy} };
 }
-
-/* 產生上臂/前臂兩個命中盒 */
 function armSegmentBoxes(f, which, t){
   const j=armJoints(f,which,t);
   const up=GAME_CONFIG.HITBOX.upperBox, fo=GAME_CONFIG.HITBOX.foreBox;
@@ -416,9 +423,9 @@ function armSegmentBoxes(f, which, t){
   return { upperBox, foreBox };
 }
 
-/* ========================
-   DAMAGE / HITS / FX
-   ======================== */
+/* ==============
+   DAMAGE / FX
+   ============== */
 function applyHit(att,vic,baseDmg,knock,t,scale=1){
   if(t<vic.dodgeUntil) return;
   let dealt=Math.round(baseDmg*scale);
@@ -438,48 +445,35 @@ function applyHit(att,vic,baseDmg,knock,t,scale=1){
 
   if(t<att.comboUntil) spawnFloating('Combo!', att.x, att.y-110, '#ffd166');
   att.comboUntil=t+(att.isCPU?GAME_CONFIG.enemy.comboWindowMs:GAME_CONFIG.player.comboWindowMs);
-  spawnStunStars(vic); // 暈眩星星
+  spawnStunStars(vic);
   if(vic.health<=0) SFX.ko();
 }
-
 function spawnFloating(txt,x,y,color){ state.comboTexts.push({txt,x,y,vy:-0.3,a:1,color}); }
 function spawnSpark(x,y){ state.particles.push({x,y,dx:rand(-1,1),dy:rand(-2,-0.4),life:300}); }
-
-/* 暈眩星星 */
 function spawnStunStars(f){
   const c=headWorldPos(f);
   for(let i=0;i<GAME_CONFIG.FX.stars.count;i++){
-    state.stars.push({
-      x:c.x, y:c.y-6, angle:(i/ GAME_CONFIG.FX.stars.count)*Math.PI*2,
-      radius:GAME_CONFIG.FX.stars.radius, life:GAME_CONFIG.FX.stars.life, t:0
-    });
+    state.stars.push({ x:c.x, y:c.y-6, angle:(i/GAME_CONFIG.FX.stars.count)*Math.PI*2, radius:GAME_CONFIG.FX.stars.radius, life:GAME_CONFIG.FX.stars.life, t:0 });
   }
 }
 function headWorldPos(f){
   const pose=computePose(f, performance.now());
   const waistX=f.x, waistY=f.y - f.h*0.5 + pose.bob;
-  const headY = -50/2 - (f.w-14?24:22); // 近似
+  const headY = -50/2 - 24;
   return {x:waistX, y:waistY + headY};
 }
-
-/* 閃避殘影 */
 function leaveAfterimage(f,t){
   if(t < f._nextAfterimage) return;
   f._nextAfterimage = t + GAME_CONFIG.FX.afterimage.spawnEveryMs;
   const pose=computePose(f,t);
-  state.afterimages.push({
-    x:f.x, y:f.y, w:f.w, h:f.h, flip:f.flip, isCPU:f.isCPU, pose,
-    life:GAME_CONFIG.FX.afterimage.life, alpha:GAME_CONFIG.FX.afterimage.alpha
-  });
+  state.afterimages.push({ x:f.x, y:f.y, w:f.w, h:f.h, flip:f.flip, isCPU:f.isCPU, pose, skin:clone(f.skin), life:GAME_CONFIG.FX.afterimage.life, alpha:GAME_CONFIG.FX.afterimage.alpha, scale:clone(f.scale) });
 }
 
-/* ========================
+/* ==============
    UPDATE
-   ======================== */
+   ============== */
 function update(dt){
   const t=nowMs(); if(state.paused||!state.running) return;
-
-  // 倒數
   state._secAcc=(state._secAcc||0)+dt/1000;
   if(state._secAcc>=1){ state._secAcc=0; state.seconds=Math.max(0,state.seconds-1);
     document.getElementById('timer').textContent=fmtTime(state.seconds);
@@ -487,21 +481,17 @@ function update(dt){
   }
 
   if(player&&enemy){
-    // 朝向
     player.flip = enemy.x<player.x;
     enemy.flip  = player.x<enemy.x;
 
-    // Player 移動與步態
     const mv=(isDown('left')?-1:0)+(isDown('right')?1:0);
     const gaitBoost = gaitSpeedFactor(player);
     player.x += mv*GAME_CONFIG.player.moveSpeed*gaitBoost;
     if(mv!==0) player.gaitPhase=(player.gaitPhase+GAME_CONFIG.player.gaitSpeed)%1;
 
-    // Dash
     if(isDown('stepF')&&t>player.lastDash+GAME_CONFIG.player.dashCd){ player.lastDash=t; const dir=player.flip?-1:1; player.x+=dir*(GAME_CONFIG.player.dash*10); player.stamina=Math.max(0,player.stamina-GAME_CONFIG.player.staminaDrainMove); }
     if(isDown('stepB')&&t>player.lastDash+GAME_CONFIG.player.dashCd){ player.lastDash=t; const dir=player.flip?-1:1; player.x-=dir*(GAME_CONFIG.player.dash*10); player.stamina=Math.max(0,player.stamina-GAME_CONFIG.player.staminaDrainMove); }
 
-    // Player 動作
     if(player.canAct(t)){
       if(isDown('block')) startBlock(player,t);
       else if(isDown('dodge')) startDodge(player,t);
@@ -511,49 +501,40 @@ function update(dt){
       else if(isDown('super')) startSuper(player,t);
     } else if(player.state==='block' && t>(player.blockUntil||0)){ player.state='idle'; }
 
-    // 殘影：閃避期間生成
     if(t<player.dodgeUntil) leaveAfterimage(player,t);
 
-    // AI
     ai.update(t,player,dt);
     if(t<enemy.dodgeUntil) leaveAfterimage(enemy,t);
 
-    // 限界
     const L=GAME_CONFIG.ring.left, R=GAME_CONFIG.ring.right;
     player.x=clamp(player.x,L,R); enemy.x=clamp(enemy.x,L,R);
 
-    // 耐力
     if(!player.hitting && player.state!=='block') player.stamina=clamp(player.stamina+GAME_CONFIG.player.staminaRegen*dt/1000,0,player.maxStamina);
     if(!enemy.hitting && enemy.state!=='block')   enemy.stamina =clamp(enemy.stamina +GAME_CONFIG.enemy.staminaRegen *dt/1000,0,enemy.maxStamina);
 
-    // 出拳命中（多段關節命中盒）
-    stepMoveWithSegments(player,enemy,t); 
+    stepMoveWithSegments(player,enemy,t);
     stepMoveWithSegments(enemy,player,t);
 
     if(player.health<=0||enemy.health<=0){ endRoundByKO(); }
   }
 
-  // FX 更新
+  // FX
   for(const fx of state.comboTexts){ fx.y+=fx.vy; fx.a-=0.01; }
   state.comboTexts=state.comboTexts.filter(fx=>fx.a>0);
   for(const p of state.particles){ p.x+=p.dx; p.y+=p.dy; p.dy+=0.03; p.life-=dt; }
   state.particles=state.particles.filter(p=>p.life>0);
-  // 殘影
   for(const g of state.afterimages){ g.life-=dt; g.alpha*=0.94; }
   state.afterimages=state.afterimages.filter(g=>g.life>0);
-  // 星星
   for(const s of state.stars){ s.t+=dt; s.life-=dt; }
   state.stars=state.stars.filter(s=>s.life>0);
 
   setBars();
 }
-
 function stepMoveWithSegments(att,vic,t){
   const m=att.move; if(!m.kind) return;
   const M=GAME_CONFIG.moves[m.kind]; const elapsed=t-m.t;
   if(elapsed>M.startup && elapsed<M.startup+M.active && !m._hit){
     const {upperBox, foreBox}=armSegmentBoxes(att,'front',t);
-    // 先以前臂（拳套）判定，再來上臂
     if(vic && aabb(foreBox, vic.rect())){ 
       applyHit(att,vic,M.dmg,M.knock,t,foreBox.scale); 
       spawnSpark(foreBox.x+foreBox.w/2, foreBox.y+foreBox.h/2); 
@@ -563,7 +544,7 @@ function stepMoveWithSegments(att,vic,t){
       spawnSpark(upperBox.x+upperBox.w/2, upperBox.y+upperBox.h/2);
       m._hit=true;
     }
-    if(state.debug){ // 畫出命中盒
+    if(state.debug){
       debugBoxes.push({box:upperBox,color:'#ffa50088'}); 
       debugBoxes.push({box:foreBox,color:'#00ffff88'});
     }
@@ -571,28 +552,31 @@ function stepMoveWithSegments(att,vic,t){
   if(elapsed > (M.startup+M.active+M.recovery)){ att.hitting=false; att.move={kind:null,t:0,window:0,_hit:false}; }
 }
 
-/* ========================
-   RENDER
-   ======================== */
-let debugBoxes=[]; // 每幀清空
+/* ==============
+   RENDER (stylized)
+   ============== */
+let debugBoxes=[];
+const outlineW = GAME_CONFIG.RENDER.outlineW;
 function render(){
-  const w=canvas.width,h=canvas.height; ctx.clearRect(0,0,w,h);
-  debugBoxes.length=0;
+  const w=canvas.width,h=canvas.height; ctx.clearRect(0,0,w,h); debugBoxes.length=0;
 
-  // 背景與群眾
-  ctx.fillStyle='#0b0c10'; ctx.fillRect(0,0,w,h);
+  // 背景 + crowd 漸層
+  const bgGrad = ctx.createLinearGradient(0,0,0,h);
+  bgGrad.addColorStop(0,'#0b0f1d'); bgGrad.addColorStop(1,'#0b0c10');
+  ctx.fillStyle=bgGrad; ctx.fillRect(0,0,w,h);
   for(let i=0;i<GAME_CONFIG.crowd.layers;i++){
     const y=120+i*28; ctx.fillStyle=`rgba(${40+i*20},${45+i*20},${70+i*25},${0.35-i*0.07})`;
     for(let x=0;x<w;x+=24){ const j=Math.sin((x+i*130+performance.now()*0.0007*(i+1)))*GAME_CONFIG.crowd.amplitude; ctx.fillRect(x,y+j,16,16); }
   }
-  // 擂臺
+  // 擂臺 + 柔光
   ctx.fillStyle='#1c2030'; ctx.fillRect(60, GAME_CONFIG.groundY-10, w-120, 20);
   ctx.strokeStyle='#9bb8ff'; ctx.lineWidth=3;
   for(let r=0;r<3;r++){ const ry=GAME_CONFIG.ring.ropeY+r*20; ctx.beginPath(); ctx.moveTo(80,ry); ctx.lineTo(w-80,ry); ctx.stroke(); }
+  ctx.globalAlpha=0.12; const glow=ctx.createRadialGradient(w/2,GAME_CONFIG.groundY-40,40,w/2,GAME_CONFIG.groundY-40,340);
+  glow.addColorStop(0,'#6ea8fe'); glow.addColorStop(1,'transparent'); ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(w/2,GAME_CONFIG.groundY-40,340,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
 
   // 殘影
-  for(const g of state.afterimages){ drawFighterGhost(g); }
-
+  for(const g of state.afterimages){ drawFighter(g, true); }
   if(player&&enemy){ drawFighter(player); drawFighter(enemy); }
   else { ctx.fillStyle='#9bb8ff'; ctx.font='700 20px Arial'; ctx.fillText('Press ▶ Play to start', w/2-120, GAME_CONFIG.groundY-140); }
 
@@ -607,7 +591,6 @@ function render(){
     const ry = s.y + Math.sin(ang)*s.radius*0.6;
     drawStar(rx, ry, 5, 6, 3, Math.max(0, s.life/GAME_CONFIG.FX.stars.life));
   }
-
   // Debug overlays
   if(state.debug&&player&&enemy){
     ctx.strokeStyle='#00ff88'; const pr=player.rect(); ctx.strokeRect(pr.x,pr.y,pr.w,pr.h);
@@ -616,9 +599,8 @@ function render(){
     ctx.fillStyle='#fff'; ctx.fillText(`AI:${ai?.state||'—'}`, enemy.x-30, enemy.y-enemy.h-14);
   }
 }
-
 function drawStar(cx,cy,points,outerR,innerR,alpha){
-  ctx.save(); ctx.globalAlpha=0.6*alpha; ctx.fillStyle='#ffd166';
+  ctx.save(); ctx.globalAlpha=0.7*alpha; ctx.fillStyle='#ffd166';
   ctx.beginPath();
   for(let i=0;i<points*2;i++){
     const r = (i%2===0)?outerR:innerR;
@@ -630,102 +612,202 @@ function drawStar(cx,cy,points,outerR,innerR,alpha){
   ctx.closePath(); ctx.fill(); ctx.globalAlpha=1; ctx.restore();
 }
 
-function drawFighterGhost(g){
-  ctx.save(); ctx.globalAlpha = g.alpha;
-  // 單色輪廓化
-  const skin='#b9c0ff33', torso='#7bf1a833', glove='#ffd16644', pant='#2a2e4233';
-  // 用與 drawFighter 類似的骨架繪製，但採用保存的 pose
-  const waistX=g.x, waistY=g.y - g.h*0.5 + g.pose.bob;
-  // 影子
-  ctx.fillStyle='rgba(0,0,0,0.15)'; ctx.beginPath(); ctx.ellipse(g.x, g.y-4, 28, 8, 0, 0, Math.PI*2); ctx.fill();
-  ctx.translate(waistX,waistY);
-  ctx.rotate(g.pose.torsoLean*(g.flip?-1:1) + g.pose.torsoTwist);
-  const torsoW=g.w, torsoH=50, headW=g.w-14, headH=24;
-  // 腿
-  drawLegSimple(-torsoW*0.25, +g.h*0.5-36, g.pose.backHip, g.pose.backKnee, pant);
-  drawLegSimple(+torsoW*0.25, +g.h*0.5-36, g.pose.frontHip, g.pose.frontKnee, pant);
-  // 軀幹/頭
-  ctx.fillStyle=torso; ctx.fillRect(-torsoW/2,-torsoH/2,torsoW,torsoH);
-  ctx.fillStyle=skin;  ctx.fillRect(-headW/2, -torsoH/2-headH, headW, headH);
-  // 手
-  const shoulderY=-torsoH/2+26, shoulderFrontX=(g.flip?-1:1)>0? +torsoW/2 : -torsoW/2, shoulderBackX=-shoulderFrontX;
-  drawArmSimple(shoulderBackX, shoulderY, g.pose.backUpper, g.pose.backFore, skin, glove);
-  drawArmSimple(shoulderFrontX, shoulderY, g.pose.frontUpper, g.pose.frontFore, skin, glove);
-  ctx.restore();
-}
-function drawArmSimple(sx,sy,upper,fore,skin,gloveC){
-  const arm1=26, arm2=22, th=18;
-  ctx.save(); ctx.translate(sx,sy); ctx.rotate(upper);
-  ctx.fillStyle=skin; ctx.fillRect(0,-th/2, arm1, th);
-  ctx.translate(arm1,0); ctx.rotate(fore*0.8);
-  ctx.fillRect(0,-th/2, arm2, th);
-  ctx.fillStyle=gloveC; ctx.fillRect(arm2-2, -th/2+8, 16,12);
-  ctx.restore();
-}
-function drawLegSimple(hx,baseY,hip,knee,color){
-  const th=16, upper=26, lower=22;
-  ctx.save(); ctx.translate(hx, baseY); ctx.rotate(hip);
-  ctx.fillStyle=color; ctx.fillRect(-th/2,0, th, upper);
-  ctx.translate(0,upper); ctx.rotate(knee);
-  ctx.fillRect(-th/2,0, th, lower);
-  ctx.restore();
-}
-
-function drawFighter(f){
-  const t=performance.now(), facing=f.flip?-1:1;
-  const pose=computePose(f,t);
+/* —— Stylized Fighter —— */
+function drawFighter(f, isGhost=false){
+  const t=performance.now(), facing=f.flip?-1:1, pose=computePose(f,t);
   const waistX=f.x, waistY=f.y - f.h*0.5 + pose.bob;
+  const s=f.skin, R=GAME_CONFIG.RENDER, scale=f.scale;
 
-  const skin='#fbd6a3', torsoC=f.isCPU?'#6ea8fe':'#7bf1a8', glove=f.isCPU?'#ff8a8a':'#ffd166', pant='#2a2e42';
+  // 影子（接觸陰影）
+  ctx.globalAlpha = isGhost? 0.15:0.35;
+  ctx.fillStyle='black'; ctx.beginPath(); ctx.ellipse(f.x, f.y-4, 30, 8, 0, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 1;
 
-  // 影子
-  ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(f.x, f.y-4, 28, 8, 0, 0, Math.PI*2); ctx.fill();
+  ctx.save(); ctx.translate(waistX,waistY); ctx.rotate(pose.torsoLean*facing + pose.torsoTwist);
 
-  ctx.save();
-  ctx.translate(waistX,waistY);
-  ctx.rotate(pose.torsoLean*facing + pose.torsoTwist);
+  const torsoW=f.w, torsoH=50*scale.torso, headW=f.w-12, headH=24*scale.torso;
+  const outlineCol = R.outline;
 
-  const torsoW=f.w, torsoH=50, headW=f.w-14, headH=24;
-  drawLeg(-torsoW*0.25, +f.h*0.5-36, pose.backHip, pose.backKnee, pant);
-  drawLeg(+torsoW*0.25, +f.h*0.5-36, pose.frontHip, pose.frontKnee, pant);
+  // 背後腰際投影
+  ctx.globalAlpha=R.softAO; ctx.fillStyle='#000000'; roundedRect(-torsoW/2, torsoH/2-6, torsoW, 10, 6, true); ctx.globalAlpha=1;
 
-  ctx.fillStyle=torsoC; ctx.fillRect(-torsoW/2,-torsoH/2,torsoW,torsoH);
+  // 腿（圓角 + 外輪廓）
+  drawLeg(-torsoW*0.25, +f.h*0.5-36, pose.backHip, pose.backKnee, s.pant, outlineCol, isGhost);
+  drawLeg(+torsoW*0.25, +f.h*0.5-36, pose.frontHip, pose.frontKnee, s.pant, outlineCol, isGhost);
 
-  ctx.fillStyle=skin; ctx.fillRect(-headW/2, -torsoH/2-headH, headW, headH);
-  ctx.fillStyle='#111'; ctx.fillRect(-headW/2+8, -torsoH/2-headH+8, 4,4); ctx.fillRect(headW/2-12, -torsoH/2-headH+8, 4,4);
+  // 軀幹（漸層）
+  const torsoGrad = ctx.createLinearGradient(0,-torsoH/2,0,torsoH/2);
+  torsoGrad.addColorStop(0, shade(s.top,1.10));
+  torsoGrad.addColorStop(0.7, s.top);
+  torsoGrad.addColorStop(1, shade(s.top,R.shadeMul));
+  ctx.fillStyle=torsoGrad; roundedRect(-torsoW/2,-torsoH/2,torsoW,torsoH,8,true,outlineCol);
 
+  // 頭（膚色 + 額頭亮斑）
+  const headGrad = ctx.createLinearGradient(0,-torsoH/2-headH,0,-torsoH/2);
+  headGrad.addColorStop(0, shade(s.skin,1.02));
+  headGrad.addColorStop(1, shade(s.skin,R.shadeMul));
+  ctx.fillStyle=headGrad; roundedRect(-headW/2, -torsoH/2-headH, headW, headH, 6, true, outlineCol);
+  if(!isGhost){ // 額頭小高光
+    ctx.globalAlpha=R.headGloss; ctx.fillStyle='#fff';
+    roundedRect(-headW*0.25, -torsoH/2-headH+4, headW*0.22, headH*0.25, 4, true);
+    ctx.globalAlpha=1;
+  }
+
+  // 臉
+  drawFace(headW,torsoH, s.face, outlineCol);
+
+  // 肩膀座標
   const shoulderY=-torsoH/2+26, shoulderFrontX=(facing>0? +torsoW/2 : -torsoW/2), shoulderBackX= -shoulderFrontX;
 
-  drawArm(shoulderBackX, shoulderY, pose.backUpper, pose.backFore, skin, glove);
-  drawArm(shoulderFrontX, shoulderY, pose.frontUpper, pose.frontFore, skin, glove);
+  // 手臂（背後 → 前臂）
+  drawArm(shoulderBackX, shoulderY, pose.backUpper, pose.backFore, s.skin, s.glove, s.wrap, outlineCol, scale, isGhost);
+  drawArm(shoulderFrontX, shoulderY, pose.frontUpper, pose.frontFore, s.skin, s.glove, s.wrap, outlineCol, scale, isGhost);
 
-  if(f.hitting){
+  // 頭髮（在最上層）
+  drawHair(headW,torsoH, s.hair, s.hairStyle, outlineCol);
+
+  // 出拳風線
+  if(f.hitting && !isGhost){
     const j=armJoints(f,'front',t);
     ctx.strokeStyle='#ffffff33'; ctx.beginPath(); ctx.arc(j.glove.x-waistX, j.glove.y-waistY, 14, 0, Math.PI*2); ctx.stroke();
   }
-  ctx.restore();
-}
-function drawArm(sx,sy,upper,fore,skin,gloveC){
-  const arm1=26, arm2=22, th=18;
-  ctx.save(); ctx.translate(sx,sy); ctx.rotate(upper);
-  ctx.fillStyle=skin; ctx.fillRect(0,-th/2, arm1, th);
-  ctx.translate(arm1,0); ctx.rotate(fore*0.8);
-  ctx.fillRect(0,-th/2, arm2, th);
-  ctx.fillStyle=gloveC; ctx.fillRect(arm2-2, -th/2+8, 16,12);
-  ctx.restore();
-}
-function drawLeg(hx,baseY,hip,knee,color){
-  const th=16, upper=26, lower=22;
-  ctx.save(); ctx.translate(hx, baseY); ctx.rotate(hip);
-  ctx.fillStyle=color; ctx.fillRect(-th/2,0, th, upper);
-  ctx.translate(0,upper); ctx.rotate(knee);
-  ctx.fillRect(-th/2,0, th, lower);
+
   ctx.restore();
 }
 
-/* ========================
+function drawArm(sx,sy,upper,fore,skin,glove,wrap,outlineCol, scale, isGhost){
+  const arm1=26*scale.arm, arm2=22*scale.arm, th=18;
+  ctx.save(); ctx.translate(sx,sy); ctx.rotate(upper);
+
+  // 上臂
+  const armGrad = ctx.createLinearGradient(0,-th/2, 0, th/2);
+  armGrad.addColorStop(0, shade(skin,1.05));
+  armGrad.addColorStop(1, shade(skin,GAME_CONFIG.RENDER.shadeMul));
+  ctx.fillStyle=armGrad; roundedRect(0,-th/2, arm1, th, 8, true, outlineCol);
+
+  // 護帶
+  ctx.fillStyle=wrap; roundedRect(arm1*0.35,-th/2, 10, th, 4, true);
+
+  // 前臂
+  ctx.translate(arm1,0); ctx.rotate(fore*0.8);
+  const foreGrad = ctx.createLinearGradient(0,-th/2, 0, th/2);
+  foreGrad.addColorStop(0, shade(skin,1.02));
+  foreGrad.addColorStop(1, shade(skin,GAME_CONFIG.RENDER.shadeMul));
+  ctx.fillStyle=foreGrad; roundedRect(0,-th/2, arm2, th, 8, true, outlineCol);
+
+  // 手套（高光）
+  const gloveGrad = ctx.createLinearGradient(0,-th/2, 0, th/2);
+  gloveGrad.addColorStop(0, shade(glove,1.08));
+  gloveGrad.addColorStop(1, shade(glove,GAME_CONFIG.RENDER.shadeMul));
+  ctx.fillStyle=gloveGrad; roundedRect(arm2-2, -th/2+6, 18, 12, 6, true, outlineCol);
+  if(!isGhost){
+    ctx.globalAlpha=GAME_CONFIG.RENDER.specPower; ctx.fillStyle='#fff';
+    roundedRect(arm2-0, -th/2+8, 8, 4, 2, true);
+    ctx.globalAlpha=1;
+  }
+  ctx.restore();
+}
+
+function drawLeg(hx,baseY,hip,knee,color,outlineCol, isGhost){
+  const th=16, upper=26, lower=22;
+  ctx.save(); ctx.translate(hx, baseY); ctx.rotate(hip);
+  const g1 = ctx.createLinearGradient(-th/2,0, th/2,0);
+  g1.addColorStop(0, shade(color,1.1)); g1.addColorStop(1, shade(color,GAME_CONFIG.RENDER.shadeMul));
+  ctx.fillStyle=g1; roundedRect(-th/2,0, th, upper, 7, true, outlineCol);
+  ctx.translate(0,upper); ctx.rotate(knee);
+  const g2 = ctx.createLinearGradient(-th/2,0, th/2,0);
+  g2.addColorStop(0, shade(color,1.06)); g2.addColorStop(1, shade(color,GAME_CONFIG.RENDER.shadeMul));
+  ctx.fillStyle=g2; roundedRect(-th/2,0, th, lower, 7, true, outlineCol);
+  ctx.restore();
+}
+function roundedRect(x,y,w,h,r,fill=true,strokeCol=null){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  if(fill) ctx.fill();
+  if(strokeCol){ ctx.lineWidth=GAME_CONFIG.RENDER.outlineW; ctx.strokeStyle=strokeCol; ctx.stroke(); }
+}
+function shade(hex, mul){
+  const {r,g,b}=hexToRgb(hex); const rr=clamp(Math.round(r*mul),0,255), gg=clamp(Math.round(g*mul),0,255), bb=clamp(Math.round(b*mul),0,255);
+  return `rgb(${rr},${gg},${bb})`;
+}
+function hexToRgb(hex){ const m=hex.replace('#',''); const bigint=parseInt(m,16); const r=(bigint>>16)&255,g=(bigint>>8)&255,b=bigint&255; return {r,g,b}; }
+function drawFace(headW,torsoH, kind, outlineCol){
+  ctx.save();
+  ctx.translate(0, -torsoH/2 - headW*0.22);
+  ctx.fillStyle='#111';
+  // 眼睛
+  roundedRect(-headW*0.26, -4, 6, 6, 2, true);
+  roundedRect(+headW*0.20, -4, 6, 6, 2, true);
+  // 嘴型
+  if(kind==='smile'){ ctx.fillRect(-6,6,12,2); }
+  else if(kind==='determined'){ roundedRect(-8,6,16,2,1,true); }
+  else if(kind==='stoic'){ ctx.fillRect(-6,6,12,2); }
+  ctx.restore();
+}
+function drawHair(headW,torsoH, color, style, outlineCol){
+  if(style==='none') return;
+  ctx.save();
+  ctx.translate(0, -torsoH/2 - headW*0.24);
+  ctx.fillStyle=shade(color,1.05);
+  const w=headW*0.9, h=headW*0.5;
+  if(style==='spiky'){
+    roundedRect(-w/2,-h, w,h,6,true,outlineCol);
+    // 幾撮尖角
+    for(let i=-2;i<=2;i++){
+      ctx.beginPath(); ctx.moveTo(i*8,-h); ctx.lineTo(i*8+6,-h-10); ctx.lineTo(i*8+12,-h); ctx.closePath(); ctx.fill();
+    }
+  }else if(style==='bob'){
+    roundedRect(-w/2,-h*0.9, w,h*0.9,12,true,outlineCol);
+  }else if(style==='long'){
+    roundedRect(-w/2,-h, w,h+14,12,true,outlineCol);
+  }else if(style==='short'){
+    roundedRect(-w/2,-h*0.8, w,h*0.8,10,true,outlineCol);
+  }
+  ctx.restore();
+}
+
+/* —— Ghost（殘影） —— */
+function drawFighterGhost(g){
+  ctx.save(); ctx.globalAlpha = g.alpha;
+  // 重用 drawFighter 但 isGhost=true（用存下的 pose/skin/scale）
+  const f={ x:g.x, y:g.y, w:g.w, h:g.h, flip:g.flip, isCPU:g.isCPU, skin:g.skin, scale:g.scale };
+  drawFighterProxy(f, g.pose, true);
+  ctx.restore();
+}
+function drawFighterProxy(f, pose, isGhost){
+  // 與 drawFighter 類似，但使用 pose 參數（避免重算）
+  const facing=f.flip?-1:1, s=f.skin, R=GAME_CONFIG.RENDER, scale=f.scale;
+  const waistX=f.x, waistY=f.y - f.h*0.5 + pose.bob;
+
+  ctx.globalAlpha = isGhost? 0.15:0.35;
+  ctx.fillStyle='black'; ctx.beginPath(); ctx.ellipse(f.x, f.y-4, 30, 8, 0, 0, Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 1;
+
+  ctx.save(); ctx.translate(waistX,waistY); ctx.rotate(pose.torsoLean*facing + pose.torsoTwist);
+  const torsoW=f.w, torsoH=50*scale.torso, headW=f.w-12, headH=24*scale.torso;
+
+  ctx.globalAlpha=R.softAO; ctx.fillStyle='#000000'; roundedRect(-torsoW/2, torsoH/2-6, torsoW, 10, 6, true); ctx.globalAlpha=1;
+
+  drawLeg(-torsoW*0.25, +f.h*0.5-36, pose.backHip, pose.backKnee, s.pant, '#000000', isGhost);
+  drawLeg(+torsoW*0.25, +f.h*0.5-36, pose.frontHip, pose.frontKnee, s.pant, '#000000', isGhost);
+
+  const torsoGrad = ctx.createLinearGradient(0,-torsoH/2,0,torsoH/2);
+  torsoGrad.addColorStop(0, shade(s.top,1.10)); torsoGrad.addColorStop(0.7, s.top); torsoGrad.addColorStop(1, shade(s.top,R.shadeMul));
+  ctx.fillStyle=torsoGrad; roundedRect(-torsoW/2,-torsoH/2,torsoW,torsoH,8,true);
+
+  const headGrad = ctx.createLinearGradient(0,-torsoH/2-headH,0,-torsoH/2);
+  headGrad.addColorStop(0, shade(s.skin,1.02)); headGrad.addColorStop(1, shade(s.skin,R.shadeMul));
+  ctx.fillStyle=headGrad; roundedRect(-headW/2, -torsoH/2-headH, headW, headH, 6, true);
+  ctx.restore();
+}
+
+/* ==============
    HUD / ENDING
-   ======================== */
+   ============== */
 function endRoundByKO(){ state.paused=true; state.running=false; showModal('KO!', modalResultsHTML((player&&player.health>0)?'You Win!':'CPU Wins!'), ()=>SFX.ko()); }
 function endRoundByHP(){
   state.paused=true; state.running=false;
@@ -753,21 +835,21 @@ function setBars(){
   else { eH.style.width=eS.style.width=eSu.style.width='0%'; }
 }
 
-/* ========================
-   MAIN LOOP (+ guard)
-   ======================== */
+/* ==============
+   MAIN LOOP
+   ============== */
 function loop(ts){
   try{
     const dt=ts-state.lastTick; state.lastTick=ts; state.acc+=dt;
     while(state.acc>=state.step){ update(state.step); state.acc-=state.step; }
     render();
-  }catch(err){ console.error('[Block Brawl v3] runtime error:',err); state.running=false; }
+  }catch(err){ console.error('[Block Brawl v4] runtime error:',err); state.running=false; }
   requestAnimationFrame(loop);
 }
 
-/* ========================
-   UI / MODALS / CONTROLS
-   ======================== */
+/* ==============
+   UI / MODALS
+   ============== */
 const modal={root:document.getElementById('modalBackdrop'),title:document.getElementById('modalTitle'),body:document.getElementById('modalBody')};
 function showModal(title,html,onOpen){ modal.title.textContent=title; modal.body.innerHTML=html; modal.root.style.display='flex'; if(onOpen) onOpen(); }
 function closeModal(){ modal.root.style.display='none'; SFX.ui(); }
@@ -779,12 +861,108 @@ modal.root.addEventListener('click',e=>{ if(e.target===modal.root) closeModal();
     localStorage.setItem('bb_seen','1');
     showModal('How to Play', `<div class="grid">
       <div>Move <span class="k">A/D</span> or <span class="k">←/→</span>, Dash <span class="k">W/S</span> or <span class="k">↑/↓</span></div>
-      <div>Punches: <span class="k">J</span>/<span class="k">K</span>/<span className="k">L</span>, Block <span class="k">I</span>, Dodge <span class="k">O</span>, Super <span class="k">Space</span></div>
+      <div>Punches: <span class="k">J</span>/<span class="k">K</span>/<span class="k">L</span>, Block <span class="k">I</span>, Dodge <span class="k">O</span>, Super <span class="k">Space</span></div>
       <div>Pause <span class="k">P</span> • Debug <span class="k">/</span> • Restart <span class="k">R</span></div>
+      <div class="miniHelp">New in v4: Click <strong>Skins</strong> to customize your boxer!</div>
     </div>`);
   }
 })();
 
+/* Skins UI */
+document.getElementById('btnSkins').addEventListener('click',()=>{
+  const opt=(id,label,val)=>`<label class="row"><span class="grow">${label}</span><input id="${id}" class="input" value="${val}"/></label>`;
+  const color=(id,label,val)=>`<label class="row"><span class="grow">${label}</span><input type="color" id="${id}" value="${val}"/></label>`;
+  const sel=(id,label,options,val)=>`<label class="row"><span class="grow">${label}</span><select id="${id}" class="select">${options.map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join('')}</select></label>`;
+  const scale=(id,label,val,min=0.85,max=1.15,step=0.01)=>`<label class="row"><span class="grow">${label}</span><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}" oninput="this.nextElementSibling.textContent=this.value"/><span class="miniHelp">${val}</span></label>`;
+  const hairStyles=['none','short','spiky','bob','long'];
+  const faces=['smile','determined','stoic'];
+  const presetChips = PRESETS.map((p,i)=>`<span class="chip" data-preset="${i}">${p.name}</span>`).join(' ');
+
+  const body=`
+  <div class="grid">
+    <div class="small">Choose a preset or customize. Player on the left, CPU on the right.</div>
+    <div class="grid grid2">
+      <div class="card" style="padding:10px">
+        <div><strong>Player Presets</strong></div>
+        <div class="row" id="playerPresetRow">${presetChips}</div>
+        ${color('pl_skin','Skin',SKIN_PLAYER.skin)}
+        ${color('pl_hair','Hair',SKIN_PLAYER.hair)}
+        ${color('pl_glove','Glove',SKIN_PLAYER.glove)}
+        ${color('pl_top','Top',SKIN_PLAYER.top)}
+        ${color('pl_pant','Pants',SKIN_PLAYER.pant)}
+        ${color('pl_wrap','Wrap',SKIN_PLAYER.wrap)}
+        ${sel('pl_face','Face',faces,SKIN_PLAYER.face)}
+        ${sel('pl_hairStyle','Hair Style',hairStyles,SKIN_PLAYER.hairStyle)}
+        ${scale('pl_h','Height',SKIN_PLAYER.scale?.height??1)}
+        ${scale('pl_arm','Arm Length',SKIN_PLAYER.scale?.arm??1)}
+        ${scale('pl_torso','Torso Width',SKIN_PLAYER.scale?.torso??1)}
+      </div>
+      <div class="card" style="padding:10px">
+        <div class="row" style="justify-content:space-between"><strong>CPU Presets</strong><button id="cpuRandom" class="btn">Randomize</button></div>
+        <div class="row" id="cpuPresetRow">${presetChips}</div>
+        ${color('cpu_skin','Skin',SKIN_CPU.skin)}
+        ${color('cpu_hair','Hair',SKIN_CPU.hair)}
+        ${color('cpu_glove','Glove',SKIN_CPU.glove)}
+        ${color('cpu_top','Top',SKIN_CPU.top)}
+        ${color('cpu_pant','Pants',SKIN_CPU.pant)}
+        ${color('cpu_wrap','Wrap',SKIN_CPU.wrap)}
+        ${sel('cpu_face','Face',faces,SKIN_CPU.face)}
+        ${sel('cpu_hairStyle','Hair Style',hairStyles,SKIN_CPU.hairStyle)}
+        ${scale('cpu_h','Height',SKIN_CPU.scale?.height??1)}
+        ${scale('cpu_arm','Arm Length',SKIN_CPU.scale?.arm??1)}
+        ${scale('cpu_torso','Torso Width',SKIN_CPU.scale?.torso??1)}
+      </div>
+    </div>
+    <div class="row" style="justify-content:flex-end">
+      <button id="skinsSave" class="btn">Save</button>
+    </div>
+  </div>`;
+  showModal('Skins', body, ()=>{
+    // 樣式選擇
+    modal.body.querySelectorAll('#playerPresetRow .chip').forEach(ch=>{
+      ch.addEventListener('click',()=>{ modal.body.querySelectorAll('#playerPresetRow .chip').forEach(c=>c.classList.remove('sel')); ch.classList.add('sel');
+        const p=PRESETS[+ch.dataset.preset]; applySkinToUI('pl', p);
+      });
+    });
+    modal.body.querySelectorAll('#cpuPresetRow .chip').forEach(ch=>{
+      ch.addEventListener('click',()=>{ modal.body.querySelectorAll('#cpuPresetRow .chip').forEach(c=>c.classList.remove('sel')); ch.classList.add('sel');
+        const p=PRESETS[+ch.dataset.preset]; applySkinToUI('cpu', p);
+      });
+    });
+    modal.body.querySelector('#cpuRandom').addEventListener('click',()=>{
+      const p=clone(PRESETS[Math.floor(Math.random()*PRESETS.length)]);
+      applySkinToUI('cpu', p);
+    });
+    modal.body.querySelector('#skinsSave').addEventListener('click',()=>{
+      SKIN_PLAYER = readSkinFromUI('pl');
+      SKIN_CPU    = readSkinFromUI('cpu');
+      localStorage.setItem('bb_skin_player', JSON.stringify(SKIN_PLAYER));
+      localStorage.setItem('bb_skin_cpu',    JSON.stringify(SKIN_CPU));
+      closeModal();
+    });
+  });
+});
+function applySkinToUI(prefix, skin){
+  ['skin','hair','glove','top','pant','wrap'].forEach(k=>{
+    const el=modal.body.querySelector(`#${prefix}_${k}`); if(el) el.value=skin[k];
+  });
+  const fs = modal.body.querySelector(`#${prefix}_face`); if(fs) fs.value=skin.face;
+  const hs = modal.body.querySelector(`#${prefix}_hairStyle`); if(hs) hs.value=skin.hairStyle;
+  const sc = skin.scale||{height:1,arm:1,torso:1};
+  const h = modal.body.querySelector(`#${prefix}_h`); if(h){ h.value=sc.height; h.nextElementSibling.textContent=sc.height; }
+  const a = modal.body.querySelector(`#${prefix}_arm`); if(a){ a.value=sc.arm; a.nextElementSibling.textContent=sc.arm; }
+  const to= modal.body.querySelector(`#${prefix}_torso`); if(to){ to.value=sc.torso; to.nextElementSibling.textContent=sc.torso; }
+}
+function readSkinFromUI(prefix){
+  const g=id=>modal.body.querySelector(`#${id}`).value;
+  return {
+    skin:g(`${prefix}_skin`), hair:g(`${prefix}_hair`), glove:g(`${prefix}_glove`), top:g(`${prefix}_top`), pant:g(`${prefix}_pant`), wrap:g(`${prefix}_wrap`),
+    face:g(`${prefix}_face`), hairStyle:g(`${prefix}_hairStyle`),
+    scale:{ height:parseFloat(g(`${prefix}_h`)), arm:parseFloat(g(`${prefix}_arm`)), torso:parseFloat(g(`${prefix}_torso`)) }
+  };
+}
+
+/* 控制 / 無障礙 / 難度 */
 document.getElementById('btnControls').addEventListener('click',()=>{
   const names=Object.keys(KEY_MAP); let html=`<div class="grid">`;
   for(const n of names){ const val=KEY_MAP[n].join(', '); html+=`<div class="row"><div class="grow"><strong>${n}</strong></div><input data-k="${n}" class="select" value="${val}"/></div>`; }
@@ -792,13 +970,12 @@ document.getElementById('btnControls').addEventListener('click',()=>{
   showModal('Controls',html);
   modal.body.querySelector('#saveKeys').addEventListener('click',()=>{ modal.body.querySelectorAll('input[data-k]').forEach(inp=>{ const name=inp.getAttribute('data-k'); KEY_MAP[name]=inp.value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean); }); localStorage.setItem('bb_keys',JSON.stringify(KEY_MAP)); closeModal(); });
 });
-
 document.getElementById('btnAccessibility').addEventListener('click',()=>{
   const chk=(id,label,checked)=>`<label class="row"><input type="checkbox" id="${id}" ${checked?'checked':''}/>&nbsp;${label}</label>`;
   showModal('Accessibility', `<div class="grid">
     ${chk('accSound','Sound On',GAME_CONFIG.audio.soundOn)}
-    ${chk('accReduce','Reduce flashing / screenshake',GAME_CONFIG.audio.reduceFlashing)}
-    ${chk('accCB','Color-blind friendly HUD',GAME_CONFIG.UI.colorBlind)}
+    ${chk('accReduce','Reduce flashing / screenshake', GAME_CONFIG.audio.reduceFlashing)}
+    ${chk('accCB','Color-blind friendly HUD', GAME_CONFIG.UI.colorBlind)}
     <div class="small">Settings save automatically.</div></div>`);
   ['accSound','accReduce','accCB'].forEach(id=>{
     modal.body.querySelector('#'+id).addEventListener('change',(e)=>{
@@ -809,7 +986,6 @@ document.getElementById('btnAccessibility').addEventListener('click',()=>{
     });
   });
 });
-
 document.getElementById('selDiff').addEventListener('change',e=>{ state.difficulty=e.target.value; SFX.ui(); });
 
 function startGame(){ if(audioCtx.state==='suspended') audioCtx.resume();
