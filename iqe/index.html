@@ -1,15 +1,17 @@
-<!-- index.html -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="color-scheme" content="light" />
-  <title></title>
+  <title>Cornucopia Fund Tracker</title>
+
+  <!-- Hardening: ensure relative assets resolve under /iqe/ even when URL varies -->
+  <base href="/iqe/" />
+
   <link rel="stylesheet" href="assets/app.css" />
-  <!-- Google Identity Services (GIS) -->
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
+
 <body>
   <div id="app" aria-live="polite"></div>
 
