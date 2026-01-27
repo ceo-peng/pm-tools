@@ -1,196 +1,123 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PM Inventory Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PM Inventory Dashboard v2.9</title>
+    <!-- React & Tailwind -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root {
-            --background: 0 0% 100%;
-            --foreground: 240 10% 3.9%;
-            --card: 0 0% 100%;
-            --card-foreground: 240 10% 3.9%;
-            --popover: 0 0% 100%;
-            --popover-foreground: 240 10% 3.9%;
-            --primary: 240 5.9% 10%;
-            --primary-foreground: 0 0% 98%;
-            --secondary: 240 4.8% 95.9%;
-            --secondary-foreground: 240 5.9% 10%;
-            --muted: 240 4.8% 95.9%;
-            --muted-foreground: 240 3.8% 46.1%;
-            --accent: 240 4.8% 95.9%;
-            --accent-foreground: 240 5.9% 10%;
-            --destructive: 0 84.2% 60.2%;
-            --destructive-foreground: 0 0% 98%;
-            --border: 240 5.9% 90%;
-            --input: 240 5.9% 90%;
-            --ring: 240 10% 3.9%;
+            --primary: 222.2 47.4% 11.2%;
             --radius: 0.5rem;
         }
+        body { background-color: #f8fafc; color: #334155; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
         
-        .dark {
-            --background: 240 10% 3.9%;
-            --foreground: 0 0% 98%;
-            --card: 240 10% 3.9%;
-            --card-foreground: 0 0% 98%;
-            --popover: 240 10% 3.9%;
-            --popover-foreground: 0 0% 98%;
-            --primary: 0 0% 98%;
-            --primary-foreground: 240 5.9% 10%;
-            --secondary: 240 3.7% 15.9%;
-            --secondary-foreground: 0 0% 98%;
-            --muted: 240 3.7% 15.9%;
-            --muted-foreground: 240 5% 64.9%;
-            --accent: 240 3.7% 15.9%;
-            --accent-foreground: 0 0% 98%;
-            --destructive: 0 62.8% 30.6%;
-            --destructive-foreground: 0 0% 98%;
-            --border: 240 3.7% 15.9%;
-            --input: 240 3.7% 15.9%;
-            --ring: 240 4.9% 83.9%;
+        /* Desktop Table Styles */
+        .table-container { max-height: 60vh; overflow-y: auto; border-radius: var(--radius); box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1); background: white; border: 1px solid #e2e8f0; }
+        .data-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        .data-table th { position: sticky; top: 0; z-index: 20; background-color: #f1f5f9; color: #475569; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.75rem 1rem; border-bottom: 2px solid #cbd5e1; user-select: none; }
+        .data-table td { padding: 0.6rem 1rem; border-bottom: 1px solid #f1f5f9; font-size: 0.875rem; vertical-align: middle; }
+        .data-table tr:hover td { background-color: #f8fafc; }
+
+        /* Sort Indicator - Enhanced Stability */
+        .sort-icon { 
+            display: inline-flex; 
+            align-items: center; 
+            justify-content: center;
+            vertical-align: middle; 
+            margin-left: 4px; 
+            width: 12px; 
+            height: 12px; 
+            opacity: 0; 
+            transition: opacity 0.2s ease-in-out; 
+        }
+        .sort-icon.active {
+            opacity: 1; 
+        }
+        
+        /* Stats Cards - Interactive */
+        .stat-card { 
+            position: relative;
+            border-radius: 0.75rem; 
+            padding: 1rem; 
+            flex: 1; 
+            min-width: 150px; 
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+            border: 1px solid transparent;
+        }
+        
+        /* Unchecked State */
+        .stat-card.unchecked {
+            background: white;
+            border-color: #e2e8f0;
+            color: #64748b;
+            box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        }
+        .stat-card.unchecked:hover {
+            border-color: #cbd5e1;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
         }
 
-        * {
-            border-color: hsl(var(--border));
+        /* Checked State */
+        .stat-card.checked {
+            background-color: #1e293b; /* Slate 800 */
+            color: white;
+            border-color: #0f172a;
+            box-shadow: 0 4px 6px -1px rgb(30 41 59 / 0.3);
+            transform: translateY(-2px);
         }
 
-        body {
-            background-color: hsl(var(--background));
-            color: hsl(var(--foreground));
-        }
+        .stat-card-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem; }
+        .stat-label { font-size: 0.75rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; }
+        .stat-value { font-size: 1.5rem; font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; line-height: 1; }
+        .stat-sub { font-size: 0.75rem; margin-top: 0.25rem; opacity: 0.8; }
 
-        .status-expired {
-            background-color: hsl(var(--destructive));
-            color: hsl(var(--destructive-foreground));
-        }
-
-        .status-warning {
-            background-color: hsl(40 96% 84%);
-            color: hsl(25 95% 53%);
-        }
-
-        .data-table th {
-            background-color: hsl(var(--muted) / 0.5);
-        }
-
-        .data-table tbody tr:hover {
-            background-color: hsl(var(--muted) / 0.25);
-        }
-
-        .card {
-            background-color: hsl(var(--card));
-            border: 1px solid hsl(var(--border));
-            color: hsl(var(--card-foreground));
-        }
-
-        .btn {
-            display: inline-flex;
+        /* Custom Checkbox */
+        .custom-checkbox {
+            width: 1.25rem;
+            height: 1.25rem;
+            border-radius: 0.25rem;
+            border: 2px solid;
+            display: flex;
             align-items: center;
             justify-content: center;
-            white-space: nowrap;
-            border-radius: calc(var(--radius) - 2px);
-            font-size: 0.875rem;
-            font-weight: 500;
             transition: all 0.2s;
-            outline: none;
-            cursor: pointer;
-            border: none;
         }
+        .unchecked .custom-checkbox { border-color: #cbd5e1; background: transparent; }
+        .checked .custom-checkbox { border-color: white; background: white; color: #1e293b; }
 
-        .btn-outline {
-            border: 1px solid hsl(var(--border));
-            background-color: hsl(var(--background));
-            color: hsl(var(--foreground));
-        }
+        /* Mobile Card Styles */
+        .mobile-card { background: white; border-radius: 0.75rem; padding: 1rem; margin-bottom: 0.75rem; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); border: 1px solid #e2e8f0; position: relative; }
+        .mobile-label { font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 0.1rem; }
+        
+        /* Status Badges */
+        .status-badge { display: inline-flex; align-items: center; padding: 0.125rem 0.625rem; border-radius: 9999px; font-weight: 600; font-size: 0.75rem; line-height: 1.25rem; }
+        .status-expired { background-color: #fee2e2; color: #991b1b; }
+        .status-warning { background-color: #fef3c7; color: #92400e; }
+        .status-good { background-color: #dcfce7; color: #166534; }
 
-        .btn-outline:hover {
-            background-color: hsl(var(--accent));
-            color: hsl(var(--accent-foreground));
-        }
+        /* UI Elements */
+        .btn { display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius); font-weight: 500; transition: all 0.2s; padding: 0.5rem 1rem; cursor: pointer; user-select: none; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background-color: #0f172a; color: white; }
+        .btn-primary:hover:not(:disabled) { background-color: #1e293b; }
+        .btn-outline { border: 1px solid #cbd5e1; background: white; color: #334155; }
+        .btn-outline:hover:not(:disabled) { background: #f8fafc; border-color: #94a3b8; }
+        .btn-danger-ghost { color: #94a3b8; padding: 0.4rem; border-radius: 0.375rem; }
+        .btn-danger-ghost:hover { color: #ef4444; background-color: #fee2e2; }
 
-        .btn-ghost {
-            background-color: transparent;
-            color: hsl(var(--foreground));
-        }
+        .input-base { width: 100%; border-radius: var(--radius); border: 1px solid #cbd5e1; padding: 0.5rem 0.75rem; font-size: 0.875rem; background-color: white; transition: border-color 0.2s; }
+        .input-base:focus { outline: none; border-color: #64748b; ring: 2px solid #e2e8f0; }
 
-        .btn-ghost:hover {
-            background-color: hsl(var(--accent));
-            color: hsl(var(--accent-foreground));
-        }
-
-        .input {
-            display: flex;
-            height: 2.5rem;
-            width: 100%;
-            border-radius: calc(var(--radius) - 2px);
-            border: 1px solid hsl(var(--border));
-            background-color: hsl(var(--background));
-            padding: 0 0.75rem;
-            font-size: 0.875rem;
-            color: hsl(var(--foreground));
-        }
-
-        .input:focus {
-            outline: 2px solid hsl(var(--ring));
-            outline-offset: 2px;
-        }
-
-        .select-trigger {
-            display: flex;
-            height: 2.5rem;
-            width: 100%;
-            align-items: center;
-            justify-content: between;
-            border-radius: calc(var(--radius) - 2px);
-            border: 1px solid hsl(var(--border));
-            background-color: hsl(var(--background));
-            padding: 0 0.75rem;
-            font-size: 0.875rem;
-            color: hsl(var(--foreground));
-            cursor: pointer;
-        }
-
-        .popover {
-            position: absolute;
-            z-index: 50;
-            background-color: hsl(var(--popover));
-            border: 1px solid hsl(var(--border));
-            border-radius: var(--radius);
-            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-        }
-
-        .checkbox {
-            height: 1rem;
-            width: 1rem;
-            border: 1px solid hsl(var(--border));
-            border-radius: 0.25rem;
-        }
-
-        .animate-spin {
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
-        .collapsible-content {
-            overflow: hidden;
-            transition: all 0.2s ease-in-out;
-        }
-
-        .collapsible-content[data-state="closed"] {
-            height: 0;
-        }
-
-        .hidden {
-            display: none;
-        }
+        .animate-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -199,744 +126,645 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useCallback } = React;
 
-        // Icons as SVG components
-        const RefreshCw = ({ className, ...props }) => (
-            <svg className={className} {...props} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
-                <path d="M21 3v5h-5"/>
-                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
-                <path d="M3 21v-5h5"/>
+        // --- Utils & Config ---
+        const DEFAULT_SOURCES = [
+            { name: 'TPE', sheetId: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI', sheetName: 'inventory_tracking', headerRow: 4, nameCol: 'D', expiryCol: 'E', qtyCol: 'J' },
+            { name: 'SC', sheetId: '12C25rcfSEMtSkkARzLtxlW9Wmhu64m6eSP_KoK8M-js', sheetName: 'inventory_tracking', headerRow: 4, nameCol: 'D', expiryCol: 'E', qtyCol: 'J' },
+            { name: 'MOMO', sheetId: '1j04xLITImSX6WgtXkaGQfs0IZ5E8r3UEOrT2CKKGAxE', sheetName: 'inventory_tracking', headerRow: 4, nameCol: 'D', expiryCol: 'E', qtyCol: 'J' }
+        ];
+
+        const parseCSV = (text) => {
+            const rows = [];
+            let row = [];
+            let cell = "";
+            let inQuote = false;
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                if (char === '"') { inQuote = !inQuote; }
+                else if (char === ',' && !inQuote) { row.push(cell.trim()); cell = ""; }
+                else if ((char === '\r' || char === '\n') && !inQuote) {
+                    if (cell || row.length) row.push(cell.trim());
+                    if (row.length) rows.push(row);
+                    row = []; cell = "";
+                } else { cell += char; }
+            }
+            if (cell || row.length) { row.push(cell.trim()); rows.push(row); }
+            return rows;
+        };
+
+        const colToIndex = (col) => {
+            if (!col) return -1;
+            let index = 0;
+            for (let i = 0; i < col.length; i++) index = index * 26 + (col.charCodeAt(i) - 64);
+            return index - 1;
+        };
+
+        const parseDate = (dateStr) => {
+            if (!dateStr) return null;
+            if (!isNaN(dateStr) && parseFloat(dateStr) > 20000) {
+                return new Date((parseFloat(dateStr) - 25569) * 86400 * 1000);
+            }
+            const d = new Date(dateStr);
+            return isNaN(d.getTime()) ? null : d;
+        };
+
+        // --- Components ---
+        const Icon = ({ path, className = "" }) => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {path}
             </svg>
         );
 
-        const Settings = ({ className, ...props }) => (
-            <svg className={className} {...props} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-                <circle cx="12" cy="12" r="3"/>
-            </svg>
+        const Checkbox = ({ checked }) => (
+            <div className="custom-checkbox">
+                {checked && <Icon path={<polyline points="20 6 9 17 4 12"></polyline>} className="w-3 h-3 stroke-[4]" />}
+            </div>
         );
 
-        const Search = ({ className, ...props }) => (
-            <svg className={className} {...props} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8"/>
-                <path d="m21 21-4.35-4.35"/>
-            </svg>
-        );
+        const SortIndicator = ({ active, direction }) => {
+            return (
+                <span className={`sort-icon ${active ? 'active' : ''}`}>
+                    {direction === 'desc' ? '↓' : '↑'}
+                </span>
+            );
+        };
 
-        const AlertTriangle = ({ className, ...props }) => (
-            <svg className={className} {...props} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
-                <path d="M12 9v4"/>
-                <path d="M12 17h.01"/>
-            </svg>
-        );
+        const SettingsPanel = ({ sources, setSources, onSave, onClose, hiddenCount, onResetHidden }) => {
+            const updateSource = (index, field, value) => {
+                const newSources = [...sources];
+                newSources[index][field] = field.includes('Col') ? value.toUpperCase() : value;
+                setSources(newSources);
+            };
 
-        const ChevronDown = ({ className, ...props }) => (
-            <svg className={className} {...props} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m6 9 6 6 6-6"/>
-            </svg>
-        );
+            const addSource = () => {
+                setSources([...sources, { name: 'NEW', sheetId: '', sheetName: '', headerRow: 1, nameCol: 'A', expiryCol: 'B', qtyCol: 'C' }]);
+            };
 
-        const ChevronUp = ({ className, ...props }) => (
-            <svg className={className} {...props} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m18 15-6-6-6 6"/>
-            </svg>
-        );
-
-        // Location Multi-Select Component
-        const LocationMultiSelect = ({ locationFilter, setLocationFilter }) => {
-            const [open, setOpen] = useState(false);
-
-            const locations = [
-                { value: 'ALL', label: '全部' },
-                { value: 'TAIPEI', label: 'TPE' },
-                { value: 'SANCHONG', label: 'SC' },
-                { value: 'MOMO', label: 'MOMO' }
-            ];
-
-            const handleLocationToggle = (value) => {
-                if (value === 'ALL') {
-                    setLocationFilter(['ALL']);
-                } else {
-                    const newFilter = locationFilter.includes('ALL')
-                        ? [value]
-                        : locationFilter.includes(value)
-                        ? locationFilter.filter(l => l !== value)
-                        : [...locationFilter.filter(l => l !== 'ALL'), value];
-                    
-                    setLocationFilter(newFilter.length === 0 ? ['ALL'] : newFilter);
+            const removeSource = (idx) => {
+                if (confirm('確定移除此來源?')) {
+                    setSources(sources.filter((_, i) => i !== idx));
                 }
             };
 
-            const selectedText = locationFilter.includes('ALL') 
-                ? '全部' 
-                : locationFilter.length === 0
-                ? 'Select locations'
-                : locationFilter.join(', ');
-
             return (
-                <div className="relative">
-                    <button
-                        className="btn btn-outline w-48 justify-between"
-                        onClick={() => setOpen(!open)}
-                    >
-                        <span className="truncate">{selectedText}</span>
-                        <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
-                    </button>
-                    {open && (
-                        <div className="popover w-48 p-3 mt-1">
-                            <div className="space-y-2">
-                                {locations.map(location => (
-                                    <div key={location.value} className="flex items-center space-x-2">
-                                        <input
-                                            type="checkbox"
-                                            className="checkbox"
-                                            id={location.value}
-                                            checked={locationFilter.includes(location.value)}
-                                            onChange={() => handleLocationToggle(location.value)}
-                                        />
-                                        <label htmlFor={location.value} className="text-sm font-normal cursor-pointer">
-                                            {location.label}
-                                        </label>
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center p-6 border-b">
+                            <h2 className="text-xl font-bold text-slate-800">設定 (Settings)</h2>
+                            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors">✕</button>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 flex justify-between items-center">
+                                <div>
+                                    <h3 className="font-semibold text-slate-700">隱藏品項管理</h3>
+                                    <p className="text-sm text-slate-500">已隱藏 {hiddenCount} 個品項</p>
+                                </div>
+                                <button 
+                                    onClick={onResetHidden}
+                                    disabled={hiddenCount === 0}
+                                    className="btn btn-outline text-red-600 border-red-200 hover:bg-red-50"
+                                >
+                                    重置隱藏
+                                </button>
+                            </div>
+
+                            <hr className="border-slate-100" />
+
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="font-semibold text-slate-700">資料來源 (Data Sources)</h3>
+                                    <button onClick={addSource} className="text-sm text-blue-600 hover:underline font-medium">+ 新增來源</button>
+                                </div>
+                                {sources.map((src, idx) => (
+                                    <div key={idx} className="p-4 border rounded-lg bg-white shadow-sm grid grid-cols-1 md:grid-cols-12 gap-3 relative group">
+                                        <button onClick={() => removeSource(idx)} className="absolute top-2 right-2 text-gray-300 hover:text-red-500 p-1">✕</button>
+                                        
+                                        <div className="md:col-span-2">
+                                            <label className="text-[10px] uppercase text-gray-400 font-bold">Name</label>
+                                            <input className="input-base font-bold text-slate-700" value={src.name} onChange={e => updateSource(idx, 'name', e.target.value)} />
+                                        </div>
+                                        <div className="md:col-span-4">
+                                            <label className="text-[10px] uppercase text-gray-400 font-bold">Sheet ID</label>
+                                            <input className="input-base font-mono text-xs" value={src.sheetId} onChange={e => updateSource(idx, 'sheetId', e.target.value)} />
+                                        </div>
+                                        <div className="md:col-span-2">
+                                            <label className="text-[10px] uppercase text-gray-400 font-bold">Tab</label>
+                                            <input className="input-base" value={src.sheetName} onChange={e => updateSource(idx, 'sheetName', e.target.value)} />
+                                        </div>
+                                        <div className="md:col-span-1">
+                                            <label className="text-[10px] uppercase text-gray-400 font-bold">Row</label>
+                                            <input type="number" className="input-base" value={src.headerRow} onChange={e => updateSource(idx, 'headerRow', parseInt(e.target.value))} />
+                                        </div>
+                                        <div className="md:col-span-3 grid grid-cols-3 gap-2">
+                                            <div><label className="text-[10px] uppercase text-gray-400 font-bold">N</label><input className="input-base text-center uppercase" value={src.nameCol} onChange={e => updateSource(idx, 'nameCol', e.target.value)} /></div>
+                                            <div><label className="text-[10px] uppercase text-gray-400 font-bold">E</label><input className="input-base text-center uppercase" value={src.expiryCol} onChange={e => updateSource(idx, 'expiryCol', e.target.value)} /></div>
+                                            <div><label className="text-[10px] uppercase text-gray-400 font-bold">Q</label><input className="input-base text-center uppercase" value={src.qtyCol} onChange={e => updateSource(idx, 'qtyCol', e.target.value)} /></div>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
                         </div>
+                        <div className="p-6 border-t bg-slate-50 rounded-b-xl flex justify-end gap-3">
+                            <button onClick={onClose} className="btn btn-outline">取消</button>
+                            <button onClick={onSave} className="btn btn-primary shadow-lg shadow-blue-900/20">儲存</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Dashboard = () => {
+            // -- State --
+            const [sources, setSources] = useState(() => {
+                const saved = localStorage.getItem('pm_dashboard_sources_v2');
+                return saved ? JSON.parse(saved) : DEFAULT_SOURCES;
+            });
+            const [hiddenItems, setHiddenItems] = useState(() => {
+                const saved = localStorage.getItem('pm_dashboard_hidden');
+                return saved ? JSON.parse(saved) : [];
+            });
+
+            const [data, setData] = useState([]);
+            const [loading, setLoading] = useState(false);
+            const [searchTerm, setSearchTerm] = useState('');
+            const [settingsOpen, setSettingsOpen] = useState(false);
+            const [lastUpdate, setLastUpdate] = useState(null);
+
+            // Filters
+            const [activeLocations, setActiveLocations] = useState(['TOTAL']); 
+            const [dteType, setDteType] = useState('90'); 
+            const [customDteMin, setCustomDteMin] = useState('');
+            const [customDteMax, setCustomDteMax] = useState('');
+            
+            // Sort
+            const [sortConfig, setSortConfig] = useState({ key: 'dte', direction: 'asc' });
+
+            // -- Logic --
+            const fetchData = useCallback(async () => {
+                setLoading(true);
+                try {
+                    const allDataMap = new Map();
+                    
+                    await Promise.all(sources.map(async (src) => {
+                        if (!src.sheetId) return;
+                        const url = `https://docs.google.com/spreadsheets/d/${src.sheetId}/gviz/tq?sheet=${src.sheetName}&range=A${src.headerRow}:Z&tqx=out:csv`;
+                        
+                        try {
+                            const res = await fetch(url);
+                            if (!res.ok) throw new Error('Network err');
+                            const csv = await res.text();
+                            const rows = parseCSV(csv);
+                            
+                            const nIdx = colToIndex(src.nameCol);
+                            const eIdx = colToIndex(src.expiryCol);
+                            const qIdx = colToIndex(src.qtyCol);
+
+                            rows.forEach(row => {
+                                const nameRaw = row[nIdx];
+                                const expRaw = row[eIdx];
+                                const qtyRaw = row[qIdx];
+
+                                if (!nameRaw || !expRaw) return;
+                                
+                                const key = nameRaw.trim().toUpperCase();
+                                const expiry = parseDate(expRaw);
+                                const cleanQty = typeof qtyRaw === 'string' ? qtyRaw.replace(/,/g, '') : qtyRaw;
+                                const qty = parseInt(cleanQty) || 0;
+
+                                if (!expiry) return;
+
+                                if (!allDataMap.has(key)) {
+                                    allDataMap.set(key, {
+                                        name: nameRaw.trim(),
+                                        expiry: expiry,
+                                        quantities: {}
+                                    });
+                                }
+                                
+                                const entry = allDataMap.get(key);
+                                if (expiry < entry.expiry) entry.expiry = expiry;
+                                
+                                const srcKey = src.name || 'Unknown';
+                                entry.quantities[srcKey] = (entry.quantities[srcKey] || 0) + qty;
+                            });
+                        } catch (err) {
+                            console.error(`Failed to load ${src.name}`, err);
+                        }
+                    }));
+
+                    const today = new Date();
+                    today.setHours(0,0,0,0);
+                    
+                    const processed = Array.from(allDataMap.values()).map(item => {
+                        const total = Object.values(item.quantities).reduce((acc, v) => acc + v, 0);
+                        const dte = Math.ceil((item.expiry - today) / (1000 * 60 * 60 * 24));
+                        return { ...item, total, dte };
+                    });
+
+                    setData(processed);
+                    setLastUpdate(new Date());
+                } finally {
+                    setLoading(false);
+                }
+            }, [sources]);
+
+            useEffect(() => { fetchData(); }, []); 
+
+            // -- Actions --
+            const handleSaveSettings = () => {
+                localStorage.setItem('pm_dashboard_sources_v2', JSON.stringify(sources));
+                setSettingsOpen(false);
+                fetchData();
+            };
+
+            const toggleHideItem = (itemName) => {
+                const newHidden = [...hiddenItems, itemName];
+                setHiddenItems(newHidden);
+                localStorage.setItem('pm_dashboard_hidden', JSON.stringify(newHidden));
+            };
+
+            const resetHiddenItems = () => {
+                setHiddenItems([]);
+                localStorage.removeItem('pm_dashboard_hidden');
+            };
+
+            const toggleLocation = (locName) => {
+                if (locName === 'TOTAL') {
+                    setActiveLocations(['TOTAL']);
+                } else {
+                    let newActive;
+                    if (activeLocations.includes('TOTAL')) {
+                        newActive = [locName];
+                    } else {
+                        if (activeLocations.includes(locName)) {
+                            const remaining = activeLocations.filter(l => l !== locName);
+                            newActive = remaining.length === 0 ? ['TOTAL'] : remaining;
+                        } else {
+                            newActive = [...activeLocations, locName];
+                        }
+                    }
+                    setActiveLocations(newActive);
+                }
+            };
+
+            // -- Derived State --
+            const sourceNames = useMemo(() => sources.map(s => s.name), [sources]);
+            
+            // Determine visible columns based on selection
+            const visibleSources = useMemo(() => {
+                if (activeLocations.includes('TOTAL')) return sourceNames;
+                return sourceNames.filter(src => activeLocations.includes(src));
+            }, [activeLocations, sourceNames]);
+
+            // ** 1. Base Filtered Data (Search, Hidden, DTE, AND Auto-Hide Expired) **
+            const baseFilteredData = useMemo(() => {
+                return data.filter(item => {
+                    // 1. Check Hidden
+                    if (hiddenItems.includes(item.name)) return false;
+
+                    // 2. Check Auto-Hide Expired (DTE <= 0)
+                    if (item.dte <= 0) return false;
+
+                    // 3. Check Search
+                    if (searchTerm && !item.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+                    
+                    // 4. Check DTE User Filter
+                    if (dteType === 'CUSTOM') {
+                        const min = customDteMin === '' ? -Infinity : parseInt(customDteMin);
+                        const max = customDteMax === '' ? Infinity : parseInt(customDteMax);
+                        if (item.dte < min || item.dte > max) return false;
+                    } else if (dteType !== 'ALL') {
+                        const maxDays = parseInt(dteType);
+                        if (item.dte > maxDays) return false; 
+                    }
+                    return true;
+                });
+            }, [data, searchTerm, dteType, customDteMin, customDteMax, hiddenItems]);
+
+            // ** 2. Stats for Cards (Calculated from Base Filtered Data) **
+            const sourceStats = useMemo(() => {
+                const stats = {};
+                sourceNames.forEach(src => stats[src] = { qty: 0, sku: 0 });
+                
+                baseFilteredData.forEach(row => {
+                    sourceNames.forEach(src => {
+                        const q = row.quantities[src] || 0;
+                        if (q > 0) {
+                            stats[src].qty += q;
+                            stats[src].sku += 1;
+                        }
+                    });
+                });
+                return stats;
+            }, [baseFilteredData, sourceNames]);
+
+            // ** 3. Display Data (For Table & Total Card Sum) **
+            const finalDisplayData = useMemo(() => {
+                return baseFilteredData.map(item => {
+                    // Calculate dynamic total based on active checks
+                    let displayTotal = 0;
+                    if (activeLocations.includes('TOTAL')) {
+                        displayTotal = item.total; // Sum of all
+                    } else {
+                        // Sum only active locations
+                        activeLocations.forEach(loc => {
+                            displayTotal += (item.quantities[loc] || 0);
+                        });
+                    }
+                    return { ...item, displayTotal };
+                }).filter(item => {
+                    // Final check: Must have stock in SELECTED locations to show in table
+                    return item.displayTotal > 0;
+                }).sort((a, b) => {
+                    let aVal, bVal;
+
+                    // Determine sort value based on config
+                    if (sourceNames.includes(sortConfig.key)) {
+                        // Sorting by specific warehouse quantity
+                        aVal = a.quantities[sortConfig.key] || 0;
+                        bVal = b.quantities[sortConfig.key] || 0;
+                    } else if (sortConfig.key === 'total') {
+                        // Sorting by Display Total
+                        aVal = a.displayTotal;
+                        bVal = b.displayTotal;
+                    } else {
+                        // Standard keys: name, expiry, dte
+                        aVal = a[sortConfig.key];
+                        bVal = b[sortConfig.key];
+                    }
+
+                    // String comparison (for names)
+                    if (typeof aVal === 'string') {
+                        return sortConfig.direction === 'asc' 
+                            ? aVal.localeCompare(bVal) 
+                            : bVal.localeCompare(aVal);
+                    }
+
+                    // Number/Date comparison
+                    if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+                    if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+                    return 0;
+                });
+            }, [baseFilteredData, activeLocations, sortConfig, sourceNames]);
+
+            const requestSort = (key) => {
+                let direction = 'asc';
+                if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
+                setSortConfig({ key, direction });
+            };
+
+            // ** 4. Dynamic Total Sum (For Total Card) **
+            const dynamicTotalSum = useMemo(() => {
+                return finalDisplayData.reduce((acc, curr) => acc + curr.displayTotal, 0);
+            }, [finalDisplayData]);
+
+
+            const getDteBadge = (dte) => {
+                if (dte <= 60) return <span className="status-badge status-expired">剩 {dte} 天</span>;
+                if (dte <= 180) return <span className="status-badge status-warning">剩 {dte} 天</span>;
+                return <span className="status-badge status-good">剩 {dte} 天</span>;
+            };
+
+            return (
+                <div className="max-w-7xl mx-auto p-4 md:p-6 pb-20 md:pb-6 space-y-4 md:space-y-6">
+                    {/* Header */}
+                    <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div>
+                            <h1 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
+                                <Icon path={<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>} />
+                                庫存水位監控 v2.9
+                            </h1>
+                            <p className="text-xs md:text-sm text-slate-500 mt-1">
+                                {lastUpdate ? `更新: ${lastUpdate.toLocaleTimeString()}` : '等待更新...'} 
+                            </p>
+                        </div>
+                        <div className="flex gap-2 w-full md:w-auto">
+                            <button onClick={fetchData} className="btn btn-outline flex-1 md:flex-none justify-center" disabled={loading}>
+                                <Icon path={<path d="M23 4v6h-6M1 20v-6h6"></path>} className={loading ? "animate-spin mr-2" : "mr-2"} />
+                                重新整理
+                            </button>
+                            <button onClick={() => setSettingsOpen(true)} className="btn btn-outline flex-1 md:flex-none justify-center">
+                                <Icon path={<circle cx="12" cy="12" r="3"></circle>} className="mr-2" /> 設定
+                            </button>
+                        </div>
+                    </header>
+
+                    {/* Interactive Filter Cards */}
+                    <div className="flex flex-wrap gap-3">
+                        {/* Total Card (Dynamic Sum based on checks) */}
+                        <div 
+                            className={`stat-card ${activeLocations.includes('TOTAL') ? 'checked' : 'unchecked'}`}
+                            onClick={() => toggleLocation('TOTAL')}
+                        >
+                            <div className="stat-card-header">
+                                <div className={`stat-label ${activeLocations.includes('TOTAL') ? 'text-blue-200' : 'text-slate-500'}`}>Total Inventory</div>
+                                <Checkbox checked={activeLocations.includes('TOTAL')} />
+                            </div>
+                            <div className="stat-value">{dynamicTotalSum.toLocaleString()}</div>
+                            <div className={`stat-sub ${activeLocations.includes('TOTAL') ? 'text-blue-200' : 'text-slate-400'}`}>{finalDisplayData.length} items</div>
+                        </div>
+
+                        {/* Individual Source Cards (Static Stats based on DTE/Search only) */}
+                        {sourceNames.map(src => {
+                            const isChecked = activeLocations.includes(src);
+                            return (
+                                <div 
+                                    key={src} 
+                                    className={`stat-card ${isChecked ? 'checked' : 'unchecked'}`}
+                                    onClick={() => toggleLocation(src)}
+                                >
+                                    <div className="stat-card-header">
+                                        <div className={`stat-label ${isChecked ? 'text-blue-200' : 'text-slate-500'}`}>{src}</div>
+                                        <Checkbox checked={isChecked} />
+                                    </div>
+                                    <div className="stat-value">{sourceStats[src]?.qty.toLocaleString() || 0}</div>
+                                    <div className={`stat-sub ${isChecked ? 'text-blue-200' : 'text-slate-400'}`}>{sourceStats[src]?.sku || 0} items</div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Filter Bar */}
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 sticky top-2 z-30">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                            {/* Search */}
+                            <div className="md:col-span-5 relative">
+                                <input 
+                                    type="text" 
+                                    placeholder="搜尋品名..." 
+                                    className="input-base pl-9 bg-slate-50 border-slate-200 focus:bg-white"
+                                    value={searchTerm}
+                                    onChange={e => setSearchTerm(e.target.value)}
+                                />
+                                <div className="absolute left-3 top-2.5 text-gray-400">
+                                    <Icon path={<circle cx="11" cy="11" r="8"></circle>} />
+                                </div>
+                            </div>
+                            
+                            {/* Time Filter */}
+                            <div className={`md:col-span-${dteType === 'CUSTOM' ? '7' : '4'} flex gap-2 transition-all duration-300`}>
+                                <select className="input-base cursor-pointer w-full" value={dteType} onChange={e => setDteType(e.target.value)}>
+                                    <option value="ALL">全部效期 (All)</option>
+                                    <option value="60">≤ 60 天 (緊急)</option>
+                                    <option value="90">≤ 90 天 (注意)</option>
+                                    <option value="180">≤ 180 天 (半年)</option>
+                                    <option value="CUSTOM">自訂區間...</option>
+                                </select>
+                                
+                                {dteType === 'CUSTOM' && (
+                                    <div className="flex gap-2 w-full animate-in fade-in zoom-in duration-200">
+                                        <input type="number" placeholder="Min" className="input-base w-20 px-2 text-center" value={customDteMin} onChange={e => setCustomDteMin(e.target.value)} />
+                                        <span className="self-center text-slate-400">-</span>
+                                        <input type="number" placeholder="Max" className="input-base w-20 px-2 text-center" value={customDteMax} onChange={e => setCustomDteMax(e.target.value)} />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* --- Mobile View (Cards) --- */}
+                    <div className="md:hidden space-y-3">
+                        {loading ? (
+                             <div className="text-center py-10 text-gray-400">載入中...</div>
+                        ) : finalDisplayData.length === 0 ? (
+                             <div className="text-center py-10 text-gray-400">無符合資料</div>
+                        ) : (
+                            finalDisplayData.map((row, idx) => (
+                                <div key={idx} className="mobile-card flex flex-col gap-3">
+                                    <div className="flex justify-between items-start">
+                                        <div className="font-semibold text-slate-800 text-base break-words pr-8">{row.name}</div>
+                                        <button onClick={() => toggleHideItem(row.name)} className="btn-danger-ghost absolute top-3 right-3">
+                                            <Icon path={<polyline points="3 6 5 6 21 6"></polyline>} />
+                                            <Icon path={<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>} className="ml-[-16px]" />
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <div className="mobile-label">總庫存 (TTQ)</div>
+                                            <div className="text-lg font-bold text-blue-600">{row.displayTotal.toLocaleString()}</div>
+                                        </div>
+                                        <div>
+                                            <div className="mobile-label">效期 (EXP)</div>
+                                            <div className="text-sm font-mono text-slate-600">{row.expiry.toISOString().split('T')[0]}</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-between items-end border-t pt-3 mt-1">
+                                        <div className="text-xs text-slate-400 space-x-2">
+                                            {visibleSources.map(src => row.quantities[src] > 0 && (
+                                                <span key={src} className="inline-block bg-slate-100 px-1.5 py-0.5 rounded">
+                                                    {src}: {row.quantities[src]}
+                                                </span>
+                                            ))}
+                                        </div>
+                                        <div>{getDteBadge(row.dte)}</div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    {/* --- Desktop View (Table) --- */}
+                    <div className="hidden md:block table-container">
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th 
+                                        className="text-left cursor-pointer hover:bg-slate-100 pl-4 w-1/3" 
+                                        onClick={() => requestSort('name')}
+                                    >
+                                        品名 <SortIndicator active={sortConfig.key === 'name'} direction={sortConfig.direction} />
+                                    </th>
+                                    
+                                    {/* Dynamic Columns - Sortable */}
+                                    {visibleSources.map(src => (
+                                        <th 
+                                            key={src} 
+                                            className="text-center w-24 text-slate-500 cursor-pointer hover:bg-slate-100"
+                                            onClick={() => requestSort(src)}
+                                        >
+                                            {src} <SortIndicator active={sortConfig.key === src} direction={sortConfig.direction} />
+                                        </th>
+                                    ))}
+                                    
+                                    <th 
+                                        className="text-center w-28 cursor-pointer hover:bg-slate-100 text-blue-600" 
+                                        onClick={() => requestSort('total')}
+                                    >
+                                        總量 <SortIndicator active={sortConfig.key === 'total'} direction={sortConfig.direction} />
+                                    </th>
+                                    
+                                    <th 
+                                        className="text-center w-32 cursor-pointer hover:bg-slate-100" 
+                                        onClick={() => requestSort('expiry')}
+                                    >
+                                        效期 <SortIndicator active={sortConfig.key === 'expiry'} direction={sortConfig.direction} />
+                                    </th>
+                                    
+                                    <th 
+                                        className="text-center w-32 cursor-pointer hover:bg-slate-100" 
+                                        onClick={() => requestSort('dte')}
+                                    >
+                                        DTE <SortIndicator active={sortConfig.key === 'dte'} direction={sortConfig.direction} />
+                                    </th>
+                                    <th className="w-10"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {loading ? (
+                                    <tr><td colSpan={5 + visibleSources.length} className="text-center py-20 text-slate-400">載入數據中...</td></tr>
+                                ) : finalDisplayData.length === 0 ? (
+                                    <tr><td colSpan={5 + visibleSources.length} className="text-center py-20 text-slate-400">無符合資料</td></tr>
+                                ) : (
+                                    finalDisplayData.map((row, idx) => (
+                                        <tr key={idx} className="group transition-colors">
+                                            <td className="font-medium text-slate-700 pl-4">{row.name}</td>
+                                            
+                                            {/* Dynamic Cells */}
+                                            {visibleSources.map(src => (
+                                                <td key={src} className={`text-center font-mono ${!row.quantities[src] ? 'text-slate-200' : 'text-slate-600'}`}>
+                                                    {row.quantities[src] || 0}
+                                                </td>
+                                            ))}
+
+                                            <td className="text-center font-bold text-blue-600 bg-blue-50/30 font-mono">{row.displayTotal.toLocaleString()}</td>
+                                            <td className="text-center text-sm font-mono text-slate-500">{row.expiry.toISOString().split('T')[0]}</td>
+                                            <td className="text-center">{getDteBadge(row.dte)}</td>
+                                            <td className="text-center">
+                                                <button 
+                                                    onClick={() => toggleHideItem(row.name)}
+                                                    className="btn-danger-ghost opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    title="隱藏此商品"
+                                                >
+                                                    <Icon path={<polyline points="3 6 5 6 21 6"></polyline>} />
+                                                    <Icon path={<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>} className="hidden" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {settingsOpen && (
+                        <SettingsPanel 
+                            sources={sources} 
+                            setSources={setSources} 
+                            hiddenCount={hiddenItems.length}
+                            onResetHidden={resetHiddenItems}
+                            onClose={() => setSettingsOpen(false)} 
+                            onSave={handleSaveSettings} 
+                        />
                     )}
                 </div>
             );
         };
 
-        // Earliest Expiry Collapsible Component
-        const EarliestExpiryCollapsible = ({ data }) => {
-            const [isOpen, setIsOpen] = useState(false);
-
-            const earliestItem = data.reduce((earliest, item) => 
-                !earliest || item.expiry < earliest.expiry ? item : earliest, 
-                null
-            );
-
-            if (!earliestItem) {
-                return <div className="text-sm opacity-60">No items</div>;
-            }
-
-            const itemsWithEarliestDate = data.filter(item => 
-                item.expiry.getTime() === earliestItem.expiry.getTime()
-            );
-
-            return (
-                <div className="space-y-2">
-                    <div className="text-2xl font-bold">
-                        {earliestItem.expiry.toISOString().split('T')[0]}
-                    </div>
-                    <div className="text-sm opacity-60">
-                        {earliestItem.dte} days remaining
-                    </div>
-                    
-                    <div>
-                        <button
-                            className="btn btn-ghost p-0 h-auto text-xs text-blue-600 hover:text-blue-500"
-                            onClick={() => setIsOpen(!isOpen)}
-                        >
-                            <span>{itemsWithEarliestDate.length} item{itemsWithEarliestDate.length !== 1 ? 's' : ''}</span>
-                            {isOpen ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />}
-                        </button>
-                        <div className={`collapsible-content mt-2 ${isOpen ? '' : 'hidden'}`}>
-                            <div className="max-h-32 overflow-y-auto space-y-1">
-                                {itemsWithEarliestDate.map((item, index) => (
-                                    <div key={index} className="text-xs opacity-60 p-1 bg-gray-100 rounded">
-                                        {item.name}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        const PMInventoryDashboard = () => {
-            const [loading, setLoading] = useState(false);
-            const [data, setData] = useState([]);
-            const [searchTerm, setSearchTerm] = useState('');
-            const [dteFilter, setDteFilter] = useState('≤90');
-            const [customDteMin, setCustomDteMin] = useState('');
-            const [customDteMax, setCustomDteMax] = useState('');
-            const [locationFilter, setLocationFilter] = useState(['ALL']);
-            const [sortField, setSortField] = useState('dte');
-            const [sortDirection, setSortDirection] = useState('asc');
-            const [showSettings, setShowSettings] = useState(false);
-            const [lastFetch, setLastFetch] = useState(null);
-
-            const defaultSources = [{
-                name: 'TPE',
-                sheetId: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI',
-                sheetName: 'inventory_tracking',
-                headerRow: 4,
-                nameCol: 'D',
-                expiryCol: 'E',
-                qtyCol: 'J'
-            }, {
-                name: 'SC',
-                sheetId: '12C25rcfSEMtSkkARzLtxlW9Wmhu64m6eSP_KoK8M-js',
-                sheetName: 'inventory_tracking',
-                headerRow: 4,
-                nameCol: 'D',
-                expiryCol: 'E',
-                qtyCol: 'J'
-            }, {
-                name: 'MOMO',
-                sheetId: '1j04xLITImSX6WgtXkaGQfs0IZ5E8r3UEOrT2CKKGAxE',
-                sheetName: 'inventory_tracking',
-                headerRow: 4,
-                nameCol: 'D',
-                expiryCol: 'E',
-                qtyCol: 'J'
-            }];
-
-            const [sources, setSources] = useState(defaultSources);
-
-            // CSV parsing utility
-            const parseCSV = (csv) => {
-                const rows = [];
-                let currentRow = [];
-                let currentField = '';
-                let inQuotes = false;
-                let i = 0;
-
-                while (i < csv.length) {
-                    const char = csv[i];
-                    const nextChar = csv[i + 1];
-
-                    if (char === '"') {
-                        if (inQuotes && nextChar === '"') {
-                            currentField += '"';
-                            i += 2;
-                            continue;
-                        }
-                        inQuotes = !inQuotes;
-                    } else if (char === ',' && !inQuotes) {
-                        currentRow.push(currentField.trim());
-                        currentField = '';
-                    } else if ((char === '\n' || char === '\r') && !inQuotes) {
-                        if (char === '\r' && nextChar === '\n') i++;
-                        currentRow.push(currentField.trim());
-                        if (currentRow.some(field => field.length > 0)) {
-                            rows.push(currentRow);
-                        }
-                        currentRow = [];
-                        currentField = '';
-                    } else {
-                        currentField += char;
-                    }
-                    i++;
-                }
-
-                if (currentField || currentRow.length > 0) {
-                    currentRow.push(currentField.trim());
-                    if (currentRow.some(field => field.length > 0)) {
-                        rows.push(currentRow);
-                    }
-                }
-                return rows;
-            };
-
-            // Date parsing utility
-            const parseDate = (dateStr) => {
-                if (!dateStr) return null;
-
-                if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-                    const date = new Date(dateStr + 'T00:00:00');
-                    return isNaN(date.getTime()) ? null : date;
-                }
-
-                const serial = parseFloat(dateStr);
-                if (!isNaN(serial) && serial > 25569) {
-                    return new Date((serial - 25569) * 86400 * 1000);
-                }
-
-                const date = new Date(dateStr);
-                return isNaN(date.getTime()) ? null : date;
-            };
-
-            // Column letter to index conversion
-            const colToIndex = (col) => {
-                let index = 0;
-                for (let i = 0; i < col.length; i++) {
-                    index = index * 26 + (col.charCodeAt(i) - 65 + 1);
-                }
-                return index - 1;
-            };
-
-            // Fetch data from Google Sheets
-            const fetchSheetData = async (source) => {
-                if (!source.sheetId) return [];
-                try {
-                    const sheetParam = source.sheetName ? `&sheet=${encodeURIComponent(source.sheetName)}` : '';
-                    const url = `https://docs.google.com/spreadsheets/d/${source.sheetId}/gviz/tq?${sheetParam}&range=A${source.headerRow}:Z&tqx=out:csv`;
-                    const response = await fetch(url, { cache: 'no-store' });
-                    
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}`);
-                    }
-                    
-                    const csvText = await response.text();
-                    const rows = parseCSV(csvText);
-                    const nameIdx = colToIndex(source.nameCol);
-                    const expiryIdx = colToIndex(source.expiryCol);
-                    const qtyIdx = colToIndex(source.qtyCol);
-                    const items = [];
-
-                    for (const row of rows) {
-                        const name = row[nameIdx]?.trim();
-                        const expiryStr = row[expiryIdx]?.trim();
-                        const qtyStr = row[qtyIdx]?.trim();
-
-                        if (!name || !expiryStr) continue;
-
-                        const expiry = parseDate(expiryStr);
-                        const qty = parseInt(qtyStr) || 0;
-
-                        if (expiry && !isNaN(qty)) {
-                            items.push({ name, expiry, qty });
-                        }
-                    }
-                    return items;
-                } catch (error) {
-                    console.error(`[${source.name}] Error fetching data:`, error);
-                    alert(`[${source.name}] HTTP Error: ${error.message}`);
-                    return [];
-                }
-            };
-
-            // Fetch all data and aggregate
-            const fetchAllData = async () => {
-                setLoading(true);
-                try {
-                    const results = await Promise.all(sources.map(fetchSheetData));
-                    const productMap = new Map();
-
-                    results.forEach((items, sourceIndex) => {
-                        const sourceName = sources[sourceIndex].name;
-                        items.forEach(item => {
-                            const existing = productMap.get(item.name);
-                            if (existing) {
-                                if (item.expiry < existing.expiry) {
-                                    existing.expiry = item.expiry;
-                                }
-                                if (sourceName === 'TPE') existing.qty_TPE += item.qty;
-                                else if (sourceName === 'SC') existing.qty_SC += item.qty;
-                                else if (sourceName === 'MOMO') existing.qty_MOMO += item.qty;
-                            } else {
-                                const newItem = {
-                                    name: item.name,
-                                    expiry: item.expiry,
-                                    qty_TPE: sourceName === 'TPE' ? item.qty : 0,
-                                    qty_SC: sourceName === 'SC' ? item.qty : 0,
-                                    qty_MOMO: sourceName === 'MOMO' ? item.qty : 0
-                                };
-                                productMap.set(item.name, newItem);
-                            }
-                        });
-                    });
-
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    
-                    const aggregatedData = Array.from(productMap.values()).map(item => ({
-                        ...item,
-                        qty_TTQ: item.qty_TPE + item.qty_SC + item.qty_MOMO,
-                        dte: Math.floor((item.expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-                    }));
-
-                    setData(aggregatedData);
-                    setLastFetch(new Date());
-                } catch (error) {
-                    console.error('Error fetching data:', error);
-                } finally {
-                    setLoading(false);
-                }
-            };
-
-            // Initial data load
-            useEffect(() => {
-                fetchAllData();
-            }, []);
-
-            // Filter and sort data
-            const filteredAndSortedData = useMemo(() => {
-                let filtered = data.slice();
-
-                if (searchTerm) {
-                    filtered = filtered.filter(item => 
-                        item.name.toLowerCase().includes(searchTerm.toLowerCase())
-                    );
-                }
-
-                if (!locationFilter.includes('ALL')) {
-                    filtered = filtered.filter(item => {
-                        if (locationFilter.includes('TAIPEI') && item.qty_TPE > 0) return true;
-                        if (locationFilter.includes('SANCHONG') && item.qty_SC > 0) return true;
-                        if (locationFilter.includes('MOMO') && item.qty_MOMO > 0) return true;
-                        return false;
-                    });
-                }
-
-                if (dteFilter === '≤90') {
-                    filtered = filtered.filter(item => item.dte <= 90);
-                } else if (dteFilter === '≤180') {
-                    filtered = filtered.filter(item => item.dte <= 180);
-                } else if (dteFilter === '≤365') {
-                    filtered = filtered.filter(item => item.dte <= 365);
-                } else if (dteFilter === '>365') {
-                    filtered = filtered.filter(item => item.dte > 365);
-                } else if (dteFilter === '≥548') {
-                    filtered = filtered.filter(item => item.dte >= 548);
-                } else if (dteFilter === '≥730') {
-                    filtered = filtered.filter(item => item.dte >= 730);
-                } else if (dteFilter === '≥913') {
-                    filtered = filtered.filter(item => item.dte >= 913);
-                } else if (dteFilter === 'custom') {
-                    const min = customDteMin ? parseInt(customDteMin) : -Infinity;
-                    const max = customDteMax ? parseInt(customDteMax) : Infinity;
-                    filtered = filtered.filter(item => item.dte >= min && item.dte <= max);
-                }
-
-                filtered.sort((a, b) => {
-                    let aVal = a[sortField];
-                    let bVal = b[sortField];
-                    if (sortField === 'expiry') {
-                        aVal = a.expiry.getTime();
-                        bVal = b.expiry.getTime();
-                    }
-                    if (typeof aVal === 'string' && typeof bVal === 'string') {
-                        aVal = aVal.toLowerCase();
-                        bVal = bVal.toLowerCase();
-                    }
-                    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
-                    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
-                    return 0;
-                });
-                return filtered;
-            }, [data, searchTerm, locationFilter, dteFilter, customDteMin, customDteMax, sortField, sortDirection]);
-
-            // Get selected location columns for dynamic display
-            const selectedLocationColumns = useMemo(() => {
-                if (locationFilter.includes('ALL')) {
-                    return [
-                        { key: 'qty_TPE', label: 'TPE', filterKey: 'TAIPEI' },
-                        { key: 'qty_SC', label: 'SC', filterKey: 'SANCHONG' },
-                        { key: 'qty_MOMO', label: 'MOMO', filterKey: 'MOMO' }
-                    ];
-                }
-                
-                const columns = [];
-                if (locationFilter.includes('TAIPEI')) {
-                    columns.push({ key: 'qty_TPE', label: 'TPE', filterKey: 'TAIPEI' });
-                }
-                if (locationFilter.includes('SANCHONG')) {
-                    columns.push({ key: 'qty_SC', label: 'SC', filterKey: 'SANCHONG' });
-                }
-                if (locationFilter.includes('MOMO')) {
-                    columns.push({ key: 'qty_MOMO', label: 'MOMO', filterKey: 'MOMO' });
-                }
-                
-                return columns;
-            }, [locationFilter]);
-
-            // Calculate stats
-            const stats = useMemo(() => {
-                const sku = filteredAndSortedData.length;
-                
-                const qty = filteredAndSortedData.reduce((sum, item) => {
-                    if (locationFilter.includes('ALL')) return sum + item.qty_TTQ;
-                    let total = 0;
-                    if (locationFilter.includes('TAIPEI')) total += item.qty_TPE;
-                    if (locationFilter.includes('SANCHONG')) total += item.qty_SC;
-                    if (locationFilter.includes('MOMO')) total += item.qty_MOMO;
-                    return sum + total;
-                }, 0);
-                
-                return { sku, qty };
-            }, [filteredAndSortedData, locationFilter]);
-
-            // Handle sorting
-            const handleSort = (field) => {
-                if (sortField === field) {
-                    setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-                } else {
-                    setSortField(field);
-                    setSortDirection('asc');
-                }
-            };
-
-            // Get DTE status class
-            const getDTEStatusClass = (dte) => {
-                if (dte < 0) return 'status-expired';
-                if (dte <= 60) return 'status-warning';
-                return '';
-            };
-
-            return (
-                <div className="min-h-screen bg-gray-50 p-4">
-                    <div className="max-w-7xl mx-auto space-y-6">
-                        {/* Header */}
-                        <div className="flex items-center justify-between">
-                            <h1 className="text-3xl font-bold">庫存水位儀表板</h1>
-                            <div className="flex items-center gap-2">
-                                {lastFetch && (
-                                    <span className="text-sm opacity-60">
-                                        Last updated: {lastFetch.toLocaleTimeString()}
-                                    </span>
-                                )}
-                                <button className="btn btn-outline" onClick={fetchAllData} disabled={loading}>
-                                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                                </button>
-                                <button className="btn btn-outline" onClick={() => setShowSettings(!showSettings)}>
-                                    <Settings className="h-4 w-4" />
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Settings Panel */}
-                        {showSettings && (
-                            <div className="card rounded-lg p-6 space-y-6">
-                                <h2 className="text-xl font-semibold">Data Source Settings</h2>
-                                {sources.map((source, index) => (
-                                    <div key={source.name} className="space-y-4 p-4 border rounded-lg">
-                                        <h3 className="font-semibold">{source.name}</h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">Sheet ID/URL</label>
-                                                <input
-                                                    className="input"
-                                                    value={source.sheetId}
-                                                    onChange={(e) => {
-                                                        const newSources = [...sources];
-                                                        let value = e.target.value;
-                                                        const match = value.match(/\/d\/([a-zA-Z0-9-_]+)/);
-                                                        if (match) value = match[1];
-                                                        newSources[index].sheetId = value;
-                                                        setSources(newSources);
-                                                    }}
-                                                    placeholder="Sheet ID or full URL"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">Sheet Name</label>
-                                                <input
-                                                    className="input"
-                                                    value={source.sheetName}
-                                                    onChange={(e) => {
-                                                        const newSources = [...sources];
-                                                        newSources[index].sheetName = e.target.value;
-                                                        setSources(newSources);
-                                                    }}
-                                                    placeholder="Leave blank for first tab"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">Header Row</label>
-                                                <input
-                                                    className="input"
-                                                    type="number"
-                                                    value={source.headerRow}
-                                                    onChange={(e) => {
-                                                        const newSources = [...sources];
-                                                        newSources[index].headerRow = parseInt(e.target.value) || 1;
-                                                        setSources(newSources);
-                                                    }}
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">Name Column</label>
-                                                <input
-                                                    className="input"
-                                                    value={source.nameCol}
-                                                    onChange={(e) => {
-                                                        const newSources = [...sources];
-                                                        newSources[index].nameCol = e.target.value.toUpperCase();
-                                                        setSources(newSources);
-                                                    }}
-                                                    placeholder="D"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">Expiry Column</label>
-                                                <input
-                                                    className="input"
-                                                    value={source.expiryCol}
-                                                    onChange={(e) => {
-                                                        const newSources = [...sources];
-                                                        newSources[index].expiryCol = e.target.value.toUpperCase();
-                                                        setSources(newSources);
-                                                    }}
-                                                    placeholder="E"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium mb-1">Quantity Column</label>
-                                                <input
-                                                    className="input"
-                                                    value={source.qtyCol}
-                                                    onChange={(e) => {
-                                                        const newSources = [...sources];
-                                                        newSources[index].qtyCol = e.target.value.toUpperCase();
-                                                        setSources(newSources);
-                                                    }}
-                                                    placeholder="J"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                                <button className="btn btn-outline w-full py-2" onClick={() => { setShowSettings(false); fetchAllData(); }}>
-                                    Save All Sources (Reload Now)
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Toolbar */}
-                        <div className="card rounded-lg p-4">
-                            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
-                                <div className="flex-1 relative">
-                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 opacity-50" />
-                                    <input
-                                        className="input pl-10"
-                                        placeholder="Search products..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                    />
-                                </div>
-                                
-                                <div className="flex gap-2">
-                                    <LocationMultiSelect 
-                                        locationFilter={locationFilter}
-                                        setLocationFilter={setLocationFilter}
-                                    />
-                                    
-                                    <select
-                                        className="select-trigger w-32"
-                                        value={dteFilter}
-                                        onChange={(e) => setDteFilter(e.target.value)}
-                                    >
-                                        <option value="≤90">≤90天</option>
-                                        <option value="≤180">≤180天</option>
-                                        <option value="≤365">≤365天</option>
-                                        <option value=">365">>365天</option>
-                                        <option value="≥548">≥548天</option>
-                                        <option value="≥730">≥730天</option>
-                                        <option value="≥913">≥913天</option>
-                                        <option value="custom">自訂義區間</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Stats */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="card rounded-lg p-4">
-                                <div className="text-2xl font-bold">{stats.sku.toLocaleString()}</div>
-                                <div className="text-sm opacity-60">SKU Count</div>
-                            </div>
-                            <div className="card rounded-lg p-4">
-                                <div className="text-2xl font-bold">{stats.qty.toLocaleString()}</div>
-                                <div className="text-sm opacity-60">Total Quantity (TTQ)</div>
-                            </div>
-                            <div className="card rounded-lg p-4">
-                                <EarliestExpiryCollapsible data={filteredAndSortedData} />
-                                <div className="text-sm opacity-60 mt-2">Earliest Expiry</div>
-                            </div>
-                        </div>
-
-                        {/* Data Table */}
-                        <div className="card rounded-lg">
-                            <div className="overflow-x-auto">
-                                <table className="w-full data-table">
-                                    <thead>
-                                        <tr>
-                                            <th className="p-3 text-left font-medium">
-                                                <button onClick={() => handleSort('name')} className="hover:text-blue-600">
-                                                    # Item {sortField === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
-                                                </button>
-                                            </th>
-                                            {selectedLocationColumns.map(column => (
-                                                <th key={column.key} className="p-3 text-right font-medium">
-                                                    <button onClick={() => handleSort(column.key)} className="hover:text-blue-600">
-                                                        {column.label} {sortField === column.key && (sortDirection === 'asc' ? '↑' : '↓')}
-                                                    </button>
-                                                </th>
-                                            ))}
-                                            {selectedLocationColumns.length > 1 && (
-                                                <th className="p-3 text-right font-medium">
-                                                    <button onClick={() => handleSort('qty_TTQ')} className="hover:text-blue-600">
-                                                        TTQ {sortField === 'qty_TTQ' && (sortDirection === 'asc' ? '↑' : '↓')}
-                                                    </button>
-                                                </th>
-                                            )}
-                                            <th className="p-3 text-right font-medium">
-                                                <button onClick={() => handleSort('dte')} className="hover:text-blue-600">
-                                                    DTE {sortField === 'dte' && (sortDirection === 'asc' ? '↑' : '↓')}
-                                                </button>
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {loading ? (
-                                            <tr>
-                                                <td colSpan={2 + selectedLocationColumns.length + (selectedLocationColumns.length > 1 ? 1 : 0)} className="p-8 text-center">
-                                                    <div className="flex items-center justify-center gap-2">
-                                                        <RefreshCw className="h-4 w-4 animate-spin" />
-                                                        Loading data...
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ) : filteredAndSortedData.length === 0 ? (
-                                            <tr>
-                                                <td colSpan={2 + selectedLocationColumns.length + (selectedLocationColumns.length > 1 ? 1 : 0)} className="p-8 text-center opacity-60">
-                                                    No data available
-                                                </td>
-                                            </tr>
-                                        ) : (
-                                            filteredAndSortedData.map((item, index) => (
-                                                <tr key={`${item.name}-${index}`} className="border-t hover:bg-gray-50">
-                                                    <td className="p-3">
-                                                        <div className="font-medium">{item.name}</div>
-                                                    </td>
-                                                    {selectedLocationColumns.map(column => (
-                                                        <td key={column.key} className="p-3 text-right font-medium">
-                                                            {item[column.key].toLocaleString()}
-                                                        </td>
-                                                    ))}
-                                                    {selectedLocationColumns.length > 1 && (
-                                                        <td className="p-3 text-right font-bold text-blue-600">
-                                                            {locationFilter.includes('ALL') 
-                                                                ? item.qty_TTQ.toLocaleString()
-                                                                : selectedLocationColumns.reduce((sum, col) => 
-                                                                    sum + item[col.key], 0
-                                                                  ).toLocaleString()
-                                                            }
-                                                        </td>
-                                                    )}
-                                                    <td className="p-3 text-right">
-                                                        <span className={`px-2 py-1 rounded text-xs font-medium ${getDTEStatusClass(item.dte)}`}>
-                                                            {item.dte < 0 && <AlertTriangle className="inline h-3 w-3 mr-1" />}
-                                                            {item.dte}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        ReactDOM.render(<PMInventoryDashboard />, document.getElementById('root'));
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<Dashboard />);
     </script>
 </body>
 </html>
