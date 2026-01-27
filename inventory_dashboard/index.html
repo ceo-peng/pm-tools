@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PM Inventory Dashboard v2.9</title>
+    <title>PM Inventory Dashboard v3.1</title>
     <!-- React & Tailwind -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -23,7 +23,7 @@
         .data-table td { padding: 0.6rem 1rem; border-bottom: 1px solid #f1f5f9; font-size: 0.875rem; vertical-align: middle; }
         .data-table tr:hover td { background-color: #f8fafc; }
 
-        /* Sort Indicator - Enhanced Stability */
+        /* Sort Indicator */
         .sort-icon { 
             display: inline-flex; 
             align-items: center; 
@@ -35,11 +35,9 @@
             opacity: 0; 
             transition: opacity 0.2s ease-in-out; 
         }
-        .sort-icon.active {
-            opacity: 1; 
-        }
+        .sort-icon.active { opacity: 1; }
         
-        /* Stats Cards - Interactive */
+        /* Stats Cards */
         .stat-card { 
             position: relative;
             border-radius: 0.75rem; 
@@ -51,47 +49,22 @@
             user-select: none;
             border: 1px solid transparent;
         }
-        
-        /* Unchecked State */
-        .stat-card.unchecked {
-            background: white;
-            border-color: #e2e8f0;
-            color: #64748b;
-            box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-        }
-        .stat-card.unchecked:hover {
-            border-color: #cbd5e1;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-        }
-
-        /* Checked State */
-        .stat-card.checked {
-            background-color: #1e293b; /* Slate 800 */
-            color: white;
-            border-color: #0f172a;
-            box-shadow: 0 4px 6px -1px rgb(30 41 59 / 0.3);
-            transform: translateY(-2px);
-        }
-
+        .stat-card.unchecked { background: white; border-color: #e2e8f0; color: #64748b; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); }
+        .stat-card.unchecked:hover { border-color: #cbd5e1; transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        .stat-card.checked { background-color: #1e293b; color: white; border-color: #0f172a; box-shadow: 0 4px 6px -1px rgb(30 41 59 / 0.3); transform: translateY(-2px); }
         .stat-card-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem; }
         .stat-label { font-size: 0.75rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; }
         .stat-value { font-size: 1.5rem; font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; line-height: 1; }
         .stat-sub { font-size: 0.75rem; margin-top: 0.25rem; opacity: 0.8; }
 
         /* Custom Checkbox */
-        .custom-checkbox {
-            width: 1.25rem;
-            height: 1.25rem;
-            border-radius: 0.25rem;
-            border: 2px solid;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-        }
+        .custom-checkbox { width: 1.25rem; height: 1.25rem; border-radius: 0.25rem; border: 2px solid; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
         .unchecked .custom-checkbox { border-color: #cbd5e1; background: transparent; }
         .checked .custom-checkbox { border-color: white; background: white; color: #1e293b; }
+
+        /* Visual Bar Chart */
+        .bar-container { width: 100%; height: 12px; background-color: #f1f5f9; border-radius: 9999px; overflow: hidden; display: flex; }
+        .bar-segment { height: 100%; transition: width 0.5s ease-out; }
 
         /* Mobile Card Styles */
         .mobile-card { background: white; border-radius: 0.75rem; padding: 1rem; margin-bottom: 0.75rem; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); border: 1px solid #e2e8f0; position: relative; }
@@ -181,12 +154,74 @@
             </div>
         );
 
-        // Enhanced SortIndicator: Always renders to reserve space, toggles opacity
         const SortIndicator = ({ active, direction }) => {
             return (
                 <span className={`sort-icon ${active ? 'active' : ''}`}>
                     {direction === 'desc' ? '↓' : '↑'}
                 </span>
+            );
+        };
+
+        // New Feature: Expiry Distribution Chart
+        const ExpiryDistribution = ({ data }) => {
+            const [expanded, setExpanded] = useState(false);
+
+            const distribution = useMemo(() => {
+                const dist = {
+                    range1: { count: 0, label: '0-90天', color: 'bg-red-500', textColor: 'text-red-600' },
+                    range2: { count: 0, label: '91-180天', color: 'bg-orange-500', textColor: 'text-orange-600' },
+                    range3: { count: 0, label: '181-365天', color: 'bg-yellow-400', textColor: 'text-yellow-600' },
+                    range4: { count: 0, label: '366-548天', color: 'bg-lime-400', textColor: 'text-lime-600' },
+                    range5: { count: 0, label: '549-730天', color: 'bg-green-500', textColor: 'text-green-600' },
+                    range6: { count: 0, label: '>730天', color: 'bg-emerald-600', textColor: 'text-emerald-700' },
+                };
+                
+                data.forEach(item => {
+                    const d = item.dte;
+                    if (d <= 90) dist.range1.count++;
+                    else if (d <= 180) dist.range2.count++;
+                    else if (d <= 365) dist.range3.count++;
+                    else if (d <= 548) dist.range4.count++;
+                    else if (d <= 730) dist.range5.count++;
+                    else dist.range6.count++;
+                });
+                return dist;
+            }, [data]);
+
+            const total = data.length || 1; // avoid division by zero
+
+            return (
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden transition-all duration-300">
+                    <button 
+                        className="w-full flex items-center justify-between p-4 hover:bg-slate-50"
+                        onClick={() => setExpanded(!expanded)}
+                    >
+                        <div className="flex items-center gap-2">
+                            <Icon path={<path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>} className="text-slate-400" />
+                            <span className="font-semibold text-sm text-slate-700">效期分佈分析 (Expiry Distribution)</span>
+                        </div>
+                        <Icon path={<polyline points={expanded ? "18 15 12 9 6 15" : "6 9 12 15 18 9"}></polyline>} className="text-slate-400" />
+                    </button>
+                    
+                    {expanded && (
+                        <div className="p-4 pt-0 border-t border-slate-100 animate-in slide-in-from-top-2">
+                            <div className="bar-container mb-4 mt-4">
+                                {Object.values(distribution).map((group, idx) => (
+                                    <div key={idx} className={`bar-segment ${group.color}`} style={{ width: `${(group.count / total) * 100}%` }} title={`${group.label}: ${group.count}`}></div>
+                                ))}
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+                                {Object.values(distribution).map((group, idx) => (
+                                    <div key={idx} className="flex flex-col p-2 rounded hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
+                                        <div className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${group.textColor}`}>{group.label}</div>
+                                        <div className="text-xl font-mono font-bold text-slate-700">{group.count}</div>
+                                        <div className="text-xs text-slate-400 mt-1">{((group.count / total) * 100).toFixed(1)}%</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
             );
         };
 
@@ -418,7 +453,7 @@
                 return sourceNames.filter(src => activeLocations.includes(src));
             }, [activeLocations, sourceNames]);
 
-            // ** 1. Base Filtered Data (Search, Hidden, DTE, AND Auto-Hide Expired) **
+            // ** 1. Base Filtered Data **
             const baseFilteredData = useMemo(() => {
                 return data.filter(item => {
                     // 1. Check Hidden
@@ -443,7 +478,7 @@
                 });
             }, [data, searchTerm, dteType, customDteMin, customDteMax, hiddenItems]);
 
-            // ** 2. Stats for Cards (Calculated from Base Filtered Data) **
+            // ** 2. Stats for Cards **
             const sourceStats = useMemo(() => {
                 const stats = {};
                 sourceNames.forEach(src => stats[src] = { qty: 0, sku: 0 });
@@ -460,7 +495,7 @@
                 return stats;
             }, [baseFilteredData, sourceNames]);
 
-            // ** 3. Display Data (For Table & Total Card Sum) **
+            // ** 3. Display Data **
             const finalDisplayData = useMemo(() => {
                 return baseFilteredData.map(item => {
                     // Calculate dynamic total based on active checks
@@ -475,34 +510,27 @@
                     }
                     return { ...item, displayTotal };
                 }).filter(item => {
-                    // Final check: Must have stock in SELECTED locations to show in table
                     return item.displayTotal > 0;
                 }).sort((a, b) => {
                     let aVal, bVal;
 
-                    // Determine sort value based on config
                     if (sourceNames.includes(sortConfig.key)) {
-                        // Sorting by specific warehouse quantity
                         aVal = a.quantities[sortConfig.key] || 0;
                         bVal = b.quantities[sortConfig.key] || 0;
                     } else if (sortConfig.key === 'total') {
-                        // Sorting by Display Total
                         aVal = a.displayTotal;
                         bVal = b.displayTotal;
                     } else {
-                        // Standard keys: name, expiry, dte
                         aVal = a[sortConfig.key];
                         bVal = b[sortConfig.key];
                     }
 
-                    // String comparison (for names)
                     if (typeof aVal === 'string') {
                         return sortConfig.direction === 'asc' 
                             ? aVal.localeCompare(bVal) 
                             : bVal.localeCompare(aVal);
                     }
 
-                    // Number/Date comparison
                     if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
                     if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
                     return 0;
@@ -515,11 +543,50 @@
                 setSortConfig({ key, direction });
             };
 
-            // ** 4. Dynamic Total Sum (For Total Card) **
+            // ** 4. Dynamic Total Sum **
             const dynamicTotalSum = useMemo(() => {
                 return finalDisplayData.reduce((acc, curr) => acc + curr.displayTotal, 0);
             }, [finalDisplayData]);
 
+            // ** 5. CSV Export Function **
+            const downloadCSV = () => {
+                if (finalDisplayData.length === 0) {
+                    alert("目前無資料可匯出");
+                    return;
+                }
+
+                // Headers
+                let headers = ["品名 (Product Name)"];
+                visibleSources.forEach(src => headers.push(src));
+                headers.push("總量 (Total Qty)", "效期 (Expiry)", "DTE (Days)");
+
+                // Rows
+                const rows = finalDisplayData.map(item => {
+                    let row = [`"${item.name.replace(/"/g, '""')}"`]; // Escape quotes
+                    
+                    visibleSources.forEach(src => {
+                        row.push(item.quantities[src] || 0);
+                    });
+                    
+                    row.push(
+                        item.displayTotal, 
+                        item.expiry.toISOString().split('T')[0],
+                        item.dte
+                    );
+                    return row.join(",");
+                });
+
+                const csvContent = "\ufeff" + headers.join(",") + "\n" + rows.join("\n"); // Add BOM for Excel UTF-8
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                const timestamp = new Date().toISOString().slice(0, 10);
+                link.setAttribute("href", url);
+                link.setAttribute("download", `Inventory_Report_${timestamp}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
 
             const getDteBadge = (dte) => {
                 if (dte <= 60) return <span className="status-badge status-expired">剩 {dte} 天</span>;
@@ -534,13 +601,19 @@
                         <div>
                             <h1 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
                                 <Icon path={<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>} />
-                                庫存水位監控 v2.9
+                                庫存水位監控 v3.1
                             </h1>
                             <p className="text-xs md:text-sm text-slate-500 mt-1">
                                 {lastUpdate ? `更新: ${lastUpdate.toLocaleTimeString()}` : '等待更新...'} 
                             </p>
                         </div>
                         <div className="flex gap-2 w-full md:w-auto">
+                            <button onClick={downloadCSV} className="btn btn-outline flex-1 md:flex-none justify-center gap-2" disabled={loading || finalDisplayData.length === 0}>
+                                <Icon path={<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>} />
+                                <Icon path={<polyline points="7 10 12 15 17 10"></polyline>} className="ml-[-8px]" />
+                                <Icon path={<line x1="12" y1="15" x2="12" y2="3"></line>} className="ml-[-8px]" />
+                                匯出 CSV
+                            </button>
                             <button onClick={fetchData} className="btn btn-outline flex-1 md:flex-none justify-center" disabled={loading}>
                                 <Icon path={<path d="M23 4v6h-6M1 20v-6h6"></path>} className={loading ? "animate-spin mr-2" : "mr-2"} />
                                 重新整理
@@ -553,7 +626,7 @@
 
                     {/* Interactive Filter Cards */}
                     <div className="flex flex-wrap gap-3">
-                        {/* Total Card (Dynamic Sum based on checks) */}
+                        {/* Total Card */}
                         <div 
                             className={`stat-card ${activeLocations.includes('TOTAL') ? 'checked' : 'unchecked'}`}
                             onClick={() => toggleLocation('TOTAL')}
@@ -566,7 +639,7 @@
                             <div className={`stat-sub ${activeLocations.includes('TOTAL') ? 'text-blue-200' : 'text-slate-400'}`}>{finalDisplayData.length} items</div>
                         </div>
 
-                        {/* Individual Source Cards (Static Stats based on DTE/Search only) */}
+                        {/* Individual Source Cards */}
                         {sourceNames.map(src => {
                             const isChecked = activeLocations.includes(src);
                             return (
@@ -585,6 +658,9 @@
                             );
                         })}
                     </div>
+
+                    {/* Expiry Visualizer */}
+                    <ExpiryDistribution data={finalDisplayData} />
 
                     {/* Filter Bar */}
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 sticky top-2 z-30">
