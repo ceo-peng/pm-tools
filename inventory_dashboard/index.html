@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PM Inventory Dashboard v3.1</title>
+    <title>PM Inventory Dashboard v3.2</title>
     <!-- React & Tailwind -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -601,21 +601,18 @@
                         <div>
                             <h1 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
                                 <Icon path={<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>} />
-                                庫存水位監控 v3.1
+                                庫存水位監控 v3.2
                             </h1>
                             <p className="text-xs md:text-sm text-slate-500 mt-1">
                                 {lastUpdate ? `更新: ${lastUpdate.toLocaleTimeString()}` : '等待更新...'} 
                             </p>
                         </div>
                         <div className="flex gap-2 w-full md:w-auto">
-                            <button onClick={downloadCSV} className="btn btn-outline flex-1 md:flex-none justify-center gap-2" disabled={loading || finalDisplayData.length === 0}>
-                                <Icon path={<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>} />
-                                <Icon path={<polyline points="7 10 12 15 17 10"></polyline>} className="ml-[-8px]" />
-                                <Icon path={<line x1="12" y1="15" x2="12" y2="3"></line>} className="ml-[-8px]" />
+                            <button onClick={downloadCSV} className="btn btn-outline flex-1 md:flex-none justify-center" disabled={loading || finalDisplayData.length === 0}>
                                 匯出 CSV
                             </button>
                             <button onClick={fetchData} className="btn btn-outline flex-1 md:flex-none justify-center" disabled={loading}>
-                                <Icon path={<path d="M23 4v6h-6M1 20v-6h6"></path>} className={loading ? "animate-spin mr-2" : "mr-2"} />
+                                {loading && <Icon path={<path d="M23 4v6h-6M1 20v-6h6"></path>} className="animate-spin mr-2" />}
                                 重新整理
                             </button>
                             <button onClick={() => setSettingsOpen(true)} className="btn btn-outline flex-1 md:flex-none justify-center">
