@@ -181,6 +181,7 @@
             </div>
         );
 
+        // Enhanced SortIndicator: Always renders to reserve space, toggles opacity
         const SortIndicator = ({ active, direction }) => {
             return (
                 <span className={`sort-icon ${active ? 'active' : ''}`}>
@@ -293,7 +294,7 @@
 
             // Filters
             const [activeLocations, setActiveLocations] = useState(['TOTAL']); 
-            const [dteType, setDteType] = useState('90'); 
+            const [dteType, setDteType] = useState('ALL'); 
             const [customDteMin, setCustomDteMin] = useState('');
             const [customDteMax, setCustomDteMax] = useState('');
             
