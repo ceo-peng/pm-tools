@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory Intelligence Dashboard v16</title>
+    <title>Inventory Intelligence Dashboard v17</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -34,7 +34,7 @@
         <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="bg-blue-600 text-white p-1.5 rounded-lg font-bold text-lg leading-none">PM</div>
-                <h1 class="text-lg font-bold text-slate-800 tracking-tight">Inventory Intelligence <span class="text-xs text-slate-400 font-normal ml-2">v16</span></h1>
+                <h1 class="text-lg font-bold text-slate-800 tracking-tight">Inventory Intelligence <span class="text-xs text-slate-400 font-normal ml-2">v17</span></h1>
             </div>
             <div class="flex items-center gap-4">
                 <div id="status-indicator" class="hidden flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full border border-emerald-100">
@@ -64,7 +64,7 @@
                 <div class="space-y-1.5">
                     <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Analysis Interval</label>
                     <select id="sel-window" class="block w-48 text-sm border-slate-300 rounded-lg bg-slate-50 p-2.5 focus:ring-blue-500">
-                        <option value="all" selected>All History (To Last Month)</option>
+                        <option value="all" selected>All History</option>
                         <option value="1">Last 1 Month</option>
                         <option value="2">Last 2 Months</option>
                         <option value="3">Last 3 Months</option>
@@ -110,6 +110,9 @@
                     <table class="min-w-full divide-y divide-stone-200 relative">
                         <thead class="bg-stone-100 sticky top-0 z-10 shadow-sm">
                             <tr>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-stone-500 uppercase sortable" data-col="itemNo" onclick="app.sort('itemNo')">
+                                    # <span class="icon">▼</span>
+                                </th>
                                 <th class="px-6 py-3 text-left text-xs font-bold text-stone-500 uppercase sortable" data-col="sku" onclick="app.sort('sku')">
                                     SKU <span class="icon">▼</span>
                                 </th>
@@ -162,6 +165,27 @@
                         <input id="conf-tab-name" class="w-full p-2 text-sm border rounded focus:ring-blue-500 outline-none">
                     </div>
                 </div>
+                <div class="pt-4 border-t border-stone-100">
+                    <p class="text-sm font-bold text-stone-700 mb-2">Column Mapping</p>
+                    <div class="grid grid-cols-2 gap-3">
+                         <div>
+                            <label class="block text-[10px] font-bold text-stone-400 uppercase mb-1">Item No. Col</label>
+                            <input id="conf-col-no" placeholder="Auto (A)" class="w-full p-2 text-xs border rounded uppercase">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-stone-400 uppercase mb-1">SKU Col</label>
+                            <input id="conf-col-sku" placeholder="Auto (D)" class="w-full p-2 text-xs border rounded uppercase">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-stone-400 uppercase mb-1">Inventory Col</label>
+                            <input id="conf-col-inv" placeholder="Auto (J)" class="w-full p-2 text-xs border rounded uppercase">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-stone-400 uppercase mb-1">Header Row</label>
+                            <input id="conf-row-header" type="number" placeholder="Auto (2)" class="w-full p-2 text-xs border rounded">
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="flex justify-end mt-6">
                 <button onclick="app.saveSettings()" class="bg-blue-600 text-white font-bold py-2 px-4 rounded text-sm hover:bg-blue-700 shadow-md">Save & Reload</button>
@@ -179,11 +203,12 @@
         const DEFAULT_CONFIG = {
             ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI',
             TAB: 'inventory_tracking',
-            ROW: '2', // Fixed
-            INV: 'J', // Fixed
-            SKU: 'D', // Fixed
-            NAME: 'D', // Derived
-            DATE_START_COL: 'L' // Fixed
+            ROW: '2', 
+            ITEM_NO: 'A',
+            INV: 'J', 
+            SKU: 'D', 
+            NAME: 'D',
+            DATE_START_COL: 'L'
         };
 
         // JSONP Callback
@@ -217,10 +242,10 @@
         }
 
         const app = {
-            config: DEFAULT_CONFIG, rawData: [], processedData: [], sortCol: 'monthlyRate', sortAsc: false, map: {}, mainRowIdx: -1,
+            config: DEFAULT_CONFIG, rawData: [], processedData: [], sortCol: 'itemNo', sortAsc: true, map: {}, mainRowIdx: -1,
 
             init() {
-                this.config = safeStorage.getItem('pm_inv_config_v16') ? JSON.parse(safeStorage.getItem('pm_inv_config_v16')) : DEFAULT_CONFIG;
+                this.config = safeStorage.getItem('pm_inv_config_v17') ? JSON.parse(safeStorage.getItem('pm_inv_config_v17')) : DEFAULT_CONFIG;
                 this.bindEvents();
                 this.fetchData();
             },
@@ -280,6 +305,7 @@
                 dateCols.sort((a,b) => a.date.localeCompare(b.date));
 
                 this.map = {
+                    itemNo: letterToIndex(this.config.ITEM_NO), // A
                     sku: letterToIndex(this.config.SKU), // D
                     name: letterToIndex(this.config.NAME), // D
                     inv: letterToIndex(this.config.INV), // J
@@ -352,11 +378,16 @@
                 for(let i = startRow; i < this.rawData.length; i++) {
                     const row = this.rawData[i];
                     
-                    if(!row || !row[this.map.sku]) continue;
+                    // Robust check: Skip if SKU cell is empty
+                    if(!row || !row[this.map.sku] || row[this.map.sku].trim() === "") continue;
                     
                     const rawSku = row[this.map.sku].trim();
                     // Skip placeholders or empty SKUs
                     if(rawSku === "" || rawSku.toLowerCase().includes("unique_key")) continue;
+
+                    // Get Item No
+                    const itemNoStr = String(row[this.map.itemNo] || '').trim();
+                    const itemNo = parseInt(itemNoStr); // Used for sorting
 
                     // Display Only
                     const invStr = String(row[this.map.inv]||'0').replace(/,/g,'').trim();
@@ -384,7 +415,6 @@
                         monthlyRate = totalOut / denomMonths;
                     } else if (algo === 'p70') {
                         // P70 of daily sales, extrapolated to 30 days
-                        // Note: P70 is daily-based, so logic shifts slightly
                         if(dayVals.length > 0) {
                             dayVals.sort((a,b)=>a-b);
                             const p70Daily = dayVals[Math.floor(dayVals.length * 0.7)];
@@ -396,10 +426,12 @@
                     
                     let status = 'OK';
                     if (transactions.length === 0 && winValue !== 'all') status = 'Low Data';
-                    // We removed target stock visual input, so default risk check against 2 months
+                    // Risk check logic (2 months coverage)
                     if (monthlyRate > 0 && (inv / monthlyRate) < 2) status = 'Risk';
 
                     results.push({
+                        itemNo: isNaN(itemNo) ? 9999 : itemNo, // Valid number or push to end
+                        itemNoDisplay: itemNoStr,
                         sku: rawSku,
                         name: this.deriveName(rawSku),
                         inv, monthlyRate, status,
@@ -418,7 +450,7 @@
                 const total = this.processedData.length;
                 document.getElementById('kpi-total-skus').innerText = total;
                 document.getElementById('row-stats').innerText = `Fetched: ${this.rawData.length} rows | Valid SKUs: ${total}`;
-                this.sort(this.sortCol, true);
+                this.sort(this.sortCol, true); // Keep current sort if set, or default
             },
 
             sort(col, keepDir) {
@@ -453,9 +485,10 @@
                     let statusClass = row.status === 'Risk' ? 'bg-rose-100 text-rose-800' : (row.status === 'Low Data' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800');
 
                     tr.innerHTML = `
+                        <td class="px-6 py-4 font-mono text-slate-500">${row.itemNoDisplay}</td>
                         <td class="px-6 py-4 font-medium text-stone-900 group-hover:text-blue-700">${row.sku}</td>
                         <td class="px-6 py-4 text-stone-500 truncate max-w-xs" title="${row.name}">${row.name}</td>
-                        <td class="px-6 py-4 text-right font-mono text-stone-600">${Math.round(row.inv).toLocaleString()}</td>
+                        <td class="px-6 py-4 text-right font-mono">${Math.round(row.inv).toLocaleString()}</td>
                         <td class="px-6 py-4 text-right font-mono font-bold">${Math.round(row.monthlyRate).toLocaleString()}</td>
                         <td class="px-6 py-4 text-center"><span class="px-2.5 py-1 rounded-full text-xs font-bold ${statusClass}">${row.status}</span></td>
                     `;
@@ -528,6 +561,10 @@
             if(show) {
                 document.getElementById('conf-sheet-id').value = this.config.ID;
                 document.getElementById('conf-tab-name').value = this.config.TAB_NAME;
+                document.getElementById('conf-row-header').value = this.config.ROW;
+                document.getElementById('conf-col-inv').value = this.config.INV;
+                document.getElementById('conf-col-sku').value = this.config.SKU;
+                document.getElementById('conf-col-no').value = this.config.ITEM_NO;
                 el.classList.remove('opacity-0', 'pointer-events-none');
                 document.body.classList.add('modal-active');
             } else {
@@ -539,7 +576,11 @@
         app.saveSettings = function() {
             this.config.ID = document.getElementById('conf-sheet-id').value.trim();
             this.config.TAB = document.getElementById('conf-tab-name').value.trim();
-            safeStorage.setItem('pm_inv_config_v16', JSON.stringify(this.config));
+            this.config.ROW = document.getElementById('conf-row-header').value.trim();
+            this.config.INV = document.getElementById('conf-col-inv').value.trim();
+            this.config.SKU = document.getElementById('conf-col-sku').value.trim();
+            this.config.ITEM_NO = document.getElementById('conf-col-no').value.trim();
+            safeStorage.setItem('pm_inv_config_v17', JSON.stringify(this.config));
             this.toggleSettings(false);
             this.fetchData();
         };
@@ -567,6 +608,7 @@
                     this.rawData.push(row);
                 }
                 const backup = {...this.config};
+                this.config.ROW = ''; 
                 this.parseStructure();
                 this.config = backup; 
                 document.getElementById('connection-status').innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span> Demo';
