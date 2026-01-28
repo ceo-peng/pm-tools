@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory Intelligence (Verified Math)</title>
+    <title>Inventory Intelligence Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -30,7 +30,7 @@
                 <div id="status-indicator" class="hidden flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full border border-emerald-100">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Live Data
                 </div>
-                <button onclick="app.toggleSettings(true)" class="p-2 text-slate-400 hover:text-slate-600 rounded-full">
+                <button id="btn-settings-trigger" class="p-2 text-slate-400 hover:text-slate-600 rounded-full" title="Settings">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                 </button>
             </div>
@@ -58,6 +58,13 @@
                         <option value="3">Last 3 Months</option>
                         <option value="6">Last 6 Months</option>
                         <option value="12">Last 12 Months</option>
+                    </select>
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Algorithm</label>
+                    <select id="sel-algo" class="block w-48 text-sm border-slate-300 rounded-lg bg-slate-50 p-2.5">
+                        <option value="simple_avg" selected>Average Velocity</option>
+                        <option value="p70">P70 Safety (Conservative)</option>
                     </select>
                 </div>
                 <div class="space-y-1.5">
@@ -95,12 +102,24 @@
                 </div>
             </div>
 
+            <!-- Charts -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
+                    <h3 class="text-sm font-bold text-stone-800 mb-4">Inventory Health (Months)</h3>
+                    <div class="chart-container"><canvas id="chart-health"></canvas></div>
+                </div>
+                <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
+                    <h3 class="text-sm font-bold text-stone-800 mb-4">Top Refill Priorities (Qty)</h3>
+                    <div class="chart-container"><canvas id="chart-refill"></canvas></div>
+                </div>
+            </div>
+
             <!-- Table -->
             <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[600px]">
                 <div class="p-4 border-b border-stone-200 bg-stone-50 flex justify-between items-center gap-4 shrink-0">
                     <div>
                         <h3 class="text-sm font-bold text-slate-800">Detail View</h3>
-                        <p class="text-[10px] text-slate-400">Click any row to debug calculation</p>
+                        <p class="text-[10px] text-slate-400">Click any row to verify math</p>
                     </div>
                     <input type="text" id="inp-search" placeholder="Search SKU..." class="pl-4 pr-4 py-2 text-sm border border-stone-300 rounded-lg w-64 focus:ring-sky-500">
                 </div>
@@ -108,10 +127,10 @@
                     <table class="min-w-full divide-y divide-stone-200 relative">
                         <thead class="bg-stone-100 sticky top-0 z-10 shadow-sm">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-stone-500 uppercase cursor-pointer" onclick="app.sort('sku')">SKU</th>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-stone-500 uppercase cursor-pointer" onclick="app.sort('name')">Product</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-stone-500 uppercase cursor-pointer hover:bg-stone-200" onclick="app.sort('sku')">SKU</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-stone-500 uppercase cursor-pointer hover:bg-stone-200" onclick="app.sort('name')">Product</th>
                                 <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase cursor-pointer" onclick="app.sort('inv', true)">Stock</th>
-                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase cursor-pointer" onclick="app.sort('monthlyRate', true)">Mo. Sales</th>
+                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase cursor-pointer" onclick="app.sort('monthlyRate', true)">Est. Mo. Runrate</th>
                                 <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase cursor-pointer" onclick="app.sort('mos', true)">Mo. Left</th>
                                 <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase cursor-pointer" onclick="app.sort('refill', true)">Refill</th>
                                 <th class="px-6 py-3 text-center text-xs font-bold text-stone-500 uppercase">Status</th>
@@ -132,8 +151,50 @@
                 <h2 class="text-lg font-bold text-slate-800">Calculation Verifier</h2>
                 <button onclick="app.toggleDebug(false)" class="text-slate-400 hover:text-slate-600">✕</button>
             </div>
-            <div class="p-6 space-y-4 overflow-y-auto font-mono text-sm" id="debug-content">
-                <!-- Content injected here -->
+            <div class="p-6 space-y-4 overflow-y-auto font-mono text-sm" id="debug-content"></div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal opacity-0 pointer-events-none fixed inset-0 flex items-center justify-center z-50">
+        <div class="absolute inset-0 bg-stone-900 opacity-50 modal-overlay"></div>
+        <div class="bg-white w-11/12 max-w-lg rounded-xl shadow-lg z-50 p-6">
+            <h2 class="text-lg font-bold text-stone-800 mb-4">Settings</h2>
+            <div class="space-y-4">
+                <div class="grid grid-cols-1 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-stone-500 uppercase mb-1">Sheet ID</label>
+                        <input id="conf-sheet-id" class="w-full p-2 text-sm border rounded">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-stone-500 uppercase mb-1">Tab Name</label>
+                        <input id="conf-tab-name" class="w-full p-2 text-sm border rounded">
+                    </div>
+                </div>
+                <div class="pt-4 border-t border-stone-100">
+                    <p class="text-sm font-bold text-stone-700 mb-2">Column Mapping (Defaults for your Sheet)</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-stone-400 uppercase mb-1">Header Row</label>
+                            <input id="conf-row-header" type="number" class="w-full p-2 text-xs border rounded">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-stone-400 uppercase mb-1">Inventory Col</label>
+                            <input id="conf-col-inv" class="w-full p-2 text-xs border rounded uppercase">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-stone-400 uppercase mb-1">SKU Col</label>
+                            <input id="conf-col-sku" class="w-full p-2 text-xs border rounded uppercase">
+                        </div>
+                        <div class="opacity-50">
+                            <label class="block text-[10px] font-bold text-stone-400 uppercase mb-1">Name Col</label>
+                            <input disabled placeholder="Auto-Derived" class="w-full p-2 text-xs border rounded bg-slate-50 italic">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end mt-6">
+                <button onclick="app.saveSettings()" class="bg-sky-600 text-white font-bold py-2 px-4 rounded text-sm hover:bg-sky-700">Save & Reload</button>
             </div>
         </div>
     </div>
@@ -145,16 +206,23 @@
     </div>
 
     <script>
+        // CONFIG UPDATED BASED ON SCREENSHOTS
+        // Header Row = 2. Data Start = 4. SKU = D. Inventory = J.
         const DEFAULT_CONFIG = {
             ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI',
             TAB: 'inventory_tracking',
-            ROW: '2', // Default to Row 2 as per findings
-            INV: 'J', // Default to J
-            SKU: 'A', // Default to A
-            NAME: 'B' // Default to B
+            ROW: '2', 
+            INV: 'J', 
+            SKU: 'D', 
+            NAME: 'D' 
         };
 
-        // CSV Parser (from your working React app)
+        const safeStorage = {
+            getItem: (k) => { try { return localStorage.getItem(k); } catch(e){ return null; } },
+            setItem: (k, v) => { try { localStorage.setItem(k, v); } catch(e){} }
+        };
+
+        // CSV Parser
         const parseCSV = (text) => {
             const rows = [];
             let row = [];
@@ -180,12 +248,15 @@
             config: DEFAULT_CONFIG, rawData: [], processedData: [], sortCol: 'refill', sortAsc: false, map: {},
 
             init() {
+                this.config = safeStorage.getItem('pm_inv_config_v11') ? JSON.parse(safeStorage.getItem('pm_inv_config_v11')) : DEFAULT_CONFIG;
                 this.bindEvents();
                 this.fetchData();
             },
 
             bindEvents() {
                 document.getElementById('btn-refresh').addEventListener('click', () => this.fetchData());
+                document.getElementById('btn-settings-trigger').addEventListener('click', () => this.toggleSettings(true));
+                document.querySelector('.modal-overlay').addEventListener('click', () => this.toggleSettings(false));
                 document.getElementById('inp-search').addEventListener('keyup', e => this.renderTable(e.target.value));
                 ['sel-window', 'inp-target'].forEach(id => {
                     document.getElementById(id).addEventListener('change', () => this.recalculate());
@@ -196,7 +267,6 @@
                 this.toggleLoader(true);
                 document.getElementById('error-banner').classList.add('hidden');
                 
-                // Using CSV Fetch Pattern (Robust)
                 const url = `https://docs.google.com/spreadsheets/d/${this.config.ID}/gviz/tq?sheet=${this.config.TAB}&tqx=out:csv&range=A1:ZZ`;
                 
                 fetch(url)
@@ -218,11 +288,10 @@
             },
 
             parseStructure() {
-                // Hardcoded mapping based on your requirements
-                // Row 2 (Index 1) is Header. Data starts Row 4 (Index 3).
-                const hRow = 1; 
+                // Configurable Header Row
+                const hRow = parseInt(this.config.ROW) - 1; 
                 if (!this.rawData[hRow]) {
-                    alert("Header row not found at Row 2."); return;
+                    alert("Header row not found. Check Settings."); return;
                 }
 
                 const header = this.rawData[hRow].map(c => c.toLowerCase().trim());
@@ -241,7 +310,8 @@
 
                 this.map = {
                     sku: letterToIndex(this.config.SKU),
-                    name: letterToIndex(this.config.NAME),
+                    // Name uses same col as SKU initially
+                    name: letterToIndex(this.config.SKU), 
                     inv: letterToIndex(this.config.INV),
                     dates: dateCols
                 };
@@ -249,20 +319,23 @@
                 this.recalculate();
             },
 
+            // Clean Name: Remove dates like (2027-07-30) or trailing -
+            deriveName(sku) {
+                if(!sku) return "";
+                return sku.replace(/\s*\(?\d{4}-\d{2}-\d{2}\)?.*$/, "").replace(/\s*-\s*$/, "").trim();
+            },
+
             recalculate() {
                 const winValue = document.getElementById('sel-window').value; 
                 const targetMonths = parseFloat(document.getElementById('inp-target').value) || 2;
 
-                // --- 1. Date Boundary Logic ---
-                // "End Date" is effectively the last day of the PREVIOUS month.
                 const today = new Date();
                 const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1); 
-                const exclusionISO = currentMonthStart.toISOString().split('T')[0]; // e.g., 2026-01-01
+                const exclusionISO = currentMonthStart.toISOString().split('T')[0]; 
 
                 let startISO = "1900-01-01";
                 let windowDesc = "All History";
 
-                // Filter Active Columns (Must be BEFORE current month)
                 let validHistoryCols = this.map.dates.filter(d => d.date < exclusionISO);
 
                 if (winValue !== 'all') {
@@ -273,21 +346,16 @@
                     windowDesc = `Last ${monthsBack} Months`;
                 }
 
-                // Final Active Columns for Calculation
                 const activeCols = validHistoryCols.filter(d => d.date >= startISO);
 
-                // --- 2. Denominator Logic (Calendar Months) ---
                 let denomMonths = 0;
-                
                 if (winValue !== 'all') {
-                    // Fixed Window: "Last 4 Months" means divide by 4
                     denomMonths = parseInt(winValue);
                 } else {
-                    // All History: Count actual months from first transaction to last PREVIOUS month
                     if (activeCols.length > 0) {
                         const firstDate = new Date(activeCols[0].date);
                         const lastDate = new Date(activeCols[activeCols.length-1].date);
-                        // Full months diff + 1 (e.g., Sept to Dec = 9,10,11,12 = 4 months)
+                        // Full months + 1
                         const months = (lastDate.getFullYear() - firstDate.getFullYear()) * 12 + (lastDate.getMonth() - firstDate.getMonth()) + 1;
                         denomMonths = Math.max(1, months);
                     } else {
@@ -298,14 +366,18 @@
                 document.getElementById('date-range-display').innerText = 
                     `${windowDesc} (Excl. Current Month). Denom: ${denomMonths} Mo.`;
 
-                // --- 3. Row Processing ---
                 const results = [];
-                // Start Row 4 (Index 3)
-                for(let i = 3; i < this.rawData.length; i++) {
+                // Data starts Row 4 (Index 3)
+                const startRow = 3;
+
+                for(let i = startRow; i < this.rawData.length; i++) {
                     const row = this.rawData[i];
                     if(!row || !row[this.map.sku]) continue;
 
-                    const inv = parseFloat(String(row[this.map.inv]||'0').replace(/,/g,'')) || 0;
+                    // Parse Inventory
+                    const invStr = String(row[this.map.inv]||'0').replace(/,/g,'').trim();
+                    const inv = parseFloat(invStr) || 0;
+                    
                     let totalOut = 0;
                     let transactions = [];
 
@@ -319,7 +391,9 @@
                         }
                     });
 
+                    // Monthly Run Rate (Rounded Up)
                     const monthlyRate = Math.ceil(totalOut / denomMonths);
+
                     const mos = monthlyRate > 0 ? inv / monthlyRate : 999;
                     const refill = Math.max(0, (monthlyRate * targetMonths) - inv);
 
@@ -327,14 +401,13 @@
                     if (transactions.length === 0 && winValue !== 'all') status = 'Low Data';
                     else if (mos < targetMonths) status = 'Risk';
 
+                    const skuRaw = row[this.map.sku];
+                    
                     results.push({
-                        sku: row[this.map.sku],
-                        name: this.map.name > -1 ? row[this.map.name] : '',
+                        sku: skuRaw,
+                        name: this.deriveName(skuRaw),
                         inv, monthlyRate, mos, refill, status,
-                        // Debug Info
-                        debug: {
-                            totalOut, denomMonths, windowDesc, activeColsCount: activeCols.length, transactions
-                        }
+                        debug: { totalOut, denomMonths, windowDesc, transactions }
                     });
                 }
 
@@ -383,7 +456,7 @@
                     
                     const tr = document.createElement('tr');
                     tr.className = "hover:bg-blue-50 border-b border-stone-100 transition-colors cursor-pointer group";
-                    tr.onclick = () => this.showDebug(row); // Click to Debug
+                    tr.onclick = () => this.showDebug(row);
                     
                     let statusClass = row.status === 'Risk' ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800';
                     if (row.status === 'Low Data') statusClass = 'bg-amber-100 text-amber-800';
@@ -401,15 +474,10 @@
                 }
             },
 
-            // New Debugger Modal Logic
             showDebug(row) {
                 const el = document.getElementById('debug-content');
                 const d = row.debug;
-                
-                let transList = d.transactions.map(t => 
-                    `<div class="flex justify-between text-xs border-b border-slate-100 py-1"><span>${t.date} (${t.raw})</span><span class="font-bold text-rose-600">-${t.qty}</span></div>`
-                ).join('');
-
+                let transList = d.transactions.map(t => `<div class="flex justify-between text-xs border-b border-slate-100 py-1"><span>${t.date}</span><span class="font-bold text-rose-600">-${t.qty}</span></div>`).join('');
                 el.innerHTML = `
                     <div class="mb-4 pb-4 border-b border-slate-200">
                         <h3 class="font-bold text-lg text-slate-800">${row.sku}</h3>
@@ -421,26 +489,19 @@
                             <div class="text-xl font-bold text-slate-800">${d.totalOut}</div>
                         </div>
                         <div class="bg-slate-50 p-3 rounded">
-                            <div class="text-xs text-slate-500 uppercase">Time Denominator</div>
-                            <div class="text-xl font-bold text-slate-800">${d.denomMonths} <span class="text-sm font-normal text-slate-400">months</span></div>
+                            <div class="text-xs text-slate-500 uppercase">Months (Denominator)</div>
+                            <div class="text-xl font-bold text-slate-800">${d.denomMonths}</div>
                         </div>
                     </div>
                     <div class="bg-blue-50 p-3 rounded mb-6 border border-blue-100">
-                        <div class="text-xs text-blue-600 font-bold uppercase mb-1">Calculation Formula</div>
-                        <div class="font-mono text-sm text-blue-900">
-                            ${d.totalOut} / ${d.denomMonths} = ${d.totalOut / d.denomMonths} 
-                            <br>-> Rounded Up: <span class="text-lg font-bold">${row.monthlyRate}</span> / month
-                        </div>
-                        <div class="text-xs text-blue-400 mt-2">Window: ${d.windowDesc}</div>
+                        <div class="text-xs text-blue-600 font-bold uppercase mb-1">Calculation</div>
+                        <div class="font-mono text-sm text-blue-900">${d.totalOut} / ${d.denomMonths} = ${(d.totalOut/d.denomMonths).toFixed(2)} → <span class="text-lg font-bold">${row.monthlyRate}</span></div>
                     </div>
                     <div>
-                        <div class="text-xs font-bold text-slate-500 uppercase mb-2">Transactions Included (Past only)</div>
-                        <div class="max-h-40 overflow-y-auto bg-slate-50 p-2 rounded border border-slate-200">
-                            ${transList || '<div class="text-slate-400 text-center py-2">No outflow transactions in this window</div>'}
-                        </div>
+                        <div class="text-xs font-bold text-slate-500 uppercase mb-2">Transactions</div>
+                        <div class="max-h-40 overflow-y-auto bg-slate-50 p-2 rounded border border-slate-200">${transList || '<div class="text-slate-400 text-center py-2">None</div>'}</div>
                     </div>
                 `;
-                
                 const modal = document.getElementById('debug-modal');
                 modal.classList.remove('opacity-0', 'pointer-events-none');
                 document.body.classList.add('modal-active');
@@ -448,22 +509,48 @@
 
             toggleDebug(show) {
                 const modal = document.getElementById('debug-modal');
-                if(!show) {
-                    modal.classList.add('opacity-0', 'pointer-events-none');
+                if(!show) { modal.classList.add('opacity-0', 'pointer-events-none'); document.body.classList.remove('modal-active'); }
+            },
+
+            toggleSettings(show) {
+                const el = document.getElementById('settings-modal');
+                if(show) {
+                    document.getElementById('conf-sheet-id').value = this.config.ID;
+                    document.getElementById('conf-tab-name').value = this.config.TAB_NAME;
+                    document.getElementById('conf-row-header').value = this.config.ROW;
+                    document.getElementById('conf-col-inv').value = this.config.INV;
+                    document.getElementById('conf-col-sku').value = this.config.SKU;
+                    el.classList.remove('opacity-0', 'pointer-events-none');
+                    document.body.classList.add('modal-active');
+                } else {
+                    el.classList.add('opacity-0', 'pointer-events-none');
                     document.body.classList.remove('modal-active');
                 }
             },
 
-            loadMockData() {
-                this.toggleLoader(true);
-                // Mock logic removed for brevity, assume fetching works
-                this.toggleLoader(false);
+            saveSettings() {
+                this.config.ID = document.getElementById('conf-sheet-id').value.trim();
+                this.config.TAB_NAME = document.getElementById('conf-tab-name').value.trim();
+                this.config.ROW = document.getElementById('conf-row-header').value.trim();
+                this.config.INV = document.getElementById('conf-col-inv').value.trim();
+                this.config.SKU = document.getElementById('conf-col-sku').value.trim();
+                safeStorage.setItem('pm_inv_config_v11', JSON.stringify(this.config));
+                this.toggleSettings(false);
+                this.fetchData();
             },
-            
-            toggleSettings(show) { /* settings toggle */ },
+
             toggleLoader(show) {
                 const el = document.getElementById('loader');
                 if(show) el.classList.remove('hidden'); else el.classList.add('hidden');
+            },
+
+            loadMockData() {
+                // Mock data logic can be kept for testing if needed
+                this.toggleLoader(true);
+                setTimeout(() => {
+                    this.toggleLoader(false);
+                    // ... (Mock data generation would go here)
+                }, 1000);
             }
         };
 
