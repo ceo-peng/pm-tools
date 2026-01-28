@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory Intelligence Dashboard v19</title>
+    <title>Inventory Intelligence Dashboard v20</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -34,7 +34,7 @@
         <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="bg-blue-600 text-white p-1.5 rounded-lg font-bold text-lg leading-none">PM</div>
-                <h1 class="text-lg font-bold text-slate-800 tracking-tight">Inventory Intelligence <span class="text-xs text-slate-400 font-normal ml-2">v19</span></h1>
+                <h1 class="text-lg font-bold text-slate-800 tracking-tight">Inventory Intelligence <span class="text-xs text-slate-400 font-normal ml-2">v20</span></h1>
             </div>
             <div class="flex items-center gap-4">
                 <div id="status-indicator" class="hidden flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full border border-emerald-100">
@@ -202,11 +202,11 @@
     <script>
         const DEFAULT_CONFIG = {
             ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI',
-            TAB: 'inventory_tracking',
+            TAB: 'inventory_tracking', // Fixed: was using 'TAB' in object, correct key
             ROW: '2', 
             ITEM_NO: 'A',
             INV: 'J', 
-            SKU: 'D', // Strictly D
+            SKU: 'D',
             NAME: 'D',
             DATE_START_COL: 'L'
         };
@@ -245,8 +245,8 @@
             config: DEFAULT_CONFIG, rawData: [], processedData: [], sortCol: 'itemNo', sortAsc: true, map: {}, mainRowIdx: -1,
 
             init() {
-                // v19 key forces a reset to new defaults (SKU=D)
-                this.config = safeStorage.getItem('pm_inv_config_v19') ? JSON.parse(safeStorage.getItem('pm_inv_config_v19')) : DEFAULT_CONFIG;
+                // v20 key forces update
+                this.config = safeStorage.getItem('pm_inv_config_v20') ? JSON.parse(safeStorage.getItem('pm_inv_config_v20')) : DEFAULT_CONFIG;
                 this.bindEvents();
                 this.fetchData();
             },
@@ -282,7 +282,12 @@
             },
 
             parseStructure() {
-                const hRow = parseInt(this.config.ROW) - 1; 
+                // Determine Header Row Index
+                let hRow = 1; // Default to index 1 (Row 2)
+                if (this.config.ROW && !isNaN(this.config.ROW)) {
+                    hRow = parseInt(this.config.ROW) - 1;
+                }
+
                 if (!this.rawData[hRow]) {
                     console.error("Header row not found."); return;
                 }
@@ -359,10 +364,11 @@
                     `${windowDesc} (Excl. Current Month). Denom: ${denomMonths} Mo.`;
 
                 const results = [];
-                // Fixed Data Start: Row 4 (Index 3)
-                const startRow = 3;
+                
+                // Dynamic Start: Header Row + 2 (Skip Header and Gap)
+                const startLoop = this.mainRowIdx + 2;
 
-                for(let i = startRow; i < this.rawData.length; i++) {
+                for(let i = startLoop; i < this.rawData.length; i++) {
                     const row = this.rawData[i];
                     
                     if(!row || !row[this.map.sku]) continue;
@@ -406,7 +412,7 @@
                     
                     let status = 'OK';
                     if (transactions.length === 0 && winValue !== 'all') status = 'Low Data';
-                    // Risk check logic (2 months coverage)
+                    // Risk logic: if (Stock / RunRate) < 2 months
                     if (monthlyRate > 0 && (inv / monthlyRate) < 2) status = 'Risk';
 
                     results.push({
@@ -430,11 +436,20 @@
                 const total = this.processedData.length;
                 document.getElementById('kpi-total-skus').innerText = total;
                 document.getElementById('row-stats').innerText = `Fetched: ${this.rawData.length} rows | Valid SKUs: ${total}`;
-                this.sort(this.sortCol, true);
+                // Default Sort: Item No (Ascending)
+                this.sort('itemNo', true);
             },
 
             sort(col, keepDir) {
-                if (!keepDir) { this.sortAsc = this.sortCol === col ? !this.sortAsc : true; this.sortCol = col; }
+                // If keepDir is true, we force Ascending (used for default sort)
+                if (!keepDir) { 
+                    this.sortAsc = this.sortCol === col ? !this.sortAsc : true; 
+                    this.sortCol = col; 
+                } else {
+                    this.sortAsc = true;
+                    this.sortCol = col;
+                }
+                
                 const m = this.sortAsc ? 1 : -1;
                 
                 document.querySelectorAll('th.sortable').forEach(th => {
@@ -540,7 +555,7 @@
             const el = document.getElementById('settings-modal');
             if(show) {
                 document.getElementById('conf-sheet-id').value = this.config.ID;
-                document.getElementById('conf-tab-name').value = this.config.TAB_NAME;
+                document.getElementById('conf-tab-name').value = this.config.TAB; // Corrected ID usage
                 document.getElementById('conf-row-header').value = this.config.ROW;
                 document.getElementById('conf-col-inv').value = this.config.INV;
                 document.getElementById('conf-col-sku').value = this.config.SKU;
@@ -560,7 +575,7 @@
             this.config.INV = document.getElementById('conf-col-inv').value.trim();
             this.config.SKU = document.getElementById('conf-col-sku').value.trim();
             this.config.ITEM_NO = document.getElementById('conf-col-no').value.trim();
-            safeStorage.setItem('pm_inv_config_v19', JSON.stringify(this.config));
+            safeStorage.setItem('pm_inv_config_v20', JSON.stringify(this.config));
             this.toggleSettings(false);
             this.fetchData();
         };
