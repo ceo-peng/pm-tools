@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory Intelligence (Monthly)</title>
+    <title>Inventory Intelligence Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -12,96 +12,114 @@
         .chart-container { position: relative; width: 100%; height: 300px; margin: auto; }
         .loader { border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #2563eb; width: 24px; height: 24px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .modal { transition: opacity 0.2s ease; }
+        .modal { transition: opacity 0.25s ease; }
+        body.modal-active { overflow-x: hidden; overflow-y: visible !important; }
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
 
-    <!-- Navbar -->
-    <nav class="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+    <!-- Header -->
+    <header class="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="bg-blue-600 text-white p-1.5 rounded-lg font-bold text-lg leading-none">PM</div>
-                <h1 class="text-lg font-bold text-slate-800 tracking-tight">Inventory Intelligence</h1>
+                <div class="h-8 w-8 bg-sky-500 rounded-lg flex items-center justify-center text-white font-bold text-lg">I</div>
+                <h1 class="text-xl font-bold tracking-tight text-stone-800">Inventory Intelligence</h1>
             </div>
-            <div class="flex items-center gap-4">
-                <div id="status-indicator" class="hidden flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full border border-emerald-100">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Live
+            <div class="flex items-center gap-3">
+                <div id="connection-status" class="hidden flex items-center gap-2 text-xs font-medium text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Live Data
                 </div>
-                <button onclick="app.toggleSettings(true)" class="p-2 text-slate-400 hover:text-slate-600 rounded-full">
+                <button id="btn-settings" class="p-2 text-stone-400 hover:text-stone-600 rounded-full" title="Configuration">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                 </button>
             </div>
         </div>
-    </nav>
+    </header>
 
-    <!-- Main Content -->
-    <main class="flex-grow p-6 max-w-7xl mx-auto w-full space-y-6">
+    <!-- Main -->
+    <main class="flex-grow p-6 max-w-7xl mx-auto w-full space-y-8">
         
         <!-- Error Banner -->
-        <div id="error-banner" class="hidden bg-rose-50 border border-rose-200 rounded-lg p-4 flex flex-wrap gap-4 justify-between items-center">
-            <span id="error-message" class="text-sm text-rose-800 font-medium">Connection Error</span>
-            <button onclick="app.loadMockData()" class="px-4 py-2 bg-white border border-rose-200 text-rose-700 text-xs font-bold rounded shadow-sm hover:bg-rose-50">Load Demo Data</button>
+        <div id="error-banner" class="hidden bg-rose-50 border border-rose-200 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div class="text-sm text-rose-800">
+                <strong class="font-bold">Connection Issue:</strong> <span id="error-message">Unable to fetch data.</span>
+            </div>
+            <button onclick="app.loadMockData()" class="text-xs bg-white border border-rose-200 text-rose-700 hover:bg-rose-100 px-3 py-2 rounded-md font-medium transition-colors whitespace-nowrap shadow-sm">
+                Load Demo Data
+            </button>
         </div>
 
-        <div id="dashboard-content" class="hidden space-y-6">
+        <!-- Dashboard -->
+        <div id="dashboard-content" class="hidden space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             
             <!-- Controls -->
-            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-wrap gap-6 items-end">
-                <div class="space-y-1.5">
-                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Analysis Window</label>
-                    <select id="sel-window" class="block w-48 text-sm border-slate-300 rounded-lg bg-slate-50 p-2.5">
-                        <option value="all" selected>All History</option>
-                        <option value="1">Last 1 Month</option>
-                        <option value="2">Last 2 Months</option>
-                        <option value="3">Last 3 Months</option>
-                        <option value="6">Last 6 Months</option>
-                        <option value="12">Last 12 Months</option>
+            <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm flex flex-wrap gap-6 items-end">
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Analysis Window</label>
+                    <select id="sel-window" class="block w-40 text-sm border-stone-300 rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500 bg-stone-50 p-2">
+                        <option value="all" selected>All History (To Date)</option>
+                        <option value="30">Last 30 Days</option>
+                        <option value="60">Last 60 Days</option>
+                        <option value="90">Last 90 Days</option>
                     </select>
                 </div>
-                <div class="space-y-1.5">
-                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Target Stock</label>
+
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Algorithm</label>
+                    <select id="sel-algo" class="block w-48 text-sm border-stone-300 rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500 bg-stone-50 p-2">
+                        <option value="simple_avg" selected>Average Velocity</option>
+                        <option value="p70">P70 Safety (Conservative)</option>
+                    </select>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Target Stock</label>
                     <div class="flex items-center gap-2">
-                        <input type="number" id="inp-target" value="2" class="block w-20 text-sm border-slate-300 rounded-lg bg-slate-50 p-2.5 text-center">
-                        <span class="text-sm text-slate-400">Months</span>
+                        <input type="number" id="inp-target" value="2" class="block w-20 text-sm border-stone-300 rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500 bg-stone-50 p-2 text-center">
+                        <span class="text-sm text-stone-400">Months</span>
                     </div>
                 </div>
+
                 <div class="flex-grow text-right">
-                    <p id="debug-status" class="text-xs font-mono text-slate-300 mt-2">Ready</p>
+                    <p id="date-range-display" class="text-xs text-stone-400 italic mt-2"></p>
                 </div>
-                <button id="btn-refresh" class="text-stone-500 hover:text-sky-600 text-sm font-bold flex items-center gap-2 px-3 py-2"><span>&#8635;</span> Refresh</button>
+                
+                <button id="btn-refresh" class="text-stone-500 hover:text-sky-600 text-sm font-medium flex items-center gap-2 transition-colors">
+                    <span>&#8635;</span> Refresh
+                </button>
             </div>
 
-            <!-- Summary -->
+            <!-- KPIs -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                    <div class="text-xs font-bold text-slate-400 uppercase">Total SKUs</div>
-                    <div id="kpi-total" class="text-2xl font-bold text-slate-800 mt-1">-</div>
-                </div>
-                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                    <div class="text-xs font-bold text-slate-400 uppercase">Refill Alerts</div>
-                    <div id="kpi-risk" class="text-2xl font-bold text-rose-500 mt-1">-</div>
-                    <div class="text-xs text-stone-400">Below target months</div>
-                </div>
-                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                    <div class="text-xs font-bold text-stone-400 uppercase">Restock Units</div>
-                    <div id="kpi-units" class="text-2xl font-bold text-sky-600 mt-1">-</div>
+                <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm">
+                    <div class="text-xs font-medium text-stone-400 uppercase">Total SKUs</div>
+                    <div id="kpi-total-skus" class="text-2xl font-bold text-stone-800 mt-1">-</div>
                 </div>
                 <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm">
-                    <div class="text-xs font-bold text-stone-400 uppercase">Low Confidence</div>
-                    <div id="kpi-conf" class="text-2xl font-bold text-amber-500 mt-1">-</div>
-                    <div class="text-xs text-stone-400">&lt; 3 active sales days</div>
+                    <div class="text-xs font-medium text-stone-400 uppercase">Refill Alerts</div>
+                    <div id="kpi-risk-count" class="text-2xl font-bold text-rose-500 mt-1">-</div>
+                    <div class="text-xs text-stone-400 mt-1">Below target months</div>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm">
+                    <div class="text-xs font-medium text-stone-400 uppercase">Total Units Needed</div>
+                    <div id="kpi-refill-qty" class="text-2xl font-bold text-sky-600 mt-1">-</div>
+                    <div class="text-xs text-stone-400 mt-1">To reach target</div>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm">
+                    <div class="text-xs font-medium text-stone-400 uppercase">Low Confidence</div>
+                    <div id="kpi-low-conf" class="text-2xl font-bold text-amber-500 mt-1">-</div>
+                    <div class="text-xs text-stone-400 mt-1">&lt; 3 active sales days</div>
                 </div>
             </div>
 
             <!-- Charts -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
-                    <h3 class="text-sm font-bold text-slate-700 mb-6">Inventory Health</h3>
+                    <h3 class="text-sm font-bold text-stone-800 mb-4">Inventory Health (Months)</h3>
                     <div class="chart-container"><canvas id="chart-health"></canvas></div>
                 </div>
                 <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
-                    <h3 class="text-sm font-bold text-slate-700 mb-6">Top Refill Needs</h3>
+                    <h3 class="text-sm font-bold text-stone-800 mb-4">Top Refill Priorities (Qty)</h3>
                     <div class="chart-container"><canvas id="chart-refill"></canvas></div>
                 </div>
             </div>
@@ -109,19 +127,19 @@
             <!-- Table -->
             <div class="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden flex flex-col h-[600px]">
                 <div class="p-4 border-b border-stone-200 bg-stone-50 flex justify-between items-center gap-4 shrink-0">
-                    <h3 class="text-sm font-bold text-slate-800">Detail View</h3>
-                    <input type="text" id="inp-search" placeholder="Search SKU..." class="pl-4 pr-4 py-2 text-sm border border-stone-300 rounded-lg w-64 focus:ring-sky-500">
+                    <h3 class="text-sm font-bold text-stone-800">Detail View</h3>
+                    <input type="text" id="inp-search" placeholder="Search SKU or Name..." class="pl-4 pr-4 py-2 text-sm border border-stone-300 rounded-lg w-64 focus:ring-sky-500">
                 </div>
                 <div class="overflow-auto flex-grow">
                     <table class="min-w-full divide-y divide-stone-200 relative">
                         <thead class="bg-stone-100 sticky top-0 z-10 shadow-sm">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-stone-500 uppercase cursor-pointer hover:bg-stone-200" onclick="app.sort('sku')">SKU</th>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-stone-500 uppercase cursor-pointer hover:bg-stone-200" onclick="app.sort('name')">Product</th>
-                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase cursor-pointer hover:bg-stone-200" onclick="app.sort('inv', true)">Stock</th>
-                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase cursor-pointer hover:bg-stone-200" onclick="app.sort('monthlyRate', true)">Mo. Sales</th>
-                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase cursor-pointer hover:bg-stone-200" onclick="app.sort('mos', true)">Mo. Left</th>
-                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase cursor-pointer hover:bg-stone-200" onclick="app.sort('refill', true)">Refill</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-stone-500 uppercase cursor-pointer hover:bg-stone-200" onclick="app.sortTable('sku')">SKU</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-stone-500 uppercase cursor-pointer hover:bg-stone-200" onclick="app.sortTable('name')">Product</th>
+                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase cursor-pointer hover:bg-stone-200" onclick="app.sortTable('inv', true)">Stock</th>
+                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase cursor-pointer hover:bg-stone-200" onclick="app.sortTable('monthlyRate', true)">Mo. Sales</th>
+                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase cursor-pointer hover:bg-stone-200" onclick="app.sortTable('mos', true)">Mo. Left</th>
+                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase cursor-pointer hover:bg-stone-200" onclick="app.sortTable('refill', true)">Refill</th>
                                 <th class="px-6 py-3 text-center text-xs font-bold text-stone-500 uppercase">Status</th>
                             </tr>
                         </thead>
@@ -133,26 +151,38 @@
     </main>
 
     <!-- Settings Modal -->
-    <div id="settings-modal" class="modal fixed inset-0 z-50 flex items-center justify-center opacity-0 pointer-events-none">
-        <div class="absolute inset-0 bg-stone-900 opacity-50 modal-overlay" onclick="app.toggleSettings(false)"></div>
+    <div id="settings-modal" class="modal opacity-0 pointer-events-none fixed inset-0 flex items-center justify-center z-50">
+        <div class="absolute inset-0 bg-stone-900 opacity-50 modal-overlay"></div>
         <div class="bg-white w-11/12 max-w-lg rounded-xl shadow-lg z-50 p-6">
             <h2 class="text-lg font-bold text-stone-800 mb-4">Settings</h2>
             <div class="space-y-4">
                 <div>
                     <label class="block text-xs font-bold text-stone-500 uppercase mb-1">Sheet ID</label>
-                    <input id="conf-id" class="w-full p-2 text-sm border rounded">
+                    <input id="conf-sheet-id" class="w-full p-2 text-sm border rounded">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-stone-500 uppercase mb-1">Tab Name</label>
-                    <input id="conf-tab" class="w-full p-2 text-sm border rounded">
+                    <input id="conf-tab-name" class="w-full p-2 text-sm border rounded">
                 </div>
                 <div class="pt-4 border-t border-stone-100">
-                    <p class="text-sm font-bold text-stone-700 mb-2">Manual Mapping (Optional)</p>
+                    <p class="text-sm font-bold text-stone-700 mb-2">Advanced Mapping</p>
                     <div class="grid grid-cols-2 gap-3">
-                        <input id="conf-row" type="number" placeholder="Header Row (2)" class="p-2 text-xs border rounded">
-                        <input id="conf-inv" placeholder="Inv Col (J)" class="p-2 text-xs border rounded uppercase">
-                        <input id="conf-sku" placeholder="SKU Col (A)" class="p-2 text-xs border rounded uppercase">
-                        <input id="conf-name" placeholder="Name Col (B)" class="p-2 text-xs border rounded uppercase">
+                        <div>
+                            <label class="block text-[10px] font-bold text-stone-500 uppercase mb-1">Header Row</label>
+                            <input id="conf-row-header" placeholder="Auto (2)" type="number" class="w-full p-2 text-xs border rounded">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-stone-500 uppercase mb-1">Inventory Col</label>
+                            <input id="conf-col-inv" placeholder="Auto (J)" class="w-full p-2 text-xs border rounded uppercase">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-stone-500 uppercase mb-1">SKU Col</label>
+                            <input id="conf-col-sku" placeholder="Auto (A)" class="w-full p-2 text-xs border rounded uppercase">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-stone-500 uppercase mb-1">Name Col</label>
+                            <input id="conf-col-name" placeholder="Auto (B)" class="w-full p-2 text-xs border rounded uppercase">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -163,125 +193,172 @@
     </div>
 
     <!-- Loading Overlay -->
-    <div id="loader" class="fixed inset-0 bg-white/90 z-50 flex flex-col items-center justify-center backdrop-blur-sm">
+    <div id="loading-overlay" class="fixed inset-0 bg-white/90 z-50 flex flex-col items-center justify-center backdrop-blur-sm">
         <div class="loader"></div>
-        <p class="mt-4 text-stone-600 font-medium">Connecting...</p>
+        <p class="mt-4 text-stone-600 font-medium">Loading Data...</p>
     </div>
 
     <script>
         const DEFAULT_CONFIG = {
-            ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI',
-            TAB: 'inventory_tracking',
-            ROW: '', SKU: '', NAME: '', INV: ''
+            SHEET_ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI',
+            TAB_NAME: 'inventory_tracking',
+            HEADER_ROW: '', COL_SKU: '', COL_NAME: '', COL_INV: ''
         };
 
-        // Global Callback for JSONP
         window.googleSheetCallback = function(json) {
-            app.handleResponse(json);
+            if (json.status === 'error') {
+                app.showError(true, "Google API Error: " + json.errors[0].detailed_message);
+                app.toggleLoader(false);
+                return;
+            }
+            const rows = json.table.rows.map(r => 
+                r.c.map(cell => (cell && cell.v !== null) ? String(cell.v) : "")
+            );
+            app.rawData = rows;
+            app.parseStructure();
+            document.getElementById('connection-status').classList.remove('hidden');
         };
 
         const safeStorage = {
-            get: () => { try { return JSON.parse(localStorage.getItem('pm_inv_config_v10')) || DEFAULT_CONFIG; } catch(e){ return DEFAULT_CONFIG; } },
-            set: (v) => { try { localStorage.setItem('pm_inv_config_v10', JSON.stringify(v)); } catch(e){} }
+            getItem: (k) => { try { return localStorage.getItem(k); } catch(e){ return null; } },
+            setItem: (k, v) => { try { localStorage.setItem(k, v); } catch(e){} }
         };
 
-        function l2i(l) {
-            if (!l) return -1;
-            let s = 0; for (let i = 0; i < l.length; i++) s = s * 26 + (l.charCodeAt(i) - 64);
-            return s - 1;
+        function letterToIndex(letter) {
+            if (!letter) return -1;
+            let column = letter.toUpperCase();
+            let sum = 0;
+            for (let i = 0; i < column.length; i++) {
+                sum *= 26; sum += (column.charCodeAt(i) - 'A'.charCodeAt(0) + 1);
+            }
+            return sum - 1;
         }
 
         const app = {
-            config: {}, raw: [], data: [], charts: {}, sortCol: 'refill', sortAsc: false, map: {}, timeout: null,
+            config: {}, rawData: [], processedData: [], charts: {}, sort: { col: 'refill', asc: false }, map: {},
 
-            init() {
-                this.config = safeStorage.get();
-                this.bindEvents();
+            init: function() {
+                this.loadConfig();
+                this.setupListeners();
                 this.fetchData();
             },
 
-            log(msg) {
-                document.getElementById('debug-status').innerText = msg;
-                console.log(msg);
+            loadConfig: function() {
+                const stored = safeStorage.getItem('inventory_config_v7');
+                this.config = stored ? JSON.parse(stored) : { ...DEFAULT_CONFIG };
+                document.getElementById('conf-sheet-id').value = this.config.SHEET_ID;
+                document.getElementById('conf-tab-name').value = this.config.TAB_NAME;
+                document.getElementById('conf-row-header').value = this.config.HEADER_ROW || '';
+                document.getElementById('conf-col-sku').value = this.config.COL_SKU || '';
+                document.getElementById('conf-col-name').value = this.config.COL_NAME || '';
+                document.getElementById('conf-col-inv').value = this.config.COL_INV || '';
             },
 
-            bindEvents() {
+            saveSettings: function() {
+                this.config.SHEET_ID = document.getElementById('conf-sheet-id').value.trim();
+                this.config.TAB_NAME = document.getElementById('conf-tab-name').value.trim();
+                this.config.HEADER_ROW = document.getElementById('conf-row-header').value.trim();
+                this.config.COL_SKU = document.getElementById('conf-col-sku').value.trim();
+                this.config.COL_NAME = document.getElementById('conf-col-name').value.trim();
+                this.config.COL_INV = document.getElementById('conf-col-inv').value.trim();
+                safeStorage.setItem('inventory_config_v7', JSON.stringify(this.config));
+                this.toggleSettings(false);
+                this.fetchData();
+            },
+
+            toggleSettings: function(show) {
+                const modal = document.getElementById('settings-modal');
+                const body = document.querySelector('body');
+                if (show) { modal.classList.remove('opacity-0', 'pointer-events-none'); body.classList.add('modal-active'); }
+                else { modal.classList.add('opacity-0', 'pointer-events-none'); body.classList.remove('modal-active'); }
+            },
+
+            setupListeners: function() {
                 document.getElementById('btn-refresh').addEventListener('click', () => this.fetchData());
                 document.getElementById('btn-settings').addEventListener('click', () => this.toggleSettings(true));
-                document.getElementById('inp-search').addEventListener('keyup', e => this.renderTable(e.target.value));
+                document.querySelector('.modal-overlay').addEventListener('click', () => this.toggleSettings(false));
                 ['sel-window', 'sel-algo', 'inp-target'].forEach(id => {
                     document.getElementById(id).addEventListener('change', () => this.recalculate());
                 });
+                document.getElementById('inp-search').addEventListener('keyup', (e) => this.renderTable(e.target.value));
             },
 
-            fetchData() {
+            fetchData: function() {
                 this.showError(false);
                 this.toggleLoader(true);
-                this.log("Requesting data from Google...");
-
-                // Force stop previous timeout
-                if(this.timeout) clearTimeout(this.timeout);
-                // Safety Timeout: 10 seconds max
-                this.timeout = setTimeout(() => {
-                    this.toggleLoader(false);
-                    this.showError(true, "Timeout: Connection took too long. Check if sheet is Private.");
-                }, 10000);
-
-                const url = `https://docs.google.com/spreadsheets/d/${this.config.ID}/gviz/tq?sheet=${this.config.TAB}&headers=0&tqx=responseHandler:googleSheetCallback`;
+                const url = `https://docs.google.com/spreadsheets/d/${this.config.SHEET_ID}/gviz/tq?sheet=${this.config.TAB_NAME}&headers=0&tqx=responseHandler:googleSheetCallback`;
                 const script = document.createElement('script');
                 script.src = url;
                 script.onerror = () => {
                     this.toggleLoader(false);
-                    this.showError(true, "Network Error. Blocked by browser or firewall.");
+                    this.showError(true, "Network Error. Check internet connection.");
                 };
                 document.body.appendChild(script);
             },
 
-            handleResponse(json) {
-                if(this.timeout) clearTimeout(this.timeout);
-                this.log("Data received. Parsing...");
-
-                if (json.status === 'error') {
-                    this.toggleLoader(false);
-                    this.showError(true, "Google Error: " + json.errors[0].detailed_message);
-                    return;
-                }
-                
-                try {
-                    this.raw = json.table.rows.map(r => r.c.map(c => (c && c.v !== null) ? String(c.v) : ""));
+            loadMockData: function() {
+                this.showError(false);
+                this.toggleLoader(true);
+                setTimeout(() => {
+                    const today = new Date();
+                    const demoHeader = ['unique_key', 'product_name', '即時庫存數量'];
+                    const dateCols = [];
+                    // Generate older data (4 months ago)
+                    for(let i=120; i>=105; i--) {
+                        const d = new Date(); d.setDate(d.getDate()-i);
+                        const str = `${d.getFullYear().toString().substr(2)}.${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.1200`;
+                        demoHeader.push(str); 
+                    }
+                    this.rawData = [['junk'], demoHeader]; 
+                    for(let i=1; i<=20; i++) {
+                        const row = [`DEMO-${i}`, `Product ${i}`, Math.floor(Math.random()*200).toString()];
+                        for(let j=0; j<15; j++) row.push(Math.random()>0.7 ? String(-Math.floor(Math.random()*10)) : "0");
+                        this.rawData.push(row);
+                    }
+                    const backup = {...this.config};
+                    this.config.ROW = ''; 
                     this.parseStructure();
+                    this.config = backup; 
+                    document.getElementById('connection-status').innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span> Demo';
                     document.getElementById('connection-status').classList.remove('hidden');
-                } catch(e) {
-                    this.toggleLoader(false);
-                    this.showError(true, "Parse Error: " + e.message);
-                }
+                }, 600);
             },
 
-            parseStructure() {
-                const rows = this.raw;
+            showError: function(show, msg) {
+                const banner = document.getElementById('error-banner');
+                if(show) { document.getElementById('error-message').innerText = msg || "Error"; banner.classList.remove('hidden'); }
+                else { banner.classList.add('hidden'); }
+            },
+
+            toggleLoader: function(show) {
+                const el = document.getElementById('loading-overlay');
+                if(show) el.classList.remove('hidden'); else el.classList.add('hidden');
+            },
+
+            parseStructure: function() {
+                const rows = this.rawData;
                 let hRow = -1;
 
                 if (this.config.ROW && !isNaN(this.config.ROW)) {
                     hRow = parseInt(this.config.ROW) - 1;
                 } else {
-                    for(let i=0; i<Math.min(rows.length, 15); i++) {
+                    for(let i=0; i<Math.min(rows.length, 10); i++) {
                         if(rows[i].join('|').toLowerCase().includes('unique_key')) { hRow = i; break; }
                     }
                 }
 
                 if (hRow === -1 || !rows[hRow]) {
                     this.toggleLoader(false);
-                    this.showError(true, "Header 'unique_key' not found. Check Tab Name.");
+                    this.showError(true, "Header not found. Please set Header Row in Settings.");
                     return;
                 }
 
                 const header = rows[hRow].map(c => c.toLowerCase().trim());
                 const map = { sku: -1, name: -1, inv: -1, dates: [] };
 
-                map.sku = this.config.SKU ? l2i(this.config.SKU) : header.indexOf('unique_key');
-                map.name = this.config.NAME ? l2i(this.config.NAME) : header.findIndex(c => c.includes('product_name') || c.includes('品名'));
-                
-                if(this.config.INV) map.inv = l2i(this.config.INV);
+                map.sku = this.config.SKU ? letterToIndex(this.config.SKU) : header.indexOf('unique_key');
+                map.name = this.config.NAME ? letterToIndex(this.config.NAME) : header.findIndex(c => c.includes('product_name') || c.includes('品名'));
+                if(this.config.INV) map.inv = letterToIndex(this.config.INV);
                 else map.inv = header.findIndex(c => c.includes('庫存') || c.includes('stock') || c.includes('即時') || c === 'inventory');
                 if (map.inv === -1 && header.length > 9) map.inv = 9;
 
@@ -296,7 +373,7 @@
 
                 if (map.sku === -1 || map.dates.length === 0) {
                     this.toggleLoader(false);
-                    this.showError(true, `Mapping Failed. SKU:${map.sku}, Dates found:${map.dates.length}`);
+                    this.showError(true, `Mapping Failed. SKU:${map.sku}, Dates:${map.dates.length}`);
                     return;
                 }
 
@@ -305,108 +382,103 @@
                 this.recalculate();
             },
 
-            recalculate() {
-                try {
-                    this.log("Calculating metrics...");
-                    const winValue = document.getElementById('sel-window').value; 
-                    const targetMonths = parseFloat(document.getElementById('inp-target').value) || 2;
+            recalculate: function() {
+                const win = document.getElementById('sel-window').value;
+                const algo = document.getElementById('sel-algo').value;
+                const targetMonths = parseFloat(document.getElementById('inp-target').value) || 2;
 
-                    // --- EXCLUSION LOGIC: Ignore current month ---
-                    const today = new Date();
-                    // First day of current month (e.g., 2026-01-01)
-                    const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-                    const exclusionISO = currentMonthStart.toISOString().split('T')[0];
+                let activeDates = this.map.dates;
+                let denom = 1;
+                let dateRangeStr = "";
 
-                    let startDateISO = "1900-01-01";
-                    
-                    if (winValue !== 'all') {
-                        const monthsBack = parseInt(winValue);
-                        // Go back N months from current month start
-                        const d = new Date(currentMonthStart);
-                        d.setMonth(d.getMonth() - monthsBack);
-                        startDateISO = d.toISOString().split('T')[0];
+                if (win !== 'all') {
+                    const days = parseInt(win);
+                    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
+                    const iso = cutoff.toISOString().split('T')[0];
+                    activeDates = activeDates.filter(d => d.date >= iso);
+                    denom = days;
+                    dateRangeStr = `Analysis: Last ${days} days`;
+                } else {
+                    // Logic: From First Transaction until TODAY
+                    if(activeDates.length > 0) {
+                        const start = new Date(activeDates[0].date);
+                        const end = new Date(); // Today
+                        denom = Math.max(1, (end - start) / (1000 * 60 * 60 * 24));
+                        dateRangeStr = `Analysis: ${activeDates[0].date} to Today (${Math.ceil(denom)} days)`;
                     }
+                }
+                
+                document.getElementById('date-range-display').innerText = dateRangeStr;
 
-                    // Strict Filter: Date must be >= Start AND < Current Month
-                    let activeDates = this.map.dates.filter(d => d.date >= startDateISO && d.date < exclusionISO);
-                    
-                    // Denominator (Months)
-                    let denomMonths = 1;
-                    if (winValue !== 'all') {
-                        denomMonths = parseInt(winValue);
-                    } else {
-                        // For All History: Calculate actual months spread in filtered range
-                        if(activeDates.length > 0) {
-                            const first = new Date(activeDates[0].date);
-                            const last = new Date(activeDates[activeDates.length-1].date);
-                            // Rough month diff
-                            denomMonths = (last.getFullYear() - first.getFullYear()) * 12 + (last.getMonth() - first.getMonth()) + 1;
-                            denomMonths = Math.max(1, denomMonths);
+                const result = [];
+                const startRow = this.hRow + 2; 
+
+                for(let i = startRow; i < this.rawData.length; i++) {
+                    const row = this.rawData[i];
+                    if(!row || !row[this.map.sku]) continue;
+
+                    const inv = parseFloat(String(row[this.map.inv]||'0').replace(/,/g,'')) || 0;
+                    let totalOut = 0;
+                    let dayVals = [];
+
+                    activeDates.forEach(d => {
+                        const val = parseFloat(String(row[d.idx]||'0').replace(/,/g,'')) || 0;
+                        if(val < 0) { 
+                            const qty = Math.abs(val);
+                            totalOut += qty;
+                            dayVals.push(qty);
+                        }
+                    });
+
+                    let dailyRate = 0;
+                    if(algo === 'simple_avg') {
+                        dailyRate = totalOut / Math.max(1, denom);
+                    } else if (algo === 'p70') {
+                        if(dayVals.length > 0) {
+                            dayVals.sort((a,b)=>a-b);
+                            dailyRate = dayVals[Math.floor(dayVals.length * 0.7)];
                         }
                     }
 
-                    this.log(`Analyzing: ${activeDates.length} columns over ${denomMonths} months`);
+                    const monthlyRate = Math.ceil(dailyRate * 30);
+                    const mos = monthlyRate > 0 ? inv / monthlyRate : 999;
+                    const refill = Math.max(0, (monthlyRate * targetMonths) - inv);
+                    
+                    let status = 'OK';
+                    // Only mark Low Data if filtering by short window and actually no data
+                    // If All History and sparsely populated, we accept the low run rate as truth
+                    if(dayVals.length < 3 && win !== 'all' && win !== '14') status = 'Low Data'; 
+                    else if(mos < targetMonths) status = 'Risk';
 
-                    const result = [];
-                    // Data starts 2 rows after header (Gap row)
-                    const startRow = this.hRow + 2; 
-
-                    for(let i = startRow; i < this.raw.length; i++) {
-                        const row = this.raw[i];
-                        if(!row || !row[this.map.sku]) continue;
-
-                        const inv = parseFloat(String(row[this.map.inv]||'0').replace(/,/g,'')) || 0;
-                        let totalOut = 0;
-                        let dayVals = []; // Not used for simple avg but kept for robust future use
-
-                        activeDates.forEach(d => {
-                            const val = parseFloat(String(row[d.idx]||'0').replace(/,/g,'')) || 0;
-                            if(val < 0) { 
-                                totalOut += Math.abs(val);
-                                dayVals.push(Math.abs(val));
-                            }
-                        });
-
-                        // Monthly Run Rate (Rounded Up)
-                        const monthlyRate = Math.ceil(totalOut / denomMonths);
-
-                        const mos = monthlyRate > 0 ? inv / monthlyRate : 999;
-                        const refill = Math.max(0, (monthlyRate * targetMonths) - inv);
-                        
-                        let status = 'OK';
-                        if (monthlyRate === 0 && winValue !== 'all') status = 'Low Data';
-                        else if (mos < targetMonths) status = 'Risk';
-
-                        result.push({
-                            sku: row[this.map.sku],
-                            name: this.map.name > -1 ? row[this.map.name] : '',
-                            inv, monthlyRate, mos, refill, status
-                        });
-                    }
-
-                    this.data = result;
-                    this.updateUI();
-                    this.toggleLoader(false);
-                    document.getElementById('dashboard-content').classList.remove('hidden');
-                } catch(e) {
-                    this.toggleLoader(false);
-                    this.showError(true, "Calc Error: " + e.message);
+                    result.push({
+                        sku: row[this.map.sku],
+                        name: this.map.name > -1 ? row[this.map.name] : '',
+                        inv, monthlyRate, mos, refill, status
+                    });
                 }
+
+                this.processedData = result;
+                this.updateUI();
+                this.toggleLoader(false);
+                document.getElementById('dashboard-content').classList.remove('hidden');
+                document.getElementById('connection-status').classList.remove('hidden');
             },
 
             updateUI() {
-                const total = this.data.length;
-                const risk = this.data.filter(x => x.status === 'Risk').length;
-                const low = this.data.filter(x => x.status === 'Low Data').length;
-                const units = this.data.reduce((a,b) => a + b.refill, 0);
+                const total = this.processedData.length;
+                const risk = this.processedData.filter(x => x.status === 'Risk').length;
+                const low = this.processedData.filter(x => x.status === 'Low Data').length;
+                const units = this.processedData.reduce((a,b) => a + b.refill, 0);
 
                 const kpi = (id, val) => document.getElementById(id).innerText = Math.ceil(val).toLocaleString();
-                kpi('kpi-total-skus', total); kpi('kpi-risk-count', risk);
-                kpi('kpi-refill-qty', units); kpi('kpi-low-conf', low);
+                kpi('kpi-total-skus', total);
+                kpi('kpi-risk-count', risk);
+                kpi('kpi-refill-qty', units);
+                kpi('kpi-low-conf', low);
 
                 this.drawChart('chart-health', 'doughnut', ['Healthy', 'Risk', 'Low Data'], [total-risk-low, risk, low], ['#10b981', '#f43f5e', '#f59e0b']);
                 
-                const top = [...this.data].sort((a,b)=>b.refill-a.refill).slice(0, 10);
+                const top = [...this.processedData].sort((a,b)=>b.refill-a.refill).slice(0, 10);
                 this.drawChart('chart-refill', 'bar', top.map(x=>x.sku), top.map(x=>x.refill), '#3b82f6', true);
 
                 this.sort(this.sortCol, true);
@@ -425,7 +497,7 @@
             sort(col, keepDir) {
                 if (!keepDir) { this.sortAsc = this.sortCol === col ? !this.sortAsc : true; this.sortCol = col; }
                 const m = this.sortAsc ? 1 : -1;
-                this.data.sort((a, b) => {
+                this.processedData.sort((a, b) => {
                     let v1 = a[col], v2 = b[col];
                     if (typeof v1 === 'string') return v1.localeCompare(v2) * m;
                     return (v1 - v2) * m;
@@ -439,7 +511,7 @@
                 const term = filter.toLowerCase();
                 let count = 0;
 
-                for (const row of this.data) {
+                for (const row of this.processedData) {
                     if (count >= 500) break;
                     if (term && !row.sku.toLowerCase().includes(term) && !row.name.toLowerCase().includes(term)) continue;
                     count++;
@@ -450,79 +522,13 @@
                         <td class="px-6 py-4 font-medium text-stone-900">${row.sku}</td>
                         <td class="px-6 py-4 text-stone-500 truncate max-w-xs" title="${row.name}">${row.name}</td>
                         <td class="px-6 py-4 text-right font-mono text-stone-600">${Math.round(row.inv).toLocaleString()}</td>
-                        <td class="px-6 py-4 text-right font-mono text-stone-600">${row.monthlyRate.toLocaleString()}</td>
+                        <td class="px-6 py-4 text-right font-mono text-stone-600">${Math.round(row.monthlyRate).toLocaleString()}</td>
                         <td class="px-6 py-4 text-right font-mono ${row.status === 'Risk' ? 'text-rose-600 font-bold' : 'text-slate-600'}">${row.mos > 999 ? '>999' : row.mos.toFixed(1)}</td>
                         <td class="px-6 py-4 text-right font-mono ${row.refill > 0 ? 'text-blue-600 font-bold' : 'text-slate-400'}">${row.refill > 0 ? Math.ceil(row.refill).toLocaleString() : '-'}</td>
                         <td class="px-6 py-4 text-center"><span class="px-2.5 py-1 rounded-full text-xs font-bold ${statusClass}">${row.status}</span></td>
                     `;
                     tbody.appendChild(tr);
                 }
-            },
-
-            toggleSettings(show) {
-                const el = document.getElementById('settings-modal');
-                if(show) {
-                    document.getElementById('conf-id').value = this.config.ID;
-                    document.getElementById('conf-tab').value = this.config.TAB;
-                    document.getElementById('conf-row').value = this.config.ROW;
-                    document.getElementById('conf-inv').value = this.config.INV;
-                    document.getElementById('conf-sku').value = this.config.SKU;
-                    document.getElementById('conf-name').value = this.config.NAME;
-                    el.classList.remove('opacity-0', 'pointer-events-none');
-                    document.body.classList.add('modal-active');
-                } else {
-                    el.classList.add('opacity-0', 'pointer-events-none');
-                    document.body.classList.remove('modal-active');
-                }
-            },
-
-            saveSettings() {
-                this.config.ID = document.getElementById('conf-id').value.trim();
-                this.config.TAB = document.getElementById('conf-tab').value.trim();
-                this.config.ROW = document.getElementById('conf-row').value.trim();
-                this.config.INV = document.getElementById('conf-inv').value.trim();
-                this.config.SKU = document.getElementById('conf-sku').value.trim();
-                this.config.NAME = document.getElementById('conf-name').value.trim();
-                safeStorage.set(this.config);
-                this.toggleSettings(false);
-                this.fetchData();
-            },
-
-            toggleLoader(show) {
-                const el = document.getElementById('loader');
-                if(show) el.classList.remove('hidden'); else el.classList.add('hidden');
-            },
-
-            showError(show, msg) {
-                const banner = document.getElementById('error-banner');
-                if(show) { document.getElementById('error-message').innerText = msg || "Error"; banner.classList.remove('hidden'); }
-                else { banner.classList.add('hidden'); }
-            },
-
-            loadMockData() {
-                this.toggleLoader(true);
-                setTimeout(() => {
-                    const today = new Date();
-                    const demoHeader = ['unique_key', 'product_name', '即時庫存數量'];
-                    for(let i=120; i>=105; i--) { // Mock data 4 months ago
-                        const d = new Date(); d.setDate(d.getDate()-i);
-                        const str = `${d.getFullYear().toString().substr(2)}.${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.1200`;
-                        demoHeader.push(str); 
-                    }
-                    this.raw = [['junk'], demoHeader]; 
-                    for(let i=1; i<=20; i++) {
-                        const inv = Math.floor(Math.random()*200);
-                        const row = [`DEMO-${i}`, `Product ${i}`, String(inv)];
-                        for(let j=0; j<15; j++) row.push(Math.random()>0.7 ? String(-Math.floor(Math.random()*10)) : "0");
-                        this.raw.push(row);
-                    }
-                    const backup = {...this.config};
-                    this.config.ROW = ''; 
-                    this.parseStructure();
-                    this.config = backup; 
-                    document.getElementById('connection-status').innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span> Demo';
-                    document.getElementById('connection-status').classList.remove('hidden');
-                }, 600);
             }
         };
 
