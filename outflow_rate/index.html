@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory Intelligence Dashboard v14</title>
+    <title>Inventory Intelligence Dashboard v15</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -37,7 +37,7 @@
         <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="bg-blue-600 text-white p-1.5 rounded-lg font-bold text-lg leading-none">PM</div>
-                <h1 class="text-lg font-bold text-slate-800 tracking-tight">Inventory Intelligence <span class="text-xs text-slate-400 font-normal ml-2">v14</span></h1>
+                <h1 class="text-lg font-bold text-slate-800 tracking-tight">Inventory Intelligence <span class="text-xs text-slate-400 font-normal ml-2">v15</span></h1>
             </div>
             <div class="flex items-center gap-4">
                 <div id="status-indicator" class="hidden flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full border border-emerald-100">
@@ -82,17 +82,16 @@
                         <option value="p70">P70 Safety (Conservative)</option>
                     </select>
                 </div>
-                <!-- Target Stock Removed from visual controls as logic is internal now -->
-                
+
                 <div class="flex-grow text-right">
                     <p id="date-range-display" class="text-xs text-stone-400 italic mt-2"></p>
                 </div>
-                <button id="btn-refresh" class="text-stone-500 hover:text-sky-600 text-sm font-bold flex items-center gap-2 px-3 py-2 transition-colors">
+                <button id="btn-refresh" class="text-stone-500 hover:text-blue-600 text-sm font-bold flex items-center gap-2 px-3 py-2 transition-colors">
                     <span>&#8635;</span> Refresh
                 </button>
             </div>
 
-            <!-- KPIs (Reduced) -->
+            <!-- KPIs (Minimal) -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm md:col-span-1">
                     <div class="text-xs font-medium text-stone-400 uppercase">Total SKUs</div>
@@ -241,7 +240,7 @@
         }
 
         const app = {
-            config: DEFAULT_CONFIG, rawData: [], processedData: [], sortCol: 'monthlyRate', sortAsc: false, map: {},
+            config: DEFAULT_CONFIG, rawData: [], processedData: [], sortCol: 'monthlyRate', sortAsc: false, map: {}, mainRowIdx: -1,
 
             init() {
                 this.config = safeStorage.getItem('pm_inv_config_v14') ? JSON.parse(safeStorage.getItem('pm_inv_config_v14')) : DEFAULT_CONFIG;
@@ -254,14 +253,15 @@
                 document.getElementById('btn-settings-trigger').addEventListener('click', () => this.toggleSettings(true));
                 document.querySelector('.modal-overlay').addEventListener('click', () => this.toggleSettings(false));
                 document.getElementById('inp-search').addEventListener('keyup', e => this.renderTable(e.target.value));
-                ['sel-window'].forEach(id => {
-                    document.getElementById(id).addEventListener('change', () => this.recalculate());
+                ['sel-window', 'inp-target'].forEach(id => {
+                    if(document.getElementById(id)) {
+                        document.getElementById(id).addEventListener('change', () => this.recalculate());
+                    }
                 });
             },
 
             fetchData() {
                 this.toggleLoader(true);
-                // No error banner logic anymore
                 const url = `https://docs.google.com/spreadsheets/d/${this.config.ID}/gviz/tq?sheet=${this.config.TAB}&tqx=out:csv&range=A1:ZZ`;
                 
                 fetch(url)
@@ -306,6 +306,7 @@
                     dates: dateCols
                 };
                 
+                this.mainRowIdx = hRow; // Store header row index
                 this.recalculate();
             },
 
@@ -317,8 +318,7 @@
 
             recalculate() {
                 const winValue = document.getElementById('sel-window').value; 
-                // Hardcoded target of 2 months as per original request, hidden from UI
-                const targetMonths = 2; 
+                const targetMonths = 2; // Hardcoded default
 
                 const today = new Date();
                 const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1); 
@@ -357,14 +357,20 @@
                     `${windowDesc} (Excl. Current Month). Denom: ${denomMonths} Mo.`;
 
                 const results = [];
-                // CRITICAL FIX: Loop from Row 4 (Index 3)
-                const startRow = 3;
+                
+                // --- FIX: Dynamic Start Row ---
+                // Start searching 1 row AFTER the header.
+                // Row indices: 0, 1(Header), 2(Gap), 3(Data)
+                const startLoop = this.mainRowIdx + 1;
 
-                for(let i = startRow; i < this.rawData.length; i++) {
+                for(let i = startLoop; i < this.rawData.length; i++) {
                     const row = this.rawData[i];
                     
-                    // Robust check: Skip if SKU cell is empty
-                    if(!row || !row[this.map.sku] || row[this.map.sku].trim() === "") continue;
+                    // Robust check: Skip if SKU cell is empty or looks like metadata
+                    if(!row || !row[this.map.sku]) continue;
+                    
+                    const rawSku = row[this.map.sku].trim();
+                    if(rawSku === "" || rawSku.toLowerCase() === "unique_key" || rawSku.toLowerCase().includes("sort_")) continue;
 
                     const invStr = String(row[this.map.inv]||'0').replace(/,/g,'').trim();
                     const inv = parseFloat(invStr) || 0;
@@ -382,18 +388,20 @@
                         }
                     });
 
-                    // Monthly Run Rate (Rounded Up)
                     const monthlyRate = Math.ceil(totalOut / denomMonths);
-                    const mos = monthlyRate > 0 ? inv / monthlyRate : 999;
                     
                     let status = 'OK';
                     if (transactions.length === 0 && winValue !== 'all') status = 'Low Data';
-                    else if (mos < targetMonths) status = 'Risk';
+                    // Simple logic for status without MOS/Refill columns visible
+                    if (monthlyRate > 0 && (inv / monthlyRate) < targetMonths) status = 'Risk';
 
                     results.push({
-                        sku: row[this.map.sku],
-                        name: this.deriveName(row[this.map.sku]),
-                        inv, monthlyRate, mos, status,
+                        sku: rawSku,
+                        name: this.deriveName(rawSku),
+                        inv, monthlyRate, status,
+                        // Hidden data for debug
+                        mos: monthlyRate > 0 ? inv / monthlyRate : 999,
+                        refill: Math.max(0, (monthlyRate * targetMonths) - inv),
                         debug: { totalOut, denomMonths, windowDesc, transactions }
                     });
                 }
