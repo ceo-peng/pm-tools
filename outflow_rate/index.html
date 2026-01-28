@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory Intelligence Dashboard</title>
+    <title>Inventory Intelligence Dashboard v14</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -37,7 +37,7 @@
         <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="bg-blue-600 text-white p-1.5 rounded-lg font-bold text-lg leading-none">PM</div>
-                <h1 class="text-lg font-bold text-slate-800 tracking-tight">Inventory Intelligence</h1>
+                <h1 class="text-lg font-bold text-slate-800 tracking-tight">Inventory Intelligence <span class="text-xs text-slate-400 font-normal ml-2">v14</span></h1>
             </div>
             <div class="flex items-center gap-4">
                 <div id="status-indicator" class="hidden flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full border border-emerald-100">
@@ -53,7 +53,13 @@
     <!-- Main -->
     <main class="flex-grow p-6 max-w-7xl mx-auto w-full space-y-6">
         
-        <!-- Dashboard -->
+        <div id="error-banner" class="hidden bg-rose-50 border border-rose-200 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div class="text-sm text-rose-800">
+                <strong class="font-bold">Connection Issue:</strong> <span id="error-message">Unable to fetch data.</span>
+            </div>
+            <button onclick="app.loadMockData()" class="px-4 py-2 bg-white border border-rose-200 text-rose-700 text-xs font-bold rounded shadow-sm hover:bg-rose-50 transition-colors">Load Demo Data</button>
+        </div>
+
         <div id="dashboard-content" class="hidden space-y-6 fade-in">
             
             <!-- Controls -->
@@ -76,15 +82,8 @@
                         <option value="p70">P70 Safety (Conservative)</option>
                     </select>
                 </div>
-                <!-- Target Stock Removed from visual controls as logic is internal now, or kept if needed for filtering status -->
-                <div class="space-y-1.5">
-                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Target Stock</label>
-                    <div class="flex items-center gap-2">
-                        <input type="number" id="inp-target" value="2" class="block w-20 text-sm border-slate-300 rounded-lg bg-slate-50 p-2.5 text-center focus:ring-blue-500">
-                        <span class="text-sm text-stone-400">Months</span>
-                    </div>
-                </div>
-
+                <!-- Target Stock Removed from visual controls as logic is internal now -->
+                
                 <div class="flex-grow text-right">
                     <p id="date-range-display" class="text-xs text-stone-400 italic mt-2"></p>
                 </div>
@@ -100,7 +99,6 @@
                     <div id="kpi-total-skus" class="text-2xl font-bold text-stone-800 mt-1">-</div>
                     <div class="text-xs text-stone-400 mt-1">Valid items found</div>
                 </div>
-                <!-- Other cards removed -->
             </div>
 
             <!-- Table -->
@@ -246,7 +244,7 @@
             config: DEFAULT_CONFIG, rawData: [], processedData: [], sortCol: 'monthlyRate', sortAsc: false, map: {},
 
             init() {
-                this.config = safeStorage.getItem('pm_inv_config_v13') ? JSON.parse(safeStorage.getItem('pm_inv_config_v13')) : DEFAULT_CONFIG;
+                this.config = safeStorage.getItem('pm_inv_config_v14') ? JSON.parse(safeStorage.getItem('pm_inv_config_v14')) : DEFAULT_CONFIG;
                 this.bindEvents();
                 this.fetchData();
             },
@@ -256,7 +254,7 @@
                 document.getElementById('btn-settings-trigger').addEventListener('click', () => this.toggleSettings(true));
                 document.querySelector('.modal-overlay').addEventListener('click', () => this.toggleSettings(false));
                 document.getElementById('inp-search').addEventListener('keyup', e => this.renderTable(e.target.value));
-                ['sel-window', 'inp-target'].forEach(id => {
+                ['sel-window'].forEach(id => {
                     document.getElementById(id).addEventListener('change', () => this.recalculate());
                 });
             },
@@ -319,7 +317,8 @@
 
             recalculate() {
                 const winValue = document.getElementById('sel-window').value; 
-                const targetMonths = parseFloat(document.getElementById('inp-target').value) || 2;
+                // Hardcoded target of 2 months as per original request, hidden from UI
+                const targetMonths = 2; 
 
                 const today = new Date();
                 const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1); 
@@ -383,6 +382,7 @@
                         }
                     });
 
+                    // Monthly Run Rate (Rounded Up)
                     const monthlyRate = Math.ceil(totalOut / denomMonths);
                     const mos = monthlyRate > 0 ? inv / monthlyRate : 999;
                     
@@ -536,7 +536,7 @@
             this.config.ROW = document.getElementById('conf-row-header').value.trim();
             this.config.INV = document.getElementById('conf-col-inv').value.trim();
             this.config.SKU = document.getElementById('conf-col-sku').value.trim();
-            safeStorage.setItem('pm_inv_config_v13', JSON.stringify(this.config));
+            safeStorage.setItem('pm_inv_config_v14', JSON.stringify(this.config));
             this.toggleSettings(false);
             this.fetchData();
         };
@@ -544,6 +544,32 @@
         app.toggleLoader = function(show) {
             const el = document.getElementById('loader');
             if(show) el.classList.remove('hidden'); else el.classList.add('hidden');
+        };
+
+        app.loadMockData = function() {
+            this.toggleLoader(true);
+            setTimeout(() => {
+                const head = ['unique_key', 'product_name', '即時庫存數量'];
+                const dates = [];
+                for(let i=120; i>=105; i--) {
+                    const d = new Date(); d.setDate(d.getDate()-i);
+                    const str = `${d.getFullYear().toString().substr(2)}.${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.1200`;
+                    head.push(str); dates.push(str);
+                }
+                this.rawData = [['junk'], head]; 
+                for(let i=1; i<=20; i++) {
+                    const inv = Math.floor(Math.random()*200);
+                    const row = [`DEMO-${i}`, `Product ${i}`, String(inv)];
+                    for(let j=0; j<15; j++) row.push(Math.random()>0.7 ? String(-Math.floor(Math.random()*10)) : "0");
+                    this.rawData.push(row);
+                }
+                const backup = {...this.config};
+                this.config.ROW = ''; 
+                this.parseStructure();
+                this.config = backup; 
+                document.getElementById('connection-status').innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span> Demo';
+                document.getElementById('connection-status').classList.remove('hidden');
+            }, 600);
         };
 
         window.addEventListener('load', () => app.init());
