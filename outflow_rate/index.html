@@ -3,498 +3,647 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory Analyzer (Split-Header Support)</title>
+    <title>Inventory Intelligence Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
-        :root {
-            --primary: #2563eb;
-            --primary-hover: #1d4ed8;
-            --bg: #f8fafc;
-            --surface: #ffffff;
-            --border: #e2e8f0;
-            --text: #1e293b;
-            --text-light: #64748b;
-            --danger: #ef4444;
-            --success: #22c55e;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: var(--bg);
-            color: var(--text);
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
+            font-family: 'Inter', sans-serif;
+            background-color: #fafaf9; /* stone-50 */
+            color: #44403c; /* stone-700 */
         }
 
-        /* Layout */
-        .app-container { display: flex; flex: 1; overflow: hidden; }
-        aside { width: 340px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 1rem; overflow-y: auto; flex-shrink: 0; }
-        main { flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 1rem; }
+        /* Chart Container Styling - MANDATORY */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 100%;
+            height: 300px;
+            max-height: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
 
-        /* UI Elements */
-        h1 { font-size: 1.25rem; margin: 0 0 1rem 0; font-weight: 700; }
-        h3 { font-size: 0.9rem; margin: 0 0 0.5rem 0; font-weight: 600; text-transform: uppercase; color: var(--text-light); }
-        
-        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .note { font-size: 0.75rem; color: var(--text-light); background: #f1f5f9; padding: 0.5rem; border-radius: 4px; margin-bottom: 0.75rem; line-height: 1.4; }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f5f5f4; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d6d3d1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a29e; 
+        }
 
-        label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--text); margin: 0.75rem 0 0.25rem; }
-        input, select, button { width: 100%; padding: 0.6rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.875rem; box-sizing: border-box; }
-        
-        button { background-color: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; margin-top: 1rem; transition: all 0.2s; }
-        button:hover { background-color: var(--primary-hover); }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-        button.secondary { background-color: white; border: 1px solid var(--border); color: var(--text); }
-        button.secondary:hover { background-color: var(--bg); border-color: var(--text-light); }
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #0ea5e9;
+            width: 20px;
+            height: 20px;
+            -webkit-animation: spin 1s linear infinite; /* Safari */
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+        }
 
-        .status-badge { display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 99px; font-size: 0.75rem; font-weight: 600; margin-bottom: 1rem; }
-        .status-disconnected { background: #fee2e2; color: #991b1b; }
-        .status-connected { background: #dcfce7; color: #166534; }
-        .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid currentColor; border-radius: 50%; border-right-color: transparent; animation: spin 1s linear infinite; margin-right: 6px; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* Table */
-        .toolbar { display: flex; gap: 1rem; margin-bottom: 1rem; }
-        .table-wrapper { flex: 1; overflow: auto; border: 1px solid var(--border); border-radius: 8px; background: white; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; white-space: nowrap; }
-        th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border); }
-        th { background-color: #f8fafc; position: sticky; top: 0; z-index: 10; font-weight: 600; cursor: pointer; user-select: none; }
-        th:hover { background-color: #e2e8f0; }
-        tr:hover td { background-color: #f8fafc; }
-
-        /* Data Colors */
-        .risk-high { color: #dc2626; background: #fef2f2; font-weight: 700; }
-        .risk-ok { color: #16a34a; }
-        .conf-low { color: #d97706; font-style: italic; }
-        .refill-alert { color: #2563eb; font-weight: 700; }
-
-        /* Log */
-        #log-panel { font-family: 'Consolas', monospace; font-size: 0.7rem; color: #cbd5e1; background: #0f172a; padding: 0.75rem; max-height: 120px; overflow-y: auto; border-top: 1px solid var(--border); }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
-<body>
+<body class="flex flex-col min-h-screen">
 
-<div class="app-container">
-    <aside>
-        <h1>Inventory Analyzer</h1>
-        <div id="auth-status" class="status-badge status-disconnected">Not Connected</div>
+    <!-- Chosen Palette: Warm Neutrals (Stone) with Sky Blue Accents -->
+    <!-- Application Structure Plan: Dashboard Layout. 
+         1. Header: Global Controls & Auth Status.
+         2. KPI Section: High-level metrics (Total Stock, Refill Cost/Qty, Risk Count).
+         3. Visualization Section: Two-column grid for 'Stock Health' (Donut) and 'Refill Priority' (Bar).
+         4. Data Grid Section: Interactive table for granular analysis.
+         Why? This flow moves from summary -> trends -> details, allowing the user to assess health first, identify problems, then drill down to specific SKUs.
+    -->
+    <!-- Visualization & Content Choices: 
+         1. KPI Cards -> Goal: Inform -> Method: HTML/Tailwind Grid -> Justification: Immediate status check.
+         2. Stock Health -> Goal: Organize -> Method: Chart.js Doughnut -> Interaction: Hover for counts -> Justification: Shows proportion of inventory at risk vs healthy.
+         3. Top Refill Needs -> Goal: Compare -> Method: Chart.js Bar -> Interaction: Tooltip details -> Justification: Highlights most urgent actions.
+         4. Main Table -> Goal: Analyze -> Method: Dynamic HTML Table -> Interaction: Sort/Filter -> Justification: Necessary for SKU-level work.
+         NO SVG used. NO Mermaid used. 
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
 
-        <div class="card">
-            <h3>1. Connection</h3>
-            <div class="note">Requires local server (http://localhost). Will NOT work on file://.</div>
-            
-            <label>Client ID</label>
-            <input type="text" id="inp-client-id" placeholder="Paste Google Client ID here">
-            
-            <label>Spreadsheet ID</label>
-            <input type="text" id="inp-sheet-id" value="14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI">
-            
-            <label>Tab Name (Sensitive)</label>
-            <input type="text" id="inp-sheet-name" value="inventory_tracking">
-            
-            <button id="btn-connect" onclick="handleAuthClick()">Connect Google</button>
-            <button id="btn-refresh" class="secondary" onclick="fetchData()" disabled>Refresh Data</button>
-        </div>
-
-        <div class="card">
-            <h3>2. Structure Detection</h3>
-            <div class="note" id="structure-info">
-                Scanning for split headers...
+    <!-- Header & Auth -->
+    <header class="bg-white border-b border-stone-200 sticky top-0 z-20 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="h-8 w-8 bg-sky-500 rounded-lg flex items-center justify-center text-white font-bold text-lg">I</div>
+                <h1 class="text-xl font-bold tracking-tight text-stone-800">Inventory Intelligence</h1>
             </div>
             
-            <label>SKU Column (Row <span id="lbl-row-main">-</span>)</label>
-            <select id="sel-col-sku"></select>
+            <div class="flex items-center gap-4">
+                <div id="connection-status" class="hidden flex items-center gap-2 text-xs font-medium text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    Live Data
+                </div>
+                <button id="btn-auth" class="bg-stone-900 hover:bg-stone-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors shadow-sm">
+                    Connect Google Sheet
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow p-6 max-w-7xl mx-auto w-full space-y-8">
+
+        <!-- Intro / Context -->
+        <section class="space-y-2">
+            <h2 class="text-lg font-semibold text-stone-800">Operational Overview</h2>
+            <p class="text-stone-500 text-sm max-w-3xl leading-relaxed">
+                This dashboard connects directly to your inventory records to calculate real-time run rates based on historical outflow. 
+                It categorizes stock health by comparing current inventory against calculated daily velocity, identifying immediate refill risks based on your 60-day target.
+            </p>
+        </section>
+
+        <!-- Loading State -->
+        <div id="loading-overlay" class="hidden fixed inset-0 bg-white/80 z-50 flex flex-col items-center justify-center backdrop-blur-sm">
+            <div class="loader w-12 h-12 border-4 border-t-sky-500 border-stone-200"></div>
+            <p class="mt-4 text-stone-600 font-medium animate-pulse">Analyzing Inventory Data...</p>
+        </div>
+
+        <!-- Dashboard Content (Hidden until loaded) -->
+        <div id="dashboard-content" class="hidden space-y-8">
             
-            <label>Inventory Column</label>
-            <select id="sel-col-inv"></select>
-        </div>
+            <!-- Controls Bar -->
+            <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm flex flex-wrap gap-6 items-end">
+                <div class="space-y-1">
+                    <label class="text-xs font-semibold text-stone-500 uppercase tracking-wider">Analysis Window</label>
+                    <select id="sel-window" class="block w-40 text-sm border-stone-300 rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500 bg-stone-50 p-2">
+                        <option value="14">Last 14 Days</option>
+                        <option value="30" selected>Last 30 Days</option>
+                        <option value="60">Last 60 Days</option>
+                        <option value="all">All History</option>
+                    </select>
+                </div>
 
-        <div class="card">
-            <h3>3. Analysis Settings</h3>
-            <label>Window</label>
-            <select id="sel-window" onchange="recalculate()">
-                <option value="14">Last 14 Days</option>
-                <option value="30" selected>Last 30 Days</option>
-                <option value="60">Last 60 Days</option>
-                <option value="all">All History</option>
-            </select>
+                <div class="space-y-1">
+                    <label class="text-xs font-semibold text-stone-500 uppercase tracking-wider">Algorithm</label>
+                    <select id="sel-algo" class="block w-48 text-sm border-stone-300 rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500 bg-stone-50 p-2">
+                        <option value="simple_avg" selected>Average Velocity</option>
+                        <option value="p70">P70 Safety (Conservative)</option>
+                    </select>
+                </div>
 
-            <label>Method</label>
-            <select id="sel-algo" onchange="recalculate()">
-                <option value="simple_avg" selected>Simple Avg (Total / Days)</option>
-                <option value="p70">P70 Safety (Conservative)</option>
-            </select>
+                <div class="space-y-1">
+                    <label class="text-xs font-semibold text-stone-500 uppercase tracking-wider">Target DOS</label>
+                    <div class="flex items-center gap-2">
+                        <input type="number" id="inp-target" value="60" class="block w-20 text-sm border-stone-300 rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500 bg-stone-50 p-2">
+                        <span class="text-sm text-stone-400">days</span>
+                    </div>
+                </div>
 
-            <label>Safety Stock Target (Days)</label>
-            <input type="number" id="inp-target-days" value="60" onchange="recalculate()">
-        </div>
-    </aside>
+                <div class="flex-grow"></div>
+                
+                <button id="btn-refresh" class="text-stone-500 hover:text-sky-600 text-sm font-medium flex items-center gap-2 transition-colors">
+                    <span>&#8635;</span> Refresh Analysis
+                </button>
+            </div>
 
-    <main>
-        <div class="toolbar">
-            <input type="text" id="inp-search" placeholder="Filter by SKU or Name..." onkeyup="filterTable()">
-            <div style="flex:1"></div>
-            <button class="secondary" onclick="exportCSV()" style="margin:0">Download CSV</button>
-        </div>
-        
-        <div class="table-wrapper">
-            <table id="results-table">
-                <thead>
-                    <tr>
-                        <th onclick="sortTable(0)">SKU</th>
-                        <th onclick="sortTable(1)">Name</th>
-                        <th onclick="sortTable(2, true)">Stock</th>
-                        <th onclick="sortTable(3, true)">Daily Out</th>
-                        <th onclick="sortTable(4, true)">DOS</th>
-                        <th onclick="sortTable(5, true)">Refill Qty</th>
-                        <th onclick="sortTable(6)">Status</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <!-- KPI 1 -->
+                <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm hover:shadow-md transition-shadow">
+                    <div class="text-xs font-medium text-stone-400 uppercase">Total SKUs</div>
+                    <div id="kpi-total-skus" class="text-2xl font-bold text-stone-800 mt-1">-</div>
+                    <div class="text-xs text-stone-400 mt-1">Active items tracked</div>
+                </div>
+                <!-- KPI 2 -->
+                <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm hover:shadow-md transition-shadow">
+                    <div class="text-xs font-medium text-stone-400 uppercase">Refill Alerts</div>
+                    <div id="kpi-risk-count" class="text-2xl font-bold text-rose-500 mt-1">-</div>
+                    <div class="text-xs text-stone-400 mt-1">Items below target DOS</div>
+                </div>
+                <!-- KPI 3 -->
+                <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm hover:shadow-md transition-shadow">
+                    <div class="text-xs font-medium text-stone-400 uppercase">Total Units Needed</div>
+                    <div id="kpi-refill-qty" class="text-2xl font-bold text-sky-600 mt-1">-</div>
+                    <div class="text-xs text-stone-400 mt-1">To reach target levels</div>
+                </div>
+                <!-- KPI 4 -->
+                <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm hover:shadow-md transition-shadow">
+                    <div class="text-xs font-medium text-stone-400 uppercase">Low Confidence</div>
+                    <div id="kpi-low-conf" class="text-2xl font-bold text-amber-500 mt-1">-</div>
+                    <div class="text-xs text-stone-400 mt-1">&lt; 3 active sales days</div>
+                </div>
+            </div>
+
+            <!-- Visualizations -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Chart 1: Inventory Health -->
+                <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
+                    <h3 class="text-sm font-semibold text-stone-800 mb-4">Inventory Health Distribution</h3>
+                    <div class="chart-container">
+                        <canvas id="chart-health"></canvas>
+                    </div>
+                    <p class="text-xs text-stone-400 mt-4 text-center">Breakdown of SKUs by their Days of Stock (DOS) status.</p>
+                </div>
+
+                <!-- Chart 2: Top Refill Priorities -->
+                <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
+                    <h3 class="text-sm font-semibold text-stone-800 mb-4">Top 10 Refill Priorities (Units)</h3>
+                    <div class="chart-container">
+                        <canvas id="chart-refill"></canvas>
+                    </div>
+                    <p class="text-xs text-stone-400 mt-4 text-center">Items requiring the largest quantity volume to reach safety stock.</p>
+                </div>
+            </div>
+
+            <!-- Granular Data Table -->
+            <div class="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-stone-200 bg-stone-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h3 class="text-sm font-semibold text-stone-800">SKU Analysis Detail</h3>
+                        <p class="text-xs text-stone-500">Row-level calculation data. Click headers to sort.</p>
+                    </div>
+                    <div class="relative">
+                        <input type="text" id="inp-search" placeholder="Search SKU or Name..." class="pl-8 pr-4 py-2 text-sm border border-stone-300 rounded-lg focus:ring-sky-500 focus:border-sky-500 w-full sm:w-64">
+                        <span class="absolute left-3 top-2.5 text-stone-400 text-xs">&#128269;</span>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-stone-200">
+                        <thead class="bg-stone-100">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-stone-500 uppercase tracking-wider cursor-pointer hover:bg-stone-200 transition-colors" onclick="app.sortTable('sku')">SKU</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-stone-500 uppercase tracking-wider cursor-pointer hover:bg-stone-200 transition-colors" onclick="app.sortTable('name')">Product</th>
+                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase tracking-wider cursor-pointer hover:bg-stone-200 transition-colors" onclick="app.sortTable('inv', true)">Stock</th>
+                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase tracking-wider cursor-pointer hover:bg-stone-200 transition-colors" onclick="app.sortTable('dailyRate', true)">Daily Out</th>
+                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase tracking-wider cursor-pointer hover:bg-stone-200 transition-colors" onclick="app.sortTable('dos', true)">DOS</th>
+                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase tracking-wider cursor-pointer hover:bg-stone-200 transition-colors" onclick="app.sortTable('refill', true)">Refill Qty</th>
+                                <th class="px-6 py-3 text-center text-xs font-bold text-stone-500 uppercase tracking-wider cursor-pointer hover:bg-stone-200 transition-colors" onclick="app.sortTable('status')">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body" class="bg-white divide-y divide-stone-200 text-sm text-stone-600">
+                            <!-- Rows rendered by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="p-3 border-t border-stone-200 bg-stone-50 text-xs text-stone-400 text-center">
+                    Showing top 500 results for performance
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <footer class="text-center text-xs text-stone-400 pb-6">
+                Generated by Prophecy Morocco Inventory Tool &bull; Secured by Google OAuth
+            </footer>
+
         </div>
     </main>
-</div>
 
-<div id="log-panel">Ready.</div>
+    <!-- Mapping Modal (Shown if needed, usually hidden logic handles this) -->
+    <!-- We keep the mapping logic internal but display a small overlay if manual mapping is needed could be an enhancement, 
+         for now we stick to the auto-detect logic from previous robust version -->
 
-<script>
-    /** STATE & CONFIG */
-    const state = {
-        tokenClient: null,
-        accessToken: null,
-        rawData: [],
-        mainHeaderRow: 0,
-        dateHeaderRow: 0,
-        mapping: { sku: -1, name: -1, inv: -1, dateCols: [] },
-        processed: []
-    };
+    <script>
+        /**
+         * APPLICATION CONFIGURATION
+         */
+        const CONFIG = {
+            CLIENT_ID: '700367171439-avgriehld6qgucdrtborca884nlliu7o.apps.googleusercontent.com',
+            SHEET_ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI',
+            TAB_NAME: 'inventory_tracking',
+            SCOPE: 'https://www.googleapis.com/auth/spreadsheets.readonly'
+        };
 
-    const log = (msg, err=false) => {
-        const p = document.getElementById('log-panel');
-        p.innerHTML = `<div style="color:${err?'#f87171':'#bef264'}">[${new Date().toLocaleTimeString()}] ${msg}</div>` + p.innerHTML;
-        console.log(msg);
-    };
+        /**
+         * CORE APP LOGIC
+         */
+        const app = {
+            // State
+            tokenClient: null,
+            accessToken: null,
+            rawData: [],
+            mapping: { sku: -1, name: -1, inv: -1, dateCols: [] },
+            processedData: [],
+            charts: {},
+            sort: { col: 'refill', asc: false }, // Default sort by refill urgency
 
-    /** GOOGLE AUTH */
-    function initAuth() {
-        const clientId = document.getElementById('inp-client-id').value.trim();
-        if (!clientId) return alert("Please enter Client ID");
+            // Initialization
+            init: function() {
+                this.setupListeners();
+                // Delay auth init slightly to ensure Google script load
+                setTimeout(() => this.initAuth(), 1000);
+            },
 
-        try {
-            state.tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: clientId,
-                scope: 'https://www.googleapis.com/auth/spreadsheets.readonly',
-                callback: (resp) => {
-                    if (resp.error) return log('Auth Error: ' + resp.error, true);
-                    state.accessToken = resp.access_token;
-                    updateUI(true);
-                    fetchData();
+            setupListeners: function() {
+                document.getElementById('btn-auth').addEventListener('click', () => this.handleAuthClick());
+                document.getElementById('btn-refresh').addEventListener('click', () => this.recalculate());
+                
+                // Live recalculation on control changes
+                ['sel-window', 'sel-algo', 'inp-target'].forEach(id => {
+                    document.getElementById(id).addEventListener('change', () => this.recalculate());
+                });
+
+                // Search
+                document.getElementById('inp-search').addEventListener('keyup', (e) => this.renderTable(e.target.value));
+            },
+
+            // --- Authentication ---
+            initAuth: function() {
+                if (!google || !google.accounts || !google.accounts.oauth2) {
+                    console.warn("Google GIS not loaded yet.");
+                    return;
                 }
-            });
-            state.tokenClient.requestAccessToken({prompt: ''});
-        } catch(e) {
-            log("Error initializing Google Auth. Check console.", true);
-            alert("Google Scripts not loaded. Check internet/blockers.");
-        }
-    }
+                
+                try {
+                    this.tokenClient = google.accounts.oauth2.initTokenClient({
+                        client_id: CONFIG.CLIENT_ID,
+                        scope: CONFIG.SCOPE,
+                        callback: (resp) => {
+                            if (resp.error) {
+                                alert("Auth Error: " + resp.error);
+                                return;
+                            }
+                            this.accessToken = resp.access_token;
+                            this.updateAuthUI(true);
+                            this.fetchData();
+                        }
+                    });
+                } catch(e) { console.error("Auth Init Failed", e); }
+            },
 
-    function handleAuthClick() {
-        document.getElementById('btn-connect').innerHTML = '<span class="spinner"></span> Connecting...';
-        setTimeout(initAuth, 500); // Small delay for UI update
-    }
+            handleAuthClick: function() {
+                if (!this.tokenClient) this.initAuth();
+                if (this.tokenClient) this.tokenClient.requestAccessToken({prompt: ''});
+            },
 
-    function updateUI(connected) {
-        const badge = document.getElementById('auth-status');
-        const btn = document.getElementById('btn-connect');
-        if (connected) {
-            badge.className = 'status-badge status-connected';
-            badge.textContent = 'Connected';
-            btn.textContent = 'Reconnect';
-            document.getElementById('btn-refresh').disabled = false;
-        } else {
-            badge.className = 'status-badge status-disconnected';
-            badge.textContent = 'Disconnected';
-            btn.textContent = 'Connect Google';
-        }
-    }
+            updateAuthUI: function(connected) {
+                const btn = document.getElementById('btn-auth');
+                const status = document.getElementById('connection-status');
+                if (connected) {
+                    btn.classList.add('hidden');
+                    status.classList.remove('hidden');
+                }
+            },
 
-    /** API FETCH */
-    async function fetchData() {
-        if (!state.accessToken) return;
-        const sheetId = document.getElementById('inp-sheet-id').value;
-        const tabName = document.getElementById('inp-sheet-name').value;
-        const range = tabName ? `${tabName}!A1:ZZ` : 'A1:ZZ';
+            // --- Data Fetching ---
+            fetchData: async function() {
+                this.toggleLoader(true);
+                const range = `${CONFIG.TAB_NAME}!A1:ZZ`;
+                try {
+                    const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SHEET_ID}/values/${range}`;
+                    const res = await fetch(url, {
+                        headers: { 'Authorization': `Bearer ${this.accessToken}` }
+                    });
 
-        log(`Fetching ${range}...`);
-        
-        try {
-            const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}`, {
-                headers: { 'Authorization': `Bearer ${state.accessToken}` }
-            });
-            
-            if (res.status === 401) {
-                updateUI(false);
-                return log("Token expired. Reconnect.", true);
-            }
-            if (!res.ok) throw new Error((await res.json()).error.message);
+                    if (res.status === 401) {
+                        this.accessToken = null;
+                        this.updateAuthUI(false);
+                        alert("Session Expired. Please reconnect.");
+                        this.toggleLoader(false);
+                        return;
+                    }
 
-            const data = await res.json();
-            if (!data.values) return log("No data found.", true);
+                    const data = await res.json();
+                    if (!data.values) throw new Error("No data found.");
 
-            state.rawData = data.values;
-            log(`Loaded ${data.values.length} rows.`);
-            parseStructure();
+                    this.rawData = data.values;
+                    this.parseStructure();
 
-        } catch(e) {
-            log("Fetch failed: " + e.message, true);
-        }
-    }
+                } catch (e) {
+                    console.error(e);
+                    alert("Data Fetch Failed: " + e.message);
+                    this.toggleLoader(false);
+                }
+            },
 
-    /** PARSING LOGIC (SPLIT HEADER SUPPORT) */
-    function parseStructure() {
-        const rows = state.rawData;
-        let mainRow = -1, dateRow = -1;
+            toggleLoader: function(show) {
+                const el = document.getElementById('loading-overlay');
+                if(show) el.classList.remove('hidden');
+                else el.classList.add('hidden');
+            },
 
-        // 1. Find Main Header (SKU, Inventory)
-        // Looking for "unique_key" AND "即時庫存數量"
-        for (let i = 0; i < Math.min(rows.length, 10); i++) {
-            const str = rows[i].join('|').toLowerCase();
-            if (str.includes('unique_key') && str.includes('即時庫存數量')) {
-                mainRow = i;
-                break;
-            }
-        }
+            // --- Parsing (Split Header Logic) ---
+            parseStructure: function() {
+                const rows = this.rawData;
+                let mainRow = -1, dateRow = -1;
+                const dateRegex = /\d{2}\.\d{4}\.\d{4}/;
 
-        // 2. Find Date Header (YY.MMDD or similar)
-        // Usually Row after Main, but lets scan
-        const dateRegex = /\d{2}\.\d{4}\.\d{4}/; // Matches 25.0907.2241
-        for (let i = 0; i < Math.min(rows.length, 10); i++) {
-            if (rows[i].some(cell => dateRegex.test(String(cell)))) {
-                dateRow = i;
-                break;
-            }
-        }
+                // Scan first 15 rows for header patterns
+                for (let i = 0; i < Math.min(rows.length, 15); i++) {
+                    const str = rows[i].join('|').toLowerCase();
+                    if (str.includes('unique_key') && str.includes('即時庫存數量')) mainRow = i;
+                    if (rows[i].some(c => dateRegex.test(String(c)))) dateRow = i;
+                }
 
-        if (mainRow === -1 || dateRow === -1) {
-            log("Could not auto-detect headers. Please check sheet structure.", true);
-            return;
-        }
+                if (mainRow === -1 || dateRow === -1) {
+                    alert("Could not detect headers. Check sheet structure.");
+                    this.toggleLoader(false);
+                    return;
+                }
 
-        state.mainHeaderRow = mainRow;
-        state.dateHeaderRow = dateRow;
-        
-        document.getElementById('structure-info').innerHTML = 
-            `Main Headers: Row ${mainRow+1}<br>Date Headers: Row ${dateRow+1}`;
-        document.getElementById('lbl-row-main').innerText = mainRow + 1;
+                // Map Columns
+                const mainCols = rows[mainRow];
+                this.mapping.sku = mainCols.findIndex(c => c.toLowerCase().trim() === 'unique_key');
+                this.mapping.inv = mainCols.findIndex(c => c.toLowerCase().trim().includes('即時庫存數量'));
+                this.mapping.name = mainCols.findIndex(c => c.toLowerCase().trim().includes('product_name'));
 
-        // Map Columns
-        const mainCols = rows[mainRow];
-        state.mapping.sku = mainCols.findIndex(c => c.toLowerCase().trim() === 'unique_key');
-        state.mapping.inv = mainCols.findIndex(c => c.toLowerCase().trim().includes('即時庫存數量'));
-        state.mapping.name = mainCols.findIndex(c => c.toLowerCase().trim().includes('product_name')); // Optional
+                // Map Dates
+                this.mapping.dateCols = [];
+                rows[dateRow].forEach((val, idx) => {
+                    if (dateRegex.test(String(val))) {
+                        const match = String(val).match(/(\d{2})\.(\d{4})/);
+                        if (match) {
+                            const y = '20' + match[1];
+                            const m = match[2].substring(0, 2);
+                            const d = match[2].substring(2, 4);
+                            this.mapping.dateCols.push({ idx, date: `${y}-${m}-${d}` });
+                        }
+                    }
+                });
+                this.mapping.dateCols.sort((a,b) => a.date.localeCompare(b.date));
 
-        // Map Dates
-        state.mapping.dateCols = [];
-        const dateCols = rows[dateRow];
-        dateCols.forEach((val, idx) => {
-            if (dateRegex.test(String(val))) {
-                // Parse 25.0907 -> 2025-09-07
-                const match = String(val).match(/(\d{2})\.(\d{4})/);
-                if (match) {
-                    const y = '20' + match[1];
-                    const m = match[2].substring(0, 2);
-                    const d = match[2].substring(2, 4);
-                    state.mapping.dateCols.push({
-                        idx: idx,
-                        date: `${y}-${m}-${d}`, // ISO format for sorting
-                        orig: val
+                // Proceed to calculate
+                this.recalculate();
+            },
+
+            // --- Calculation Engine ---
+            recalculate: function() {
+                const windowDays = document.getElementById('sel-window').value;
+                const algo = document.getElementById('sel-algo').value;
+                const targetDays = parseInt(document.getElementById('inp-target').value) || 60;
+
+                // Filter Date Columns
+                let activeCols = this.mapping.dateCols;
+                let denom = activeCols.length;
+
+                if (windowDays !== 'all') {
+                    const days = parseInt(windowDays);
+                    const cutoff = new Date();
+                    cutoff.setDate(cutoff.getDate() - days);
+                    const cutoffStr = cutoff.toISOString().split('T')[0];
+                    activeCols = activeCols.filter(c => c.date >= cutoffStr);
+                    denom = days;
+                } else {
+                    if(activeCols.length > 1) {
+                        const start = new Date(activeCols[0].date);
+                        const end = new Date(activeCols[activeCols.length-1].date);
+                        denom = Math.max(1, (end - start) / (1000 * 60 * 60 * 24));
+                    }
+                }
+
+                const results = [];
+                const startRow = Math.max(this.mapping.sku, this.mapping.inv) + 2; // Rough guess for start row based on headers
+
+                for (let i = 0; i < this.rawData.length; i++) {
+                    // Skip header rows
+                    if (i <= Math.max(this.mapping.sku, 5)) {
+                        // More robust skip: checks if row content is header
+                        const rowStr = this.rawData[i].join('|').toLowerCase();
+                        if (rowStr.includes('unique_key')) continue;
+                    }
+
+                    const row = this.rawData[i];
+                    if (!row[this.mapping.sku]) continue;
+
+                    let inv = parseFloat((row[this.mapping.inv]||'0').replace(/,/g,''));
+                    if (isNaN(inv)) inv = 0;
+
+                    // Aggregate Outflow
+                    let totalOut = 0;
+                    let dayMap = {};
+
+                    activeCols.forEach(col => {
+                        let val = parseFloat((row[col.idx]||'0').replace(/,/g,''));
+                        if (val < 0) {
+                            const qty = Math.abs(val);
+                            totalOut += qty;
+                            dayMap[col.date] = (dayMap[col.date] || 0) + qty;
+                        }
+                    });
+
+                    const dailyVals = Object.values(dayMap).sort((a,b) => a-b);
+                    const activeDays = dailyVals.length;
+
+                    let dailyRate = 0;
+                    if (algo === 'simple_avg') {
+                        dailyRate = totalOut / Math.max(1, denom);
+                    } else if (algo === 'p70' && activeDays > 0) {
+                        const idx = Math.floor(dailyVals.length * 0.7);
+                        dailyRate = dailyVals[idx];
+                    }
+
+                    const dos = dailyRate > 0.001 ? inv / dailyRate : 999;
+                    const targetQty = dailyRate * targetDays;
+                    const refill = Math.max(0, targetQty - inv);
+                    
+                    let status = 'OK';
+                    if (activeDays < 3) status = 'Low Data';
+                    else if (dos < targetDays) status = 'Risk';
+
+                    results.push({
+                        sku: row[this.mapping.sku],
+                        name: this.mapping.name > -1 ? row[this.mapping.name] : '',
+                        inv, dailyRate, dos, refill, status, activeDays
                     });
                 }
-            }
-        });
 
-        // Sort dates chronologically
-        state.mapping.dateCols.sort((a,b) => a.date.localeCompare(b.date));
+                this.processedData = results;
+                this.updateDashboard();
+                this.toggleLoader(false);
+                document.getElementById('dashboard-content').classList.remove('hidden');
+            },
 
-        populateSelects();
-        recalculate();
-    }
+            // --- Visualization Rendering ---
+            updateDashboard: function() {
+                // 1. KPIs
+                const totalSkus = this.processedData.length;
+                const riskCount = this.processedData.filter(d => d.status === 'Risk').length;
+                const totalRefill = this.processedData.reduce((acc, curr) => acc + curr.refill, 0);
+                const lowConf = this.processedData.filter(d => d.status === 'Low Data').length;
 
-    function populateSelects() {
-        const skuSel = document.getElementById('sel-col-sku');
-        const invSel = document.getElementById('sel-col-inv');
-        skuSel.innerHTML = invSel.innerHTML = '';
+                document.getElementById('kpi-total-skus').innerText = totalSkus.toLocaleString();
+                document.getElementById('kpi-risk-count').innerText = riskCount.toLocaleString();
+                document.getElementById('kpi-refill-qty').innerText = Math.ceil(totalRefill).toLocaleString();
+                document.getElementById('kpi-low-conf').innerText = lowConf.toLocaleString();
 
-        state.rawData[state.mainHeaderRow].forEach((h, i) => {
-            const opt = new Option(`${i+1}: ${h}`, i);
-            skuSel.add(opt.cloneNode(true));
-            invSel.add(opt);
-        });
+                // 2. Charts
+                this.renderCharts(riskCount, lowConf, totalSkus);
+                
+                // 3. Table
+                this.sortTable(this.sort.col, true); // Re-sort preserves order
+            },
 
-        skuSel.value = state.mapping.sku;
-        invSel.value = state.mapping.inv;
-    }
+            renderCharts: function(risk, lowConf, total) {
+                const healthy = total - risk - lowConf;
 
-    /** CALCULATION */
-    function recalculate() {
-        if (!state.mapping.dateCols.length) return;
+                // Chart 1: Health (Doughnut)
+                const ctxHealth = document.getElementById('chart-health').getContext('2d');
+                if (this.charts.health) this.charts.health.destroy();
 
-        const skuIdx = parseInt(document.getElementById('sel-col-sku').value);
-        const invIdx = parseInt(document.getElementById('sel-col-inv').value);
-        const windowDays = document.getElementById('sel-window').value;
-        const algo = document.getElementById('sel-algo').value;
-        const targetDays = parseInt(document.getElementById('inp-target-days').value) || 60;
+                this.charts.health = new Chart(ctxHealth, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Healthy Stock', 'Refill Risk', 'Low Data'],
+                        datasets: [{
+                            data: [healthy, risk, lowConf],
+                            backgroundColor: ['#22c55e', '#ef4444', '#f59e0b'],
+                            borderWidth: 0,
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom', labels: { usePointStyle: true, font: {family: "'Inter', sans-serif"} } }
+                        },
+                        cutout: '70%'
+                    }
+                });
 
-        // Date Filter
-        let activeDateCols = state.mapping.dateCols;
-        let denomDays = activeDateCols.length; // Default to column count approx
+                // Chart 2: Top Refill (Bar)
+                const topRefill = [...this.processedData]
+                    .sort((a,b) => b.refill - a.refill)
+                    .slice(0, 10);
+                
+                const ctxRefill = document.getElementById('chart-refill').getContext('2d');
+                if (this.charts.refill) this.charts.refill.destroy();
 
-        if (windowDays !== 'all') {
-            const days = parseInt(windowDays);
-            const cutoff = new Date();
-            cutoff.setDate(cutoff.getDate() - days);
-            const cutoffStr = cutoff.toISOString().split('T')[0];
-            
-            activeDateCols = activeDateCols.filter(c => c.date >= cutoffStr);
-            denomDays = days; // For Simple Avg, divide by calendar days
-        } else {
-            // For 'All', estimate days between first and last column
-            const start = new Date(activeDateCols[0].date);
-            const end = new Date(activeDateCols[activeDateCols.length-1].date);
-            denomDays = Math.max(1, (end - start) / (1000 * 60 * 60 * 24));
-        }
+                this.charts.refill = new Chart(ctxRefill, {
+                    type: 'bar',
+                    data: {
+                        labels: topRefill.map(d => d.sku),
+                        datasets: [{
+                            label: 'Units Needed',
+                            data: topRefill.map(d => d.refill),
+                            backgroundColor: '#0ea5e9',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y',
+                        scales: {
+                            x: { grid: { display: false } },
+                            y: { grid: { display: false } }
+                        },
+                        plugins: {
+                            legend: { display: false }
+                        }
+                    }
+                });
+            },
 
-        const results = [];
-        // Data starts after the headers (max index + 1)
-        const startRow = Math.max(state.mainHeaderRow, state.dateHeaderRow) + 1;
-
-        for (let i = startRow; i < state.rawData.length; i++) {
-            const row = state.rawData[i];
-            if (!row[skuIdx]) continue; // Skip empty SKUs
-
-            // Parse Inv
-            let inv = parseFloat((row[invIdx]||'0').replace(/,/g,''));
-            if (isNaN(inv)) inv = 0;
-
-            // Sum Outflow
-            let totalOut = 0;
-            let activeDays = 0;
-            let dailyVals = [];
-
-            // Group by Date to handle multiple txns per day
-            let dayMap = {};
-
-            activeDateCols.forEach(col => {
-                let val = parseFloat((row[col.idx]||'0').replace(/,/g,''));
-                if (val < 0) {
-                    const qty = Math.abs(val);
-                    totalOut += qty;
-                    dayMap[col.date] = (dayMap[col.date] || 0) + qty;
+            // --- Table Logic ---
+            sortTable: function(col, keepDir) {
+                if (!keepDir) {
+                    if (this.sort.col === col) this.sort.asc = !this.sort.asc;
+                    else this.sort.asc = true;
+                    this.sort.col = col;
                 }
-            });
 
-            dailyVals = Object.values(dayMap).sort((a,b) => a-b);
-            activeDays = dailyVals.length;
+                const mult = this.sort.asc ? 1 : -1;
+                this.processedData.sort((a, b) => {
+                    let v1 = a[col], v2 = b[col];
+                    if (typeof v1 === 'string') return v1.localeCompare(v2) * mult;
+                    return (v1 - v2) * mult;
+                });
 
-            // Compute Run Rate
-            let dailyRate = 0;
-            if (algo === 'simple_avg') {
-                dailyRate = totalOut / denomDays;
-            } else if (algo === 'p70' && activeDays > 0) {
-                // P70 of active days
-                const idx = Math.floor(dailyVals.length * 0.7);
-                dailyRate = dailyVals[idx];
+                this.renderTable();
+            },
+
+            renderTable: function(searchTerm = '') {
+                const tbody = document.getElementById('table-body');
+                tbody.innerHTML = '';
+                const term = searchTerm.toLowerCase();
+
+                const limit = 500;
+                let count = 0;
+
+                for (const row of this.processedData) {
+                    if (count >= limit) break;
+                    if (term && !row.sku.toLowerCase().includes(term) && !row.name.toLowerCase().includes(term)) continue;
+
+                    count++;
+                    const tr = document.createElement('tr');
+                    
+                    // Styling helpers
+                    let statusBadge = `<span class="px-2 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">OK</span>`;
+                    if (row.status === 'Risk') statusBadge = `<span class="px-2 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800">Risk</span>`;
+                    if (row.status === 'Low Data') statusBadge = `<span class="px-2 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">Low Data</span>`;
+
+                    tr.className = "hover:bg-stone-50 transition-colors";
+                    tr.innerHTML = `
+                        <td class="px-6 py-4 font-medium text-stone-900">${row.sku}</td>
+                        <td class="px-6 py-4 text-stone-500 truncate max-w-xs" title="${row.name}">${row.name}</td>
+                        <td class="px-6 py-4 text-right text-stone-700 font-mono">${Math.round(row.inv).toLocaleString()}</td>
+                        <td class="px-6 py-4 text-right text-stone-700 font-mono">${row.dailyRate.toFixed(1)}</td>
+                        <td class="px-6 py-4 text-right font-mono ${row.dos < document.getElementById('inp-target').value ? 'text-rose-600 font-bold' : 'text-stone-700'}">
+                            ${row.dos > 999 ? '>999' : row.dos.toFixed(1)}
+                        </td>
+                        <td class="px-6 py-4 text-right font-mono ${row.refill > 0 ? 'text-sky-600 font-bold' : 'text-stone-400'}">
+                            ${row.refill > 0 ? Math.ceil(row.refill).toLocaleString() : '-'}
+                        </td>
+                        <td class="px-6 py-4 text-center">${statusBadge}</td>
+                    `;
+                    tbody.appendChild(tr);
+                }
             }
+        };
 
-            // Metrics
-            const dos = dailyRate > 0 ? inv / dailyRate : 9999;
-            const targetQty = dailyRate * targetDays;
-            const refill = Math.max(0, targetQty - inv);
-            const status = activeDays < 3 ? 'Low Conf' : (dos < targetDays ? 'Restock' : 'OK');
-
-            results.push({
-                sku: row[skuIdx],
-                name: state.mapping.name > -1 ? row[state.mapping.name] : '',
-                inv,
-                dailyRate,
-                dos,
-                refill,
-                status,
-                activeDays
-            });
-        }
-
-        state.processed = results;
-        render();
-    }
-
-    /** RENDER */
-    function render() {
-        const tbody = document.querySelector('#results-table tbody');
-        tbody.innerHTML = '';
-        const filter = document.getElementById('inp-search').value.toLowerCase();
-        
-        const list = state.processed.filter(r => 
-            r.sku.toLowerCase().includes(filter) || r.name.toLowerCase().includes(filter)
-        ).slice(0, 500); // Limit 500 for perf
-
-        list.forEach(r => {
-            const tr = document.createElement('tr');
-            
-            let dosClass = 'risk-ok';
-            if (r.dos < document.getElementById('inp-target-days').value) dosClass = 'risk-high';
-            
-            let statusHtml = `<span class="${dosClass}">${r.status}</span>`;
-            if (r.status === 'Low Conf') statusHtml = `<span class="conf-low">Low Data (${r.activeDays}d)</span>`;
-
-            tr.innerHTML = `
-                <td><b>${r.sku}</b></td>
-                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">${r.name}</td>
-                <td align="right">${r.inv.toLocaleString()}</td>
-                <td align="right">${r.dailyRate.toFixed(1)}</td>
-                <td align="right" class="${dosClass}">${r.dos > 999 ? '>999' : r.dos.toFixed(1)}</td>
-                <td align="right" class="${r.refill>0 ? 'refill-alert':''}">${r.refill>0 ? Math.ceil(r.refill).toLocaleString() : '-'}</td>
-                <td>${statusHtml}</td>
-            `;
-            tbody.appendChild(tr);
-        });
-    }
-
-    function sortTable(col, numeric=false) {
-        // Basic sort implementation
-        const key = ['sku','name','inv','dailyRate','dos','refill','status'][col];
-        state.processed.sort((a,b) => {
-            let v1 = a[key], v2 = b[key];
-            if(numeric) return v2 - v1; // Descending for numbers
-            return v1.localeCompare(v2);
-        });
-        render();
-    }
-
-    function filterTable() { render(); }
-
-    function exportCSV() {
-        if (!state.processed.length) return;
-        let csv = "SKU,Name,Inventory,Daily_Rate,DOS,Refill_Qty\n";
-        state.processed.forEach(r => {
-            csv += `"${r.sku}","${r.name}",${r.inv},${r.dailyRate.toFixed(2)},${r.dos.toFixed(1)},${Math.ceil(r.refill)}\n`;
-        });
-        const url = URL.createObjectURL(new Blob([csv], {type: 'text/csv'}));
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'inventory_analysis.csv';
-        a.click();
-    }
-
-    // Load saved ID
-    const savedId = localStorage.getItem('g_client_id');
-    if (savedId) document.getElementById('inp-client-id').value = savedId;
-    document.getElementById('inp-client-id').onchange = (e) => localStorage.setItem('g_client_id', e.target.value);
-
-</script>
+        // Initialize App
+        window.addEventListener('load', () => app.init());
+    </script>
 </body>
 </html>
