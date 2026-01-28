@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory Intelligence Dashboard (Monthly View)</title>
+    <title>Inventory Intelligence Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -59,15 +59,20 @@
                     </select>
                 </div>
                 <div class="space-y-1">
+                    <label class="text-xs font-bold text-stone-500 uppercase">Algorithm</label>
+                    <select id="sel-algo" class="block w-48 text-sm border-stone-300 rounded-md bg-stone-50 p-2">
+                        <option value="simple_avg" selected>Average Velocity</option>
+                        <option value="p70">P70 Safety (Conservative)</option>
+                    </select>
+                </div>
+                <div class="space-y-1">
                     <label class="text-xs font-bold text-stone-500 uppercase">Target Stock</label>
                     <div class="flex items-center gap-2">
                         <input type="number" id="inp-target" value="2" class="block w-20 text-sm border-stone-300 rounded-md bg-stone-50 p-2 text-center">
                         <span class="text-sm text-stone-400">Months</span>
                     </div>
                 </div>
-                <div class="space-y-1 flex-grow">
-                    <!-- Spacer -->
-                </div>
+                <div class="flex-grow"></div>
                 <button id="btn-refresh" class="text-stone-500 hover:text-sky-600 text-sm font-bold flex items-center gap-2"><span>&#8635;</span> Refresh</button>
             </div>
 
@@ -107,14 +112,14 @@
             </div>
 
             <!-- Table -->
-            <div class="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
-                <div class="p-4 border-b border-stone-200 bg-stone-50 flex justify-between items-center gap-4">
+            <div class="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden flex flex-col h-[600px]">
+                <div class="p-4 border-b border-stone-200 bg-stone-50 flex justify-between items-center gap-4 shrink-0">
                     <h3 class="text-sm font-bold text-stone-800">Detail View</h3>
                     <input type="text" id="inp-search" placeholder="Search..." class="pl-4 pr-4 py-2 text-sm border border-stone-300 rounded-lg w-64 focus:ring-sky-500">
                 </div>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-stone-200">
-                        <thead class="bg-stone-100">
+                <div class="overflow-auto flex-grow">
+                    <table class="min-w-full divide-y divide-stone-200 relative">
+                        <thead class="bg-stone-100 sticky top-0 z-10 shadow-sm">
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-bold text-stone-500 uppercase cursor-pointer" onclick="app.sortTable('sku')">SKU</th>
                                 <th class="px-6 py-3 text-left text-xs font-bold text-stone-500 uppercase cursor-pointer" onclick="app.sortTable('name')">Product</th>
@@ -133,59 +138,71 @@
     </main>
 
     <!-- Settings Modal -->
-    <div id="settings-modal" class="modal opacity-0 pointer-events-none fixed inset-0 flex items-center justify-center z-50">
+    <div id="settings-modal" class="modal fixed inset-0 z-50 flex items-center justify-center opacity-0 pointer-events-none">
         <div class="absolute inset-0 bg-stone-900 opacity-50 modal-overlay"></div>
-        <div class="bg-white w-11/12 max-w-md mx-auto rounded-xl shadow-lg z-50 p-6">
-            <h2 class="text-lg font-bold text-stone-800 mb-4">Settings</h2>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-stone-500 uppercase mb-1">Sheet ID</label>
-                    <input id="conf-sheet-id" class="w-full p-2 text-sm border rounded">
+        <div class="bg-white w-11/12 max-w-lg rounded-xl shadow-2xl z-10 mx-4 flex flex-col max-h-[90vh]">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center">
+                <h2 class="text-lg font-bold text-stone-800">Source Configuration</h2>
+                <button onclick="app.toggleSettings(false)" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-5 overflow-y-auto">
+                <div class="bg-blue-50 text-blue-800 p-4 rounded-lg text-xs leading-relaxed">
+                    <strong>Note:</strong> Google Sheet must be shared as <u>"Anyone with the link can view"</u>.
                 </div>
-                <div>
-                    <label class="block text-xs font-bold text-stone-500 uppercase mb-1">Tab Name</label>
-                    <input id="conf-tab-name" class="w-full p-2 text-sm border rounded">
+                
+                <div class="grid grid-cols-1 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1.5">Spreadsheet ID</label>
+                        <input id="conf-id" class="w-full p-2.5 text-sm border-slate-300 rounded-lg focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1.5">Tab Name</label>
+                        <input id="conf-tab" class="w-full p-2.5 text-sm border-slate-300 rounded-lg focus:ring-blue-500">
+                    </div>
                 </div>
-                <div class="pt-4 border-t border-stone-100">
-                    <p class="text-sm font-bold text-stone-700 mb-2">Advanced Mapping</p>
-                    <div class="grid grid-cols-2 gap-3">
+
+                <div class="pt-4 border-t border-slate-100">
+                    <p class="text-sm font-bold text-slate-800 mb-3">Manual Mapping (Optional)</p>
+                    <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-[10px] font-bold text-stone-500 uppercase mb-1">Header Row #</label>
-                            <input id="conf-row-header" placeholder="Auto (2)" type="number" class="w-full p-2 text-xs border rounded">
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Header Row #</label>
+                            <input id="conf-row" type="number" placeholder="Auto (2)" class="w-full p-2 text-xs border-slate-300 rounded focus:ring-blue-500">
                         </div>
                         <div>
-                            <label class="block text-[10px] font-bold text-stone-500 uppercase mb-1">Inventory Col</label>
-                            <input id="conf-col-inv" placeholder="Auto (J)" class="w-full p-2 text-xs border rounded uppercase">
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Inventory Col</label>
+                            <input id="conf-inv" placeholder="Auto (J)" class="w-full p-2 text-xs border-slate-300 rounded uppercase focus:ring-blue-500">
                         </div>
                         <div>
-                            <label class="block text-[10px] font-bold text-stone-500 uppercase mb-1">SKU Col</label>
-                            <input id="conf-col-sku" placeholder="Auto (A)" class="w-full p-2 text-xs border rounded uppercase">
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">SKU Col</label>
+                            <input id="conf-sku" placeholder="Auto (A)" class="w-full p-2 text-xs border-slate-300 rounded uppercase focus:ring-blue-500">
                         </div>
                         <div>
-                            <label class="block text-[10px] font-bold text-stone-500 uppercase mb-1">Name Col</label>
-                            <input id="conf-col-name" placeholder="Auto (B)" class="w-full p-2 text-xs border rounded uppercase">
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Name Col</label>
+                            <input id="conf-name" placeholder="Auto (B)" class="w-full p-2 text-xs border-slate-300 rounded uppercase focus:ring-blue-500">
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="flex justify-end mt-6">
-                <button onclick="app.saveSettings()" class="bg-sky-600 text-white font-bold py-2 px-4 rounded text-sm hover:bg-sky-700">Save</button>
+            <div class="p-5 border-t border-slate-100 flex justify-end bg-slate-50 rounded-b-xl">
+                <button onclick="app.saveSettings()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg text-sm hover:bg-blue-700 shadow-md transition-all transform active:scale-95">Save & Reload</button>
             </div>
         </div>
     </div>
 
     <!-- Loading Overlay -->
-    <div id="loading-overlay" class="fixed inset-0 bg-white/90 z-50 flex flex-col items-center justify-center backdrop-blur-sm">
+    <div id="loader" class="fixed inset-0 bg-white/90 z-50 flex flex-col items-center justify-center backdrop-blur-sm transition-opacity duration-300">
         <div class="loader"></div>
-        <p class="mt-4 text-stone-600 font-medium">Loading Data...</p>
+        <p class="mt-4 text-slate-500 text-sm font-medium animate-pulse">Analyzing Data...</p>
     </div>
 
     <script>
         // CONFIG
         const DEFAULT_CONFIG = {
-            SHEET_ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI',
-            TAB_NAME: 'inventory_tracking',
-            HEADER_ROW: '', COL_SKU: '', COL_NAME: '', COL_INV: ''
+            ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI',
+            TAB: 'inventory_tracking',
+            ROW: '', SKU: '', NAME: '', INV: ''
         };
 
         // JSONP Callback
@@ -220,280 +237,237 @@
         }
 
         const app = {
-            config: {}, rawData: [], processedData: [], charts: {}, sort: { col: 'refill', asc: false },
+            config: {}, rawData: [], processedData: [], charts: {}, sortCol: 'refill', sortAsc: false, map: {},
 
-            init: function() {
-                this.loadConfig();
-                this.setupListeners();
+            init() {
+                this.config = safeStorage.getItem('pm_inv_config_v6') ? JSON.parse(safeStorage.getItem('pm_inv_config_v6')) : DEFAULT_CONFIG;
+                this.bindEvents();
                 this.fetchData();
             },
 
-            loadConfig: function() {
-                const stored = safeStorage.getItem('inventory_config_v5');
-                this.config = stored ? JSON.parse(stored) : { ...DEFAULT_CONFIG };
-                document.getElementById('conf-sheet-id').value = this.config.SHEET_ID;
-                document.getElementById('conf-tab-name').value = this.config.TAB_NAME;
-                document.getElementById('conf-row-header').value = this.config.HEADER_ROW || '';
-                document.getElementById('conf-col-sku').value = this.config.COL_SKU || '';
-                document.getElementById('conf-col-name').value = this.config.COL_NAME || '';
-                document.getElementById('conf-col-inv').value = this.config.COL_INV || '';
-            },
-
-            saveSettings: function() {
-                this.config.SHEET_ID = document.getElementById('conf-sheet-id').value.trim();
-                this.config.TAB_NAME = document.getElementById('conf-tab-name').value.trim();
-                this.config.HEADER_ROW = document.getElementById('conf-row-header').value.trim();
-                this.config.COL_SKU = document.getElementById('conf-col-sku').value.trim();
-                this.config.COL_NAME = document.getElementById('conf-col-name').value.trim();
-                this.config.COL_INV = document.getElementById('conf-col-inv').value.trim();
-                safeStorage.setItem('inventory_config_v5', JSON.stringify(this.config));
-                this.toggleSettings(false);
-                this.fetchData();
-            },
-
-            toggleSettings: function(show) {
-                const modal = document.getElementById('settings-modal');
-                const body = document.querySelector('body');
-                if (show) { modal.classList.remove('opacity-0', 'pointer-events-none'); body.classList.add('modal-active'); }
-                else { modal.classList.add('opacity-0', 'pointer-events-none'); body.classList.remove('modal-active'); }
-            },
-
-            setupListeners: function() {
+            bindEvents() {
                 document.getElementById('btn-refresh').addEventListener('click', () => this.fetchData());
                 document.getElementById('btn-settings').addEventListener('click', () => this.toggleSettings(true));
                 document.querySelector('.modal-overlay').addEventListener('click', () => this.toggleSettings(false));
-                ['sel-window', 'inp-target'].forEach(id => {
+                document.getElementById('inp-search').addEventListener('keyup', e => this.renderTable(e.target.value));
+                ['sel-window', 'sel-algo', 'inp-target'].forEach(id => {
                     document.getElementById(id).addEventListener('change', () => this.recalculate());
                 });
-                document.getElementById('inp-search').addEventListener('keyup', (e) => this.renderTable(e.target.value));
             },
 
-            fetchData: function() {
-                this.showError(false);
+            // 1. Data Fetching (JSONP Pattern)
+            fetchData() {
                 this.toggleLoader(true);
+                document.getElementById('error-banner').classList.add('hidden');
+                
+                const url = `https://docs.google.com/spreadsheets/d/${this.config.ID}/gviz/tq?sheet=${this.config.TAB}&headers=0&tqx=responseHandler:googleSheetCallback`;
                 const script = document.createElement('script');
-                const url = `https://docs.google.com/spreadsheets/d/${this.config.SHEET_ID}/gviz/tq?sheet=${this.config.TAB_NAME}&headers=0&tqx=responseHandler:googleSheetCallback`;
                 script.src = url;
-                script.onerror = () => {
-                    this.toggleLoader(false);
-                    this.showError(true, "Network Error. Check internet.");
-                };
+                script.onerror = () => this.handleError("Network Error. Check internet connection.");
                 document.body.appendChild(script);
             },
 
-            loadMockData: function() {
-                this.showError(false);
-                this.toggleLoader(true);
-                setTimeout(() => {
-                    const demoHeader = ['unique_key', 'product_name', '即時庫存數量', ...Array.from({length:15}, (_,i) => {
-                        const d = new Date(); d.setDate(d.getDate()-i);
-                        return `${d.getFullYear().toString().substr(2)}.${(d.getMonth()+1).toString().padStart(2,'0')}${d.getDate().toString().padStart(2,'0')}.1200`;
-                    })];
-                    this.rawData = [['junk'], demoHeader]; 
-                    for(let i=1; i<=20; i++) {
-                        const row = [`SKU-${i}`, `Demo Product ${i}`, Math.floor(Math.random()*500).toString(), ...Array(15).fill(0).map(()=> (Math.random()>0.7 ? -Math.floor(Math.random()*20) : 0).toString())];
-                        this.rawData.push(row);
-                    }
-                    this.parseStructure();
-                }, 500);
+            handleError(msg) {
+                this.toggleLoader(false);
+                document.getElementById('error-message').innerText = msg;
+                document.getElementById('error-banner').classList.remove('hidden');
             },
 
-            showError: function(show, msg) {
-                const banner = document.getElementById('error-banner');
-                if(show) { document.getElementById('error-message').innerText = msg || "Error"; banner.classList.remove('hidden'); }
-                else { banner.classList.add('hidden'); }
-            },
-
-            toggleLoader: function(show) {
-                const el = document.getElementById('loading-overlay');
-                if(show) el.classList.remove('hidden'); else el.classList.add('hidden');
-            },
-
-            parseStructure: function() {
+            // 3. Intelligent Parsing
+            parseStructure() {
                 const rows = this.rawData;
-                let mainRowIdx = -1;
-                
-                if (this.config.HEADER_ROW && !isNaN(this.config.HEADER_ROW)) {
-                    mainRowIdx = parseInt(this.config.HEADER_ROW) - 1;
+                let hRow = -1;
+
+                // A. Find Header Row
+                if (this.config.ROW && !isNaN(this.config.ROW)) {
+                    hRow = parseInt(this.config.ROW) - 1;
                 } else {
-                    for (let i = 0; i < Math.min(rows.length, 10); i++) {
-                        const rowStr = rows[i].join('|').toLowerCase();
-                        if (rowStr.includes('unique_key')) { mainRowIdx = i; break; }
+                    // Auto-scan first 15 rows for 'unique_key'
+                    for(let i=0; i<Math.min(rows.length, 15); i++) {
+                        if(rows[i].join('|').toLowerCase().includes('unique_key')) { hRow = i; break; }
                     }
                 }
 
-                if (mainRowIdx === -1 || !rows[mainRowIdx]) {
-                    this.toggleLoader(false);
-                    this.showError(true, "Header not found. Please set 'Header Row #' in Settings.");
-                    return;
-                }
+                if (hRow === -1 || !rows[hRow]) return this.handleError("Header 'unique_key' not found. Check Tab Name or set Header Row manually.");
 
-                const header = rows[mainRowIdx].map(c => c.toLowerCase().trim());
-                const mapping = { sku: -1, name: -1, inv: -1 };
+                // B. Map Columns
+                const header = rows[hRow].map(c => c.toLowerCase().trim());
+                const map = { sku: -1, name: -1, inv: -1, dates: [] };
 
-                if (this.config.COL_SKU) mapping.sku = letterToIndex(this.config.COL_SKU);
-                else mapping.sku = header.indexOf('unique_key');
-
-                if (this.config.COL_NAME) mapping.name = letterToIndex(this.config.COL_NAME);
-                else mapping.name = header.findIndex(c => c.includes('product_name') || c.includes('品名'));
-
-                if (this.config.COL_INV) mapping.inv = letterToIndex(this.config.COL_INV);
-                else mapping.inv = header.findIndex(c => c.includes('庫存') || c.includes('stock') || c.includes('即時') || c === 'inventory');
-
-                if (mapping.inv === -1 && header.length > 9 && !this.config.COL_INV) mapping.inv = 9;
-
-                let dateCols = [];
-                const dateRegex = /\d{2}\.\d{4}\.\d{4}/; 
+                map.sku = this.config.SKU ? letterToIndex(this.config.SKU) : header.indexOf('unique_key');
+                map.name = this.config.NAME ? letterToIndex(this.config.NAME) : header.findIndex(c => c.includes('product_name') || c.includes('品名'));
                 
-                header.forEach((val, idx) => {
-                    if (dateRegex.test(val)) {
-                        const match = val.match(/(\d{2})\.(\d{4})/);
-                        if (match) {
-                            const y = '20' + match[1];
-                            const m = match[2].substring(0, 2);
-                            const d = match[2].substring(2, 4);
-                            dateCols.push({ idx, date: `${y}-${m}-${d}` });
-                        }
+                // Fuzzy Inventory Match
+                if(this.config.INV) map.inv = letterToIndex(this.config.INV);
+                else map.inv = header.findIndex(c => c.includes('庫存') || c.includes('stock') || c.includes('即時') || c === 'inventory');
+                // Fallback for column J (index 9)
+                if (map.inv === -1 && header.length > 9) map.inv = 9;
+
+                // C. Find Date Columns (Regex: YY.MMDD.HHMM)
+                const dateRegex = /\d{2}\.\d{4}\.\d{4}/;
+                header.forEach((txt, idx) => {
+                    if (dateRegex.test(txt)) {
+                        const m = txt.match(/(\d{2})\.(\d{4})/);
+                        if (m) map.dates.push({ idx, date: `20${m[1]}-${m[2].substr(0,2)}-${m[2].substr(2,2)}` });
                     }
                 });
+                map.dates.sort((a,b) => a.date.localeCompare(b.date));
 
-                if (mapping.sku === -1) {
-                    this.toggleLoader(false);
-                    this.showError(true, `Found header at row ${mainRowIdx+1} but missing SKU column. Try manual mapping.`);
-                    return;
-                }
+                if (map.sku === -1 || map.dates.length === 0) return this.handleError(`Mapping Failed (Row ${hRow+1}). SKU:${map.sku}, Dates:${map.dates.length}`);
 
-                this.mainRowIdx = mainRowIdx;
-                this.mapping = { ...mapping, dateCols: dateCols.sort((a,b) => a.date.localeCompare(b.date)) };
+                this.map = map;
+                this.hRow = hRow;
                 this.recalculate();
             },
 
-            recalculate: function() {
-                const windowDays = document.getElementById('sel-window').value;
+            // 4. Calculation Engine
+            recalculate() {
+                const win = document.getElementById('sel-window').value;
+                const algo = document.getElementById('sel-algo').value;
                 const targetMonths = parseFloat(document.getElementById('inp-target').value) || 2;
 
-                let activeCols = this.mapping.dateCols;
-                let denom = activeCols.length;
+                // Date Filtering
+                let activeDates = this.map.dates;
+                let denom = activeDates.length;
 
-                if (windowDays !== 'all') {
-                    const days = parseInt(windowDays);
+                if (win !== 'all') {
+                    const days = parseInt(win);
                     const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
-                    const cutoffStr = cutoff.toISOString().split('T')[0];
-                    activeCols = activeCols.filter(c => c.date >= cutoffStr);
-                    denom = days;
+                    const iso = cutoff.toISOString().split('T')[0];
+                    activeDates = activeDates.filter(d => d.date >= iso);
+                    denom = days; // Fixed window size for denominator (Calendar Days)
                 } else {
-                    if(activeCols.length > 1) {
-                        const start = new Date(activeCols[0].date);
-                        const end = new Date(activeCols[activeCols.length-1].date);
-                        denom = Math.max(1, (end - start) / (1000 * 60 * 60 * 24));
+                    // All History: Denom = Calendar Days between First and Last Column found
+                    if(activeDates.length > 1) {
+                        const start = new Date(activeDates[0].date);
+                        const end = new Date(activeDates[activeDates.length-1].date);
+                        denom = Math.max(1, (end - start) / (1000 * 60 * 60 * 24) + 1); // +1 inclusive
                     }
                 }
 
-                const results = [];
-                const startRow = this.mainRowIdx + 1; 
+                // Process Rows
+                const result = [];
+                // CRITICAL: Data starts 2 rows after header (Row 2 Header -> Skip Row 3 -> Data Row 4)
+                const startRow = this.hRow + 2; 
 
-                for (let i = startRow; i < this.rawData.length; i++) {
+                for(let i = startRow; i < this.rawData.length; i++) {
                     const row = this.rawData[i];
-                    if (!row || !row[this.mapping.sku]) continue;
+                    if(!row || !row[this.map.sku]) continue;
 
-                    let invStr = String(row[this.mapping.inv] || '0').replace(/,/g, '').trim();
-                    let inv = parseFloat(invStr);
-                    if (isNaN(inv)) inv = 0;
-
+                    // Clean inventory number
+                    const inv = parseFloat(String(row[this.map.inv]||'0').replace(/,/g,'')) || 0;
+                    
                     let totalOut = 0;
                     let dayVals = [];
 
-                    activeCols.forEach(col => {
-                        let valStr = String(row[col.idx] || '0').replace(/,/g, '').trim();
-                        let val = parseFloat(valStr);
-                        if (val < 0) {
+                    activeDates.forEach(d => {
+                        const val = parseFloat(String(row[d.idx]||'0').replace(/,/g,'')) || 0;
+                        if(val < 0) { // Only negative implies sales/outflow
                             const qty = Math.abs(val);
                             totalOut += qty;
                             dayVals.push(qty);
                         }
                     });
 
-                    // Monthly Calculation
-                    let dailyRate = totalOut / Math.max(1, denom);
-                    let monthlyRate = dailyRate * 30; // 30-day standard month
+                    // Algorithm
+                    let dailyRate = 0;
+                    if(algo === 'simple_avg') {
+                        // Formula: Total Outflow / Calendar Days
+                        dailyRate = totalOut / Math.max(1, denom);
+                    } else if (algo === 'p70') {
+                        if(dayVals.length > 0) {
+                            dayVals.sort((a,b)=>a-b);
+                            dailyRate = dayVals[Math.floor(dayVals.length * 0.7)];
+                        }
+                    }
 
-                    const mos = monthlyRate > 0.01 ? inv / monthlyRate : 999;
+                    // Convert to Monthly (Conservative Round Up)
+                    const monthlyRate = Math.ceil(dailyRate * 30);
+
+                    const mos = monthlyRate > 0 ? inv / monthlyRate : 999;
                     const refill = Math.max(0, (monthlyRate * targetMonths) - inv);
                     
                     let status = 'OK';
-                    if (dayVals.length < 3 && windowDays !== '14') status = 'Low Data';
-                    else if (mos < targetMonths) status = 'Risk';
+                    if(dayVals.length < 3 && win !== '14') status = 'Low Data'; 
+                    else if(mos < targetMonths) status = 'Risk';
 
-                    results.push({
-                        sku: row[this.mapping.sku],
-                        name: this.mapping.name > -1 ? row[this.mapping.name] : '',
+                    result.push({
+                        sku: row[this.map.sku],
+                        name: this.map.name > -1 ? row[this.map.name] : '',
                         inv, monthlyRate, mos, refill, status
                     });
                 }
 
-                this.processedData = results;
-                this.updateDashboard();
+                this.processedData = result;
+                this.updateUI();
                 this.toggleLoader(false);
                 document.getElementById('dashboard-content').classList.remove('hidden');
                 document.getElementById('connection-status').classList.remove('hidden');
             },
 
-            updateDashboard: function() {
-                const totalSkus = this.processedData.length;
-                const riskCount = this.processedData.filter(d => d.status === 'Risk').length;
-                const totalRefill = this.processedData.reduce((acc, curr) => acc + curr.refill, 0);
-                const lowConf = this.processedData.filter(d => d.status === 'Low Data').length;
+            // 5. UI Updates
+            updateUI() {
+                const total = this.processedData.length;
+                const risk = this.processedData.filter(x => x.status === 'Risk').length;
+                const low = this.processedData.filter(x => x.status === 'Low Data').length;
+                const units = this.processedData.reduce((a,b) => a + b.refill, 0);
 
-                document.getElementById('kpi-total-skus').innerText = totalSkus.toLocaleString();
-                document.getElementById('kpi-risk-count').innerText = riskCount.toLocaleString();
-                document.getElementById('kpi-refill-qty').innerText = Math.ceil(totalRefill).toLocaleString();
-                document.getElementById('kpi-low-conf').innerText = lowConf.toLocaleString();
+                const kpi = (id, val) => document.getElementById(id).innerText = Math.ceil(val).toLocaleString();
+                kpi('kpi-total-skus', total);
+                kpi('kpi-risk-count', risk);
+                kpi('kpi-refill-qty', units);
+                kpi('kpi-low-conf', low);
 
-                this.renderCharts(riskCount, lowConf, totalSkus);
-                this.sortTable(this.sort.col, true); 
+                this.drawChart('chart-health', 'doughnut', ['Healthy', 'Risk', 'Low Data'], [total-risk-low, risk, low], ['#10b981', '#f43f5e', '#f59e0b']);
+                
+                const top = [...this.processedData].sort((a,b)=>b.refill-a.refill).slice(0, 10);
+                this.drawChart('chart-refill', 'bar', top.map(x=>x.sku), top.map(x=>x.refill), '#3b82f6', true);
+
+                this.sort(this.sortCol, true);
             },
 
-            renderCharts: function(risk, lowConf, total) {
-                const healthy = total - risk - lowConf;
-                const ctxHealth = document.getElementById('chart-health').getContext('2d');
-                if (this.charts.health) this.charts.health.destroy();
-                this.charts.health = new Chart(ctxHealth, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Healthy', 'Risk (< Target)', 'Low Data'],
-                        datasets: [{ data: [healthy, risk, lowConf], backgroundColor: ['#10b981', '#ef4444', '#f59e0b'], borderWidth: 0 }]
+            drawChart(id, type, labels, data, colors, indexAxis=false) {
+                const ctx = document.getElementById(id).getContext('2d');
+                if(this.charts[id]) this.charts[id].destroy();
+                this.charts[id] = new Chart(ctx, {
+                    type,
+                    data: { 
+                        labels, 
+                        datasets: [{ 
+                            label: 'Data', 
+                            data, 
+                            backgroundColor: colors, 
+                            borderWidth: 0,
+                            borderRadius: type === 'bar' ? 4 : 0
+                        }] 
                     },
-                    options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom' } } }
-                });
-
-                const topRefill = [...this.processedData].sort((a,b) => b.refill - a.refill).slice(0, 10);
-                const ctxRefill = document.getElementById('chart-refill').getContext('2d');
-                if (this.charts.refill) this.charts.refill.destroy();
-                this.charts.refill = new Chart(ctxRefill, {
-                    type: 'bar',
-                    data: {
-                        labels: topRefill.map(d => d.sku),
-                        datasets: [{ label: 'Units', data: topRefill.map(d => d.refill), backgroundColor: '#0ea5e9', borderRadius: 4 }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { grid: { display: false } } } }
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: indexAxis ? 'y' : 'x',
+                        plugins: { legend: { display: type === 'doughnut', position: 'bottom' } },
+                        cutout: '75%',
+                        scales: { x: { display: false }, y: { display: false } }
+                    }
                 });
             },
 
-            sortTable: function(col, keepDir) {
-                if (!keepDir) { this.sort.asc = this.sort.col === col ? !this.sort.asc : true; this.sort.col = col; }
-                const mult = this.sort.asc ? 1 : -1;
+            // 6. Table Sort & Render
+            sort(col, keepDir) {
+                if (!keepDir) { this.sortAsc = this.sortCol === col ? !this.sortAsc : true; this.sortCol = col; }
+                const m = this.sortAsc ? 1 : -1;
                 this.processedData.sort((a, b) => {
                     let v1 = a[col], v2 = b[col];
-                    if (typeof v1 === 'string') return v1.localeCompare(v2) * mult;
-                    return (v1 - v2) * mult;
+                    if (typeof v1 === 'string') return v1.localeCompare(v2) * m;
+                    return (v1 - v2) * m;
                 });
                 this.renderTable();
             },
 
-            renderTable: function(searchTerm = '') {
+            renderTable(filter = '') {
                 const tbody = document.getElementById('table-body');
                 tbody.innerHTML = '';
-                const term = searchTerm.toLowerCase();
+                const term = filter.toLowerCase();
                 let count = 0;
 
                 for (const row of this.processedData) {
@@ -502,18 +476,79 @@
                     count++;
                     const tr = document.createElement('tr');
                     let statusClass = row.status === 'Risk' ? 'bg-rose-100 text-rose-800' : (row.status === 'Low Data' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800');
-                    tr.className = "hover:bg-stone-50 transition-colors";
+                    tr.className = "hover:bg-stone-50 border-b border-stone-100 transition-colors";
                     tr.innerHTML = `
                         <td class="px-6 py-4 font-medium text-stone-900">${row.sku}</td>
                         <td class="px-6 py-4 text-stone-500 truncate max-w-xs" title="${row.name}">${row.name}</td>
-                        <td class="px-6 py-4 text-right font-mono">${Math.round(row.inv).toLocaleString()}</td>
-                        <td class="px-6 py-4 text-right font-mono">${Math.round(row.monthlyRate).toLocaleString()}</td>
-                        <td class="px-6 py-4 text-right font-mono ${row.status === 'Risk' ? 'text-rose-600 font-bold' : ''}">${row.mos > 999 ? '>999' : row.mos.toFixed(1)}</td>
-                        <td class="px-6 py-4 text-right font-mono ${row.refill > 0 ? 'text-sky-600 font-bold' : 'text-stone-400'}">${row.refill > 0 ? Math.ceil(row.refill).toLocaleString() : '-'}</td>
-                        <td class="px-6 py-4 text-center"><span class="px-2 py-1 rounded-full text-xs font-bold ${statusClass}">${row.status}</span></td>
+                        <td class="px-6 py-4 text-right font-mono text-stone-600">${Math.round(row.inv).toLocaleString()}</td>
+                        <td class="px-6 py-4 text-right font-mono text-stone-600">${Math.round(row.monthlyRate).toLocaleString()}</td>
+                        <td class="px-6 py-4 text-right font-mono ${row.status === 'Risk' ? 'text-rose-600 font-bold' : 'text-slate-600'}">${row.mos > 999 ? '>999' : row.mos.toFixed(1)}</td>
+                        <td class="px-6 py-4 text-right font-mono ${row.refill > 0 ? 'text-blue-600 font-bold' : 'text-slate-400'}">${row.refill > 0 ? Math.ceil(row.refill).toLocaleString() : '-'}</td>
+                        <td class="px-6 py-4 text-center"><span class="px-2.5 py-1 rounded-full text-xs font-bold ${statusClass}">${row.status}</span></td>
                     `;
                     tbody.appendChild(tr);
                 }
+            },
+
+            // 7. Settings Management
+            toggleSettings(show) {
+                const el = document.getElementById('settings-modal');
+                if(show) {
+                    document.getElementById('conf-id').value = this.config.ID;
+                    document.getElementById('conf-tab').value = this.config.TAB;
+                    document.getElementById('conf-row').value = this.config.ROW;
+                    document.getElementById('conf-inv').value = this.config.INV;
+                    document.getElementById('conf-sku').value = this.config.SKU;
+                    document.getElementById('conf-name').value = this.config.NAME;
+                    el.classList.remove('opacity-0', 'pointer-events-none');
+                    document.body.classList.add('modal-active');
+                } else {
+                    el.classList.add('opacity-0', 'pointer-events-none');
+                    document.body.classList.remove('modal-active');
+                }
+            },
+
+            saveSettings() {
+                this.config.ID = document.getElementById('conf-id').value.trim();
+                this.config.TAB = document.getElementById('conf-tab').value.trim();
+                this.config.ROW = document.getElementById('conf-row').value.trim();
+                this.config.INV = document.getElementById('conf-inv').value.trim();
+                this.config.SKU = document.getElementById('conf-sku').value.trim();
+                this.config.NAME = document.getElementById('conf-name').value.trim();
+                safeStorage.setItem('pm_inv_config_v6', JSON.stringify(this.config));
+                this.toggleSettings(false);
+                this.fetchData();
+            },
+
+            toggleLoader(show) {
+                const el = document.getElementById('loader');
+                if(show) el.classList.remove('hidden'); else el.classList.add('hidden');
+            },
+
+            loadMockData() {
+                this.toggleLoader(true);
+                setTimeout(() => {
+                    const head = ['unique_key', 'product_name', '即時庫存數量'];
+                    const dates = [];
+                    for(let i=14; i>=0; i--) {
+                        const d = new Date(); d.setDate(d.getDate()-i);
+                        const str = `${d.getFullYear().toString().substr(2)}.${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.1200`;
+                        head.push(str); dates.push(str);
+                    }
+                    this.rawData = [['junk'], head]; 
+                    for(let i=1; i<=20; i++) {
+                        const inv = Math.floor(Math.random()*200);
+                        const row = [`DEMO-${i}`, `Product ${i}`, String(inv)];
+                        for(let j=0; j<15; j++) row.push(Math.random()>0.7 ? String(-Math.floor(Math.random()*10)) : "0");
+                        this.rawData.push(row);
+                    }
+                    const backup = {...this.config};
+                    this.config.ROW = ''; 
+                    this.parseStructure();
+                    this.config = backup; 
+                    document.getElementById('connection-status').innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span> Demo';
+                    document.getElementById('connection-status').classList.remove('hidden');
+                }, 600);
             }
         };
 
