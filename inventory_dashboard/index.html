@@ -1,112 +1,287 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PM Inventory Dashboard v3.2</title>
-    <!-- React & Tailwind -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Intelligence Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root {
-            --primary: 222.2 47.4% 11.2%;
-            --radius: 0.5rem;
-        }
-        body { background-color: #f8fafc; color: #334155; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
-        
-        /* Desktop Table Styles */
-        .table-container { max-height: 60vh; overflow-y: auto; border-radius: var(--radius); box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1); background: white; border: 1px solid #e2e8f0; }
-        .data-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-        .data-table th { position: sticky; top: 0; z-index: 20; background-color: #f1f5f9; color: #475569; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.75rem 1rem; border-bottom: 2px solid #cbd5e1; user-select: none; }
-        .data-table td { padding: 0.6rem 1rem; border-bottom: 1px solid #f1f5f9; font-size: 0.875rem; vertical-align: middle; }
-        .data-table tr:hover td { background-color: #f8fafc; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-        /* Sort Indicator */
-        .sort-icon { 
-            display: inline-flex; 
-            align-items: center; 
-            justify-content: center;
-            vertical-align: middle; 
-            margin-left: 4px; 
-            width: 12px; 
-            height: 12px; 
-            opacity: 0; 
-            transition: opacity 0.2s ease-in-out; 
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fafaf9; /* stone-50 */
+            color: #44403c; /* stone-700 */
         }
-        .sort-icon.active { opacity: 1; }
-        
-        /* Stats Cards */
-        .stat-card { 
+
+        .chart-container {
             position: relative;
-            border-radius: 0.75rem; 
-            padding: 1rem; 
-            flex: 1; 
-            min-width: 150px; 
-            cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            user-select: none;
-            border: 1px solid transparent;
+            width: 100%;
+            max-width: 100%;
+            height: 300px;
+            max-height: 400px;
+            margin-left: auto;
+            margin-right: auto;
         }
-        .stat-card.unchecked { background: white; border-color: #e2e8f0; color: #64748b; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); }
-        .stat-card.unchecked:hover { border-color: #cbd5e1; transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
-        .stat-card.checked { background-color: #1e293b; color: white; border-color: #0f172a; box-shadow: 0 4px 6px -1px rgb(30 41 59 / 0.3); transform: translateY(-2px); }
-        .stat-card-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem; }
-        .stat-label { font-size: 0.75rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; }
-        .stat-value { font-size: 1.5rem; font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; line-height: 1; }
-        .stat-sub { font-size: 0.75rem; margin-top: 0.25rem; opacity: 0.8; }
 
-        /* Custom Checkbox */
-        .custom-checkbox { width: 1.25rem; height: 1.25rem; border-radius: 0.25rem; border: 2px solid; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-        .unchecked .custom-checkbox { border-color: #cbd5e1; background: transparent; }
-        .checked .custom-checkbox { border-color: white; background: white; color: #1e293b; }
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f5f5f4; }
+        ::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a29e; }
 
-        /* Visual Bar Chart */
-        .bar-container { width: 100%; height: 12px; background-color: #f1f5f9; border-radius: 9999px; overflow: hidden; display: flex; }
-        .bar-segment { height: 100%; transition: width 0.5s ease-out; }
+        /* Loader Animation */
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #0ea5e9;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+        }
 
-        /* Mobile Card Styles */
-        .mobile-card { background: white; border-radius: 0.75rem; padding: 1rem; margin-bottom: 0.75rem; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); border: 1px solid #e2e8f0; position: relative; }
-        .mobile-label { font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 0.1rem; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        /* Status Badges */
-        .status-badge { display: inline-flex; align-items: center; padding: 0.125rem 0.625rem; border-radius: 9999px; font-weight: 600; font-size: 0.75rem; line-height: 1.25rem; }
-        .status-expired { background-color: #fee2e2; color: #991b1b; }
-        .status-warning { background-color: #fef3c7; color: #92400e; }
-        .status-good { background-color: #dcfce7; color: #166534; }
-
-        /* UI Elements */
-        .btn { display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius); font-weight: 500; transition: all 0.2s; padding: 0.5rem 1rem; cursor: pointer; user-select: none; }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-primary { background-color: #0f172a; color: white; }
-        .btn-primary:hover:not(:disabled) { background-color: #1e293b; }
-        .btn-outline { border: 1px solid #cbd5e1; background: white; color: #334155; }
-        .btn-outline:hover:not(:disabled) { background: #f8fafc; border-color: #94a3b8; }
-        .btn-danger-ghost { color: #94a3b8; padding: 0.4rem; border-radius: 0.375rem; }
-        .btn-danger-ghost:hover { color: #ef4444; background-color: #fee2e2; }
-
-        .input-base { width: 100%; border-radius: var(--radius); border: 1px solid #cbd5e1; padding: 0.5rem 0.75rem; font-size: 0.875rem; background-color: white; transition: border-color 0.2s; }
-        .input-base:focus { outline: none; border-color: #64748b; ring: 2px solid #e2e8f0; }
-
-        .animate-spin { animation: spin 1s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        /* Modal Transitions */
+        .modal { transition: opacity 0.25s ease; }
+        body.modal-active { overflow-x: hidden; overflow-y: visible !important; }
     </style>
 </head>
-<body>
-    <div id="root"></div>
+<body class="flex flex-col min-h-screen">
 
-    <script type="text/babel">
-        const { useState, useEffect, useMemo, useCallback } = React;
+    <!-- Header -->
+    <header class="bg-white border-b border-stone-200 sticky top-0 z-20 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="h-8 w-8 bg-sky-500 rounded-lg flex items-center justify-center text-white font-bold text-lg">I</div>
+                <h1 class="text-xl font-bold tracking-tight text-stone-800">Inventory Intelligence</h1>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <div id="connection-status" class="hidden flex items-center gap-2 text-xs font-medium text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    Live Data
+                </div>
+                <!-- Settings Button -->
+                <button id="btn-settings" class="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-full transition-colors" title="Configuration">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
 
-        // --- Utils & Config ---
-        const DEFAULT_SOURCES = [
-            { name: 'TPE', sheetId: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI', sheetName: 'inventory_tracking', headerRow: 4, nameCol: 'D', expiryCol: 'E', qtyCol: 'J' },
-            { name: 'SC', sheetId: '12C25rcfSEMtSkkARzLtxlW9Wmhu64m6eSP_KoK8M-js', sheetName: 'inventory_tracking', headerRow: 4, nameCol: 'D', expiryCol: 'E', qtyCol: 'J' },
-            { name: 'MOMO', sheetId: '1j04xLITImSX6WgtXkaGQfs0IZ5E8r3UEOrT2CKKGAxE', sheetName: 'inventory_tracking', headerRow: 4, nameCol: 'D', expiryCol: 'E', qtyCol: 'J' }
-        ];
+    <!-- Main Content Area -->
+    <main class="flex-grow p-6 max-w-7xl mx-auto w-full space-y-8">
 
-        const parseCSV = (text) => {
+        <!-- Intro -->
+        <section class="space-y-2">
+            <h2 class="text-lg font-semibold text-stone-800">Operational Overview</h2>
+            <p class="text-stone-500 text-sm max-w-3xl leading-relaxed">
+                Real-time run rates based on historical outflow. 
+                <strong class="text-stone-600">Requirement:</strong> The source Google Sheet must be set to "Anyone with the link can view" to load live data.
+            </p>
+        </section>
+
+        <!-- Error / Notification Banner -->
+        <div id="error-banner" class="hidden bg-rose-50 border border-rose-200 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div class="text-sm text-rose-800">
+                <strong class="font-bold">Connection Issue:</strong> <span id="error-message">Unable to fetch data.</span>
+            </div>
+            <button onclick="app.loadMockData()" class="text-xs bg-white border border-rose-200 text-rose-700 hover:bg-rose-100 px-3 py-2 rounded-md font-medium transition-colors whitespace-nowrap shadow-sm">
+                Load Demo Data
+            </button>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="fixed inset-0 bg-white/90 z-50 flex flex-col items-center justify-center backdrop-blur-sm transition-opacity duration-300">
+            <div class="loader w-12 h-12 border-4 border-t-sky-500 border-stone-200"></div>
+            <p class="mt-4 text-stone-600 font-medium animate-pulse">Fetching Public Data...</p>
+        </div>
+
+        <!-- Dashboard Content (Hidden until loaded) -->
+        <div id="dashboard-content" class="hidden space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            
+            <!-- Controls Bar -->
+            <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm flex flex-wrap gap-6 items-end">
+                <div class="space-y-1">
+                    <label class="text-xs font-semibold text-stone-500 uppercase tracking-wider">Analysis Window</label>
+                    <select id="sel-window" class="block w-40 text-sm border-stone-300 rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500 bg-stone-50 p-2">
+                        <option value="14">Last 14 Days</option>
+                        <option value="30" selected>Last 30 Days</option>
+                        <option value="60">Last 60 Days</option>
+                        <option value="all">All History</option>
+                    </select>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-xs font-semibold text-stone-500 uppercase tracking-wider">Algorithm</label>
+                    <select id="sel-algo" class="block w-48 text-sm border-stone-300 rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500 bg-stone-50 p-2">
+                        <option value="simple_avg" selected>Average Velocity</option>
+                        <option value="p70">P70 Safety (Conservative)</option>
+                    </select>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-xs font-semibold text-stone-500 uppercase tracking-wider">Target DOS</label>
+                    <div class="flex items-center gap-2">
+                        <input type="number" id="inp-target" value="60" class="block w-20 text-sm border-stone-300 rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500 bg-stone-50 p-2">
+                        <span class="text-sm text-stone-400">days</span>
+                    </div>
+                </div>
+
+                <div class="flex-grow"></div>
+                
+                <button id="btn-refresh" class="text-stone-500 hover:text-sky-600 text-sm font-medium flex items-center gap-2 transition-colors">
+                    <span>&#8635;</span> Refresh Analysis
+                </button>
+            </div>
+
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm">
+                    <div class="text-xs font-medium text-stone-400 uppercase">Total SKUs</div>
+                    <div id="kpi-total-skus" class="text-2xl font-bold text-stone-800 mt-1">-</div>
+                    <div class="text-xs text-stone-400 mt-1">Active items tracked</div>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm">
+                    <div class="text-xs font-medium text-stone-400 uppercase">Refill Alerts</div>
+                    <div id="kpi-risk-count" class="text-2xl font-bold text-rose-500 mt-1">-</div>
+                    <div class="text-xs text-stone-400 mt-1">Items below target DOS</div>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm">
+                    <div class="text-xs font-medium text-stone-400 uppercase">Total Units Needed</div>
+                    <div id="kpi-refill-qty" class="text-2xl font-bold text-sky-600 mt-1">-</div>
+                    <div class="text-xs text-stone-400 mt-1">To reach target levels</div>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm">
+                    <div class="text-xs font-medium text-stone-400 uppercase">Low Confidence</div>
+                    <div id="kpi-low-conf" class="text-2xl font-bold text-amber-500 mt-1">-</div>
+                    <div class="text-xs text-stone-400 mt-1">&lt; 3 active sales days</div>
+                </div>
+            </div>
+
+            <!-- Visualizations -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
+                    <h3 class="text-sm font-semibold text-stone-800 mb-4">Inventory Health Distribution</h3>
+                    <div class="chart-container">
+                        <canvas id="chart-health"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
+                    <h3 class="text-sm font-semibold text-stone-800 mb-4">Top 10 Refill Priorities (Units)</h3>
+                    <div class="chart-container">
+                        <canvas id="chart-refill"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Granular Data Table -->
+            <div class="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-stone-200 bg-stone-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h3 class="text-sm font-semibold text-stone-800">SKU Analysis Detail</h3>
+                        <p class="text-xs text-stone-500">Row-level calculation data. Click headers to sort.</p>
+                    </div>
+                    <div class="relative">
+                        <input type="text" id="inp-search" placeholder="Search SKU or Name..." class="pl-8 pr-4 py-2 text-sm border border-stone-300 rounded-lg focus:ring-sky-500 focus:border-sky-500 w-full sm:w-64">
+                        <span class="absolute left-3 top-2.5 text-stone-400 text-xs">&#128269;</span>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-stone-200">
+                        <thead class="bg-stone-100">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-stone-500 uppercase tracking-wider cursor-pointer hover:bg-stone-200 transition-colors" onclick="app.sortTable('sku')">SKU</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-stone-500 uppercase tracking-wider cursor-pointer hover:bg-stone-200 transition-colors" onclick="app.sortTable('name')">Product</th>
+                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase tracking-wider cursor-pointer hover:bg-stone-200 transition-colors" onclick="app.sortTable('inv', true)">Stock</th>
+                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase tracking-wider cursor-pointer hover:bg-stone-200 transition-colors" onclick="app.sortTable('dailyRate', true)">Daily Out</th>
+                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase tracking-wider cursor-pointer hover:bg-stone-200 transition-colors" onclick="app.sortTable('dos', true)">DOS</th>
+                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase tracking-wider cursor-pointer hover:bg-stone-200 transition-colors" onclick="app.sortTable('refill', true)">Refill Qty</th>
+                                <th class="px-6 py-3 text-center text-xs font-bold text-stone-500 uppercase tracking-wider cursor-pointer hover:bg-stone-200 transition-colors" onclick="app.sortTable('status')">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body" class="bg-white divide-y divide-stone-200 text-sm text-stone-600">
+                            <!-- Rows rendered by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="p-3 border-t border-stone-200 bg-stone-50 text-xs text-stone-400 text-center">
+                    Showing top 500 results for performance
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <footer class="text-center text-xs text-stone-400 pb-6">
+                Generated by Prophecy Morocco Inventory Tool
+            </footer>
+
+        </div>
+    </main>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal opacity-0 pointer-events-none fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
+        <div class="modal-overlay absolute w-full h-full bg-stone-900 opacity-50"></div>
+        <div class="modal-container bg-white w-11/12 md:max-w-md mx-auto rounded-xl shadow-lg z-50 overflow-y-auto">
+            <div class="modal-content py-4 text-left px-6">
+                <div class="flex justify-between items-center pb-3 border-b border-stone-100">
+                    <p class="text-lg font-bold text-stone-800">Source Configuration</p>
+                    <div class="modal-close cursor-pointer z-50 p-2 hover:bg-stone-100 rounded-full" onclick="app.toggleSettings(false)">
+                        <svg class="fill-current text-stone-500" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><path d="M14.53 4.53l-1.06-1.06L9 7.94 4.53 3.47 3.47 4.53 7.94 9l-4.47 4.47 1.06 1.06L9 10.06l4.47 4.47 1.06-1.06L10.06 9z"></path></svg>
+                    </div>
+                </div>
+                <div class="py-4 space-y-4">
+                    <div class="bg-amber-50 text-amber-800 p-3 rounded-lg text-xs">
+                        <strong>Important:</strong> Your Google Sheet must be shared as <u>"Anyone with the link can view"</u> for this to work without login.
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-stone-600 uppercase mb-1">Spreadsheet ID</label>
+                        <input id="conf-sheet-id" type="text" class="w-full p-2 text-sm border border-stone-300 rounded-md focus:ring-sky-500 focus:border-sky-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-stone-600 uppercase mb-1">Tab Name</label>
+                        <input id="conf-tab-name" type="text" class="w-full p-2 text-sm border border-stone-300 rounded-md focus:ring-sky-500 focus:border-sky-500">
+                    </div>
+                </div>
+                <div class="flex justify-end pt-2">
+                    <button onclick="app.saveSettings()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors">Save & Reload</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * CONFIGURATION
+         */
+        const DEFAULT_CONFIG = {
+            SHEET_ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI',
+            TAB_NAME: 'inventory_tracking'
+        };
+
+        /**
+         * SAFE STORAGE UTILS (Prevents Preview Crashes)
+         */
+        const safeStorage = {
+            getItem: (key) => {
+                try { return localStorage.getItem(key); } catch(e) { return null; }
+            },
+            setItem: (key, val) => {
+                try { localStorage.setItem(key, val); } catch(e) { /* ignore */ }
+            }
+        };
+
+        /**
+         * CSV UTILS
+         */
+        function parseCSV(text) {
             const rows = [];
             let row = [];
             let cell = "";
@@ -123,722 +298,386 @@
             }
             if (cell || row.length) { row.push(cell.trim()); rows.push(row); }
             return rows;
-        };
+        }
 
-        const colToIndex = (col) => {
-            if (!col) return -1;
-            let index = 0;
-            for (let i = 0; i < col.length; i++) index = index * 26 + (col.charCodeAt(i) - 64);
-            return index - 1;
-        };
+        /**
+         * CORE APP LOGIC
+         */
+        const app = {
+            config: {},
+            rawData: [],
+            mapping: { sku: -1, name: -1, inv: -1, dateCols: [] },
+            processedData: [],
+            charts: {},
+            sort: { col: 'refill', asc: false },
 
-        const parseDate = (dateStr) => {
-            if (!dateStr) return null;
-            if (!isNaN(dateStr) && parseFloat(dateStr) > 20000) {
-                return new Date((parseFloat(dateStr) - 25569) * 86400 * 1000);
-            }
-            const d = new Date(dateStr);
-            return isNaN(d.getTime()) ? null : d;
-        };
+            init: function() {
+                this.loadConfig();
+                this.setupListeners();
+                this.fetchData();
+            },
 
-        // --- Components ---
-        const Icon = ({ path, className = "" }) => (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                {path}
-            </svg>
-        );
+            loadConfig: function() {
+                const stored = safeStorage.getItem('inventory_config_v2');
+                this.config = stored ? JSON.parse(stored) : { ...DEFAULT_CONFIG };
+                document.getElementById('conf-sheet-id').value = this.config.SHEET_ID;
+                document.getElementById('conf-tab-name').value = this.config.TAB_NAME;
+            },
 
-        const Checkbox = ({ checked }) => (
-            <div className="custom-checkbox">
-                {checked && <Icon path={<polyline points="20 6 9 17 4 12"></polyline>} className="w-3 h-3 stroke-[4]" />}
-            </div>
-        );
+            saveSettings: function() {
+                this.config.SHEET_ID = document.getElementById('conf-sheet-id').value.trim();
+                this.config.TAB_NAME = document.getElementById('conf-tab-name').value.trim();
+                safeStorage.setItem('inventory_config_v2', JSON.stringify(this.config));
+                this.toggleSettings(false);
+                this.fetchData();
+            },
 
-        const SortIndicator = ({ active, direction }) => {
-            return (
-                <span className={`sort-icon ${active ? 'active' : ''}`}>
-                    {direction === 'desc' ? '↓' : '↑'}
-                </span>
-            );
-        };
-
-        // New Feature: Expiry Distribution Chart
-        const ExpiryDistribution = ({ data }) => {
-            const [expanded, setExpanded] = useState(false);
-
-            const distribution = useMemo(() => {
-                const dist = {
-                    range1: { count: 0, label: '0-90天', color: 'bg-red-500', textColor: 'text-red-600' },
-                    range2: { count: 0, label: '91-180天', color: 'bg-orange-500', textColor: 'text-orange-600' },
-                    range3: { count: 0, label: '181-365天', color: 'bg-yellow-400', textColor: 'text-yellow-600' },
-                    range4: { count: 0, label: '366-548天', color: 'bg-lime-400', textColor: 'text-lime-600' },
-                    range5: { count: 0, label: '549-730天', color: 'bg-green-500', textColor: 'text-green-600' },
-                    range6: { count: 0, label: '>730天', color: 'bg-emerald-600', textColor: 'text-emerald-700' },
-                };
-                
-                data.forEach(item => {
-                    const d = item.dte;
-                    if (d <= 90) dist.range1.count++;
-                    else if (d <= 180) dist.range2.count++;
-                    else if (d <= 365) dist.range3.count++;
-                    else if (d <= 548) dist.range4.count++;
-                    else if (d <= 730) dist.range5.count++;
-                    else dist.range6.count++;
-                });
-                return dist;
-            }, [data]);
-
-            const total = data.length || 1; // avoid division by zero
-
-            return (
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden transition-all duration-300">
-                    <button 
-                        className="w-full flex items-center justify-between p-4 hover:bg-slate-50"
-                        onClick={() => setExpanded(!expanded)}
-                    >
-                        <div className="flex items-center gap-2">
-                            <Icon path={<path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>} className="text-slate-400" />
-                            <span className="font-semibold text-sm text-slate-700">效期分佈分析 (Expiry Distribution)</span>
-                        </div>
-                        <Icon path={<polyline points={expanded ? "18 15 12 9 6 15" : "6 9 12 15 18 9"}></polyline>} className="text-slate-400" />
-                    </button>
-                    
-                    {expanded && (
-                        <div className="p-4 pt-0 border-t border-slate-100 animate-in slide-in-from-top-2">
-                            <div className="bar-container mb-4 mt-4">
-                                {Object.values(distribution).map((group, idx) => (
-                                    <div key={idx} className={`bar-segment ${group.color}`} style={{ width: `${(group.count / total) * 100}%` }} title={`${group.label}: ${group.count}`}></div>
-                                ))}
-                            </div>
-                            <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-                                {Object.values(distribution).map((group, idx) => (
-                                    <div key={idx} className="flex flex-col p-2 rounded hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
-                                        <div className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${group.textColor}`}>{group.label}</div>
-                                        <div className="text-xl font-mono font-bold text-slate-700">{group.count}</div>
-                                        <div className="text-xs text-slate-400 mt-1">{((group.count / total) * 100).toFixed(1)}%</div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            );
-        };
-
-        const SettingsPanel = ({ sources, setSources, onSave, onClose, hiddenCount, onResetHidden }) => {
-            const updateSource = (index, field, value) => {
-                const newSources = [...sources];
-                newSources[index][field] = field.includes('Col') ? value.toUpperCase() : value;
-                setSources(newSources);
-            };
-
-            const addSource = () => {
-                setSources([...sources, { name: 'NEW', sheetId: '', sheetName: '', headerRow: 1, nameCol: 'A', expiryCol: 'B', qtyCol: 'C' }]);
-            };
-
-            const removeSource = (idx) => {
-                if (confirm('確定移除此來源?')) {
-                    setSources(sources.filter((_, i) => i !== idx));
-                }
-            };
-
-            return (
-                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
-                        <div className="flex justify-between items-center p-6 border-b">
-                            <h2 className="text-xl font-bold text-slate-800">設定 (Settings)</h2>
-                            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors">✕</button>
-                        </div>
-                        
-                        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 flex justify-between items-center">
-                                <div>
-                                    <h3 className="font-semibold text-slate-700">隱藏品項管理</h3>
-                                    <p className="text-sm text-slate-500">已隱藏 {hiddenCount} 個品項</p>
-                                </div>
-                                <button 
-                                    onClick={onResetHidden}
-                                    disabled={hiddenCount === 0}
-                                    className="btn btn-outline text-red-600 border-red-200 hover:bg-red-50"
-                                >
-                                    重置隱藏
-                                </button>
-                            </div>
-
-                            <hr className="border-slate-100" />
-
-                            <div className="space-y-4">
-                                <div className="flex justify-between items-center">
-                                    <h3 className="font-semibold text-slate-700">資料來源 (Data Sources)</h3>
-                                    <button onClick={addSource} className="text-sm text-blue-600 hover:underline font-medium">+ 新增來源</button>
-                                </div>
-                                {sources.map((src, idx) => (
-                                    <div key={idx} className="p-4 border rounded-lg bg-white shadow-sm grid grid-cols-1 md:grid-cols-12 gap-3 relative group">
-                                        <button onClick={() => removeSource(idx)} className="absolute top-2 right-2 text-gray-300 hover:text-red-500 p-1">✕</button>
-                                        
-                                        <div className="md:col-span-2">
-                                            <label className="text-[10px] uppercase text-gray-400 font-bold">Name</label>
-                                            <input className="input-base font-bold text-slate-700" value={src.name} onChange={e => updateSource(idx, 'name', e.target.value)} />
-                                        </div>
-                                        <div className="md:col-span-4">
-                                            <label className="text-[10px] uppercase text-gray-400 font-bold">Sheet ID</label>
-                                            <input className="input-base font-mono text-xs" value={src.sheetId} onChange={e => updateSource(idx, 'sheetId', e.target.value)} />
-                                        </div>
-                                        <div className="md:col-span-2">
-                                            <label className="text-[10px] uppercase text-gray-400 font-bold">Tab</label>
-                                            <input className="input-base" value={src.sheetName} onChange={e => updateSource(idx, 'sheetName', e.target.value)} />
-                                        </div>
-                                        <div className="md:col-span-1">
-                                            <label className="text-[10px] uppercase text-gray-400 font-bold">Row</label>
-                                            <input type="number" className="input-base" value={src.headerRow} onChange={e => updateSource(idx, 'headerRow', parseInt(e.target.value))} />
-                                        </div>
-                                        <div className="md:col-span-3 grid grid-cols-3 gap-2">
-                                            <div><label className="text-[10px] uppercase text-gray-400 font-bold">N</label><input className="input-base text-center uppercase" value={src.nameCol} onChange={e => updateSource(idx, 'nameCol', e.target.value)} /></div>
-                                            <div><label className="text-[10px] uppercase text-gray-400 font-bold">E</label><input className="input-base text-center uppercase" value={src.expiryCol} onChange={e => updateSource(idx, 'expiryCol', e.target.value)} /></div>
-                                            <div><label className="text-[10px] uppercase text-gray-400 font-bold">Q</label><input className="input-base text-center uppercase" value={src.qtyCol} onChange={e => updateSource(idx, 'qtyCol', e.target.value)} /></div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="p-6 border-t bg-slate-50 rounded-b-xl flex justify-end gap-3">
-                            <button onClick={onClose} className="btn btn-outline">取消</button>
-                            <button onClick={onSave} className="btn btn-primary shadow-lg shadow-blue-900/20">儲存</button>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        const Dashboard = () => {
-            // -- State --
-            const [sources, setSources] = useState(() => {
-                const saved = localStorage.getItem('pm_dashboard_sources_v2');
-                return saved ? JSON.parse(saved) : DEFAULT_SOURCES;
-            });
-            const [hiddenItems, setHiddenItems] = useState(() => {
-                const saved = localStorage.getItem('pm_dashboard_hidden');
-                return saved ? JSON.parse(saved) : [];
-            });
-
-            const [data, setData] = useState([]);
-            const [loading, setLoading] = useState(false);
-            const [searchTerm, setSearchTerm] = useState('');
-            const [settingsOpen, setSettingsOpen] = useState(false);
-            const [lastUpdate, setLastUpdate] = useState(null);
-
-            // Filters
-            const [activeLocations, setActiveLocations] = useState(['TOTAL']); 
-            const [dteType, setDteType] = useState('ALL'); 
-            const [customDteMin, setCustomDteMin] = useState('');
-            const [customDteMax, setCustomDteMax] = useState('');
-            
-            // Sort
-            const [sortConfig, setSortConfig] = useState({ key: 'dte', direction: 'asc' });
-
-            // -- Logic --
-            const fetchData = useCallback(async () => {
-                setLoading(true);
-                try {
-                    const allDataMap = new Map();
-                    
-                    await Promise.all(sources.map(async (src) => {
-                        if (!src.sheetId) return;
-                        const url = `https://docs.google.com/spreadsheets/d/${src.sheetId}/gviz/tq?sheet=${src.sheetName}&range=A${src.headerRow}:Z&tqx=out:csv`;
-                        
-                        try {
-                            const res = await fetch(url);
-                            if (!res.ok) throw new Error('Network err');
-                            const csv = await res.text();
-                            const rows = parseCSV(csv);
-                            
-                            const nIdx = colToIndex(src.nameCol);
-                            const eIdx = colToIndex(src.expiryCol);
-                            const qIdx = colToIndex(src.qtyCol);
-
-                            rows.forEach(row => {
-                                const nameRaw = row[nIdx];
-                                const expRaw = row[eIdx];
-                                const qtyRaw = row[qIdx];
-
-                                if (!nameRaw || !expRaw) return;
-                                
-                                const key = nameRaw.trim().toUpperCase();
-                                const expiry = parseDate(expRaw);
-                                const cleanQty = typeof qtyRaw === 'string' ? qtyRaw.replace(/,/g, '') : qtyRaw;
-                                const qty = parseInt(cleanQty) || 0;
-
-                                if (!expiry) return;
-
-                                if (!allDataMap.has(key)) {
-                                    allDataMap.set(key, {
-                                        name: nameRaw.trim(),
-                                        expiry: expiry,
-                                        quantities: {}
-                                    });
-                                }
-                                
-                                const entry = allDataMap.get(key);
-                                if (expiry < entry.expiry) entry.expiry = expiry;
-                                
-                                const srcKey = src.name || 'Unknown';
-                                entry.quantities[srcKey] = (entry.quantities[srcKey] || 0) + qty;
-                            });
-                        } catch (err) {
-                            console.error(`Failed to load ${src.name}`, err);
-                        }
-                    }));
-
-                    const today = new Date();
-                    today.setHours(0,0,0,0);
-                    
-                    const processed = Array.from(allDataMap.values()).map(item => {
-                        const total = Object.values(item.quantities).reduce((acc, v) => acc + v, 0);
-                        const dte = Math.ceil((item.expiry - today) / (1000 * 60 * 60 * 24));
-                        return { ...item, total, dte };
-                    });
-
-                    setData(processed);
-                    setLastUpdate(new Date());
-                } finally {
-                    setLoading(false);
-                }
-            }, [sources]);
-
-            useEffect(() => { fetchData(); }, []); 
-
-            // -- Actions --
-            const handleSaveSettings = () => {
-                localStorage.setItem('pm_dashboard_sources_v2', JSON.stringify(sources));
-                setSettingsOpen(false);
-                fetchData();
-            };
-
-            const toggleHideItem = (itemName) => {
-                const newHidden = [...hiddenItems, itemName];
-                setHiddenItems(newHidden);
-                localStorage.setItem('pm_dashboard_hidden', JSON.stringify(newHidden));
-            };
-
-            const resetHiddenItems = () => {
-                setHiddenItems([]);
-                localStorage.removeItem('pm_dashboard_hidden');
-            };
-
-            const toggleLocation = (locName) => {
-                if (locName === 'TOTAL') {
-                    setActiveLocations(['TOTAL']);
+            toggleSettings: function(show) {
+                const modal = document.getElementById('settings-modal');
+                const body = document.querySelector('body');
+                if (show) {
+                    modal.classList.remove('opacity-0', 'pointer-events-none');
+                    body.classList.add('modal-active');
                 } else {
-                    let newActive;
-                    if (activeLocations.includes('TOTAL')) {
-                        newActive = [locName];
-                    } else {
-                        if (activeLocations.includes(locName)) {
-                            const remaining = activeLocations.filter(l => l !== locName);
-                            newActive = remaining.length === 0 ? ['TOTAL'] : remaining;
-                        } else {
-                            newActive = [...activeLocations, locName];
-                        }
-                    }
-                    setActiveLocations(newActive);
+                    modal.classList.add('opacity-0', 'pointer-events-none');
+                    body.classList.remove('modal-active');
                 }
-            };
+            },
 
-            // -- Derived State --
-            const sourceNames = useMemo(() => sources.map(s => s.name), [sources]);
-            
-            // Determine visible columns based on selection
-            const visibleSources = useMemo(() => {
-                if (activeLocations.includes('TOTAL')) return sourceNames;
-                return sourceNames.filter(src => activeLocations.includes(src));
-            }, [activeLocations, sourceNames]);
-
-            // ** 1. Base Filtered Data **
-            const baseFilteredData = useMemo(() => {
-                return data.filter(item => {
-                    // 1. Check Hidden
-                    if (hiddenItems.includes(item.name)) return false;
-
-                    // 2. Check Auto-Hide Expired (DTE <= 0)
-                    if (item.dte <= 0) return false;
-
-                    // 3. Check Search
-                    if (searchTerm && !item.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-                    
-                    // 4. Check DTE User Filter
-                    if (dteType === 'CUSTOM') {
-                        const min = customDteMin === '' ? -Infinity : parseInt(customDteMin);
-                        const max = customDteMax === '' ? Infinity : parseInt(customDteMax);
-                        if (item.dte < min || item.dte > max) return false;
-                    } else if (dteType !== 'ALL') {
-                        const maxDays = parseInt(dteType);
-                        if (item.dte > maxDays) return false; 
-                    }
-                    return true;
+            setupListeners: function() {
+                document.getElementById('btn-refresh').addEventListener('click', () => this.fetchData());
+                document.getElementById('btn-settings').addEventListener('click', () => this.toggleSettings(true));
+                document.querySelector('.modal-overlay').addEventListener('click', () => this.toggleSettings(false));
+                ['sel-window', 'sel-algo', 'inp-target'].forEach(id => {
+                    document.getElementById(id).addEventListener('change', () => this.recalculate());
                 });
-            }, [data, searchTerm, dteType, customDteMin, customDteMax, hiddenItems]);
+                document.getElementById('inp-search').addEventListener('keyup', (e) => this.renderTable(e.target.value));
+            },
 
-            // ** 2. Stats for Cards **
-            const sourceStats = useMemo(() => {
-                const stats = {};
-                sourceNames.forEach(src => stats[src] = { qty: 0, sku: 0 });
+            // --- Data Fetching (GViz Pattern) ---
+            fetchData: async function() {
+                this.showError(false);
+                this.toggleLoader(true);
                 
-                baseFilteredData.forEach(row => {
-                    sourceNames.forEach(src => {
-                        const q = row.quantities[src] || 0;
-                        if (q > 0) {
-                            stats[src].qty += q;
-                            stats[src].sku += 1;
-                        }
-                    });
-                });
-                return stats;
-            }, [baseFilteredData, sourceNames]);
+                // Use Google Visualization API (GViz) to get CSV
+                const url = `https://docs.google.com/spreadsheets/d/${this.config.SHEET_ID}/gviz/tq?sheet=${this.config.TAB_NAME}&tqx=out:csv&range=A1:ZZ`;
+                
+                try {
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error(`Fetch Error (${res.status}). Check Sheet ID.`);
+                    
+                    const text = await res.text();
+                    
+                    // Simple check for HTML response (implies auth wall)
+                    if(text.trim().startsWith('<!DOCTYPE html>')) {
+                        throw new Error("Sheet is Private. Please set sharing to 'Anyone with the link'.");
+                    }
 
-            // ** 3. Display Data **
-            const finalDisplayData = useMemo(() => {
-                return baseFilteredData.map(item => {
-                    // Calculate dynamic total based on active checks
-                    let displayTotal = 0;
-                    if (activeLocations.includes('TOTAL')) {
-                        displayTotal = item.total; // Sum of all
-                    } else {
-                        // Sum only active locations
-                        activeLocations.forEach(loc => {
-                            displayTotal += (item.quantities[loc] || 0);
+                    const rows = parseCSV(text);
+                    this.rawData = rows.map(r => r.map(c => c.replace(/^"|"$/g, '')));
+                    
+                    this.parseStructure();
+                    document.getElementById('connection-status').classList.remove('hidden');
+
+                } catch (e) {
+                    console.error(e);
+                    this.toggleLoader(false);
+                    this.showError(true, e.message);
+                }
+            },
+
+            loadMockData: function() {
+                this.showError(false);
+                this.toggleLoader(true);
+                setTimeout(() => {
+                    // Generate Demo Data
+                    const today = new Date();
+                    const demoHeader = ['unique_key', 'product_name', '即時庫存數量'];
+                    const dateCols = [];
+                    // Generate 14 days of headers
+                    for(let i=14; i>=0; i--) {
+                        const d = new Date(); d.setDate(d.getDate() - i);
+                        const y = d.getFullYear().toString().substr(2);
+                        const m = (d.getMonth()+1).toString().padStart(2,'0');
+                        const day = d.getDate().toString().padStart(2,'0');
+                        dateCols.push(`${y}.${m}${day}.1200`);
+                        demoHeader.push(`${y}.${m}${day}.1200`);
+                    }
+                    
+                    this.rawData = [demoHeader];
+                    // Generate 20 random SKUs
+                    for(let i=1; i<=20; i++) {
+                        const inv = Math.floor(Math.random() * 500);
+                        const row = [`SKU-DEMO-${i}`, `Demo Product ${i} (Test Mode)`, inv.toString()];
+                        // Add transactions
+                        dateCols.forEach(() => {
+                            // 30% chance of sales
+                            if(Math.random() > 0.7) {
+                                row.push(`-${Math.floor(Math.random() * 20)}`);
+                            } else {
+                                row.push("0");
+                            }
                         });
+                        this.rawData.push(row);
                     }
-                    return { ...item, displayTotal };
-                }).filter(item => {
-                    return item.displayTotal > 0;
-                }).sort((a, b) => {
-                    let aVal, bVal;
+                    
+                    this.parseStructure();
+                    document.getElementById('connection-status').innerText = 'Demo Mode';
+                    document.getElementById('connection-status').classList.remove('hidden');
+                }, 800);
+            },
 
-                    if (sourceNames.includes(sortConfig.key)) {
-                        aVal = a.quantities[sortConfig.key] || 0;
-                        bVal = b.quantities[sortConfig.key] || 0;
-                    } else if (sortConfig.key === 'total') {
-                        aVal = a.displayTotal;
-                        bVal = b.displayTotal;
-                    } else {
-                        aVal = a[sortConfig.key];
-                        bVal = b[sortConfig.key];
-                    }
+            showError: function(show, msg) {
+                const banner = document.getElementById('error-banner');
+                if(show) {
+                    document.getElementById('error-message').innerText = msg || "Connection Error";
+                    banner.classList.remove('hidden');
+                } else {
+                    banner.classList.add('hidden');
+                }
+            },
 
-                    if (typeof aVal === 'string') {
-                        return sortConfig.direction === 'asc' 
-                            ? aVal.localeCompare(bVal) 
-                            : bVal.localeCompare(aVal);
-                    }
+            toggleLoader: function(show) {
+                const el = document.getElementById('loading-overlay');
+                if(show) el.classList.remove('hidden'); else el.classList.add('hidden');
+            },
 
-                    if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-                    if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-                    return 0;
-                });
-            }, [baseFilteredData, activeLocations, sortConfig, sourceNames]);
+            // --- Parsing Logic (Adapted for CSV Array) ---
+            parseStructure: function() {
+                const rows = this.rawData;
+                let mainRow = -1, dateRow = -1;
+                const dateRegex = /\d{2}\.\d{4}\.\d{4}/; // Matches 25.0907.2241
 
-            const requestSort = (key) => {
-                let direction = 'asc';
-                if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
-                setSortConfig({ key, direction });
-            };
+                for (let i = 0; i < Math.min(rows.length, 15); i++) {
+                    const str = rows[i].join('|').toLowerCase();
+                    if (str.includes('unique_key') && str.includes('即時庫存數量')) mainRow = i;
+                    if (rows[i].some(c => dateRegex.test(String(c)))) dateRow = i;
+                }
 
-            // ** 4. Dynamic Total Sum **
-            const dynamicTotalSum = useMemo(() => {
-                return finalDisplayData.reduce((acc, curr) => acc + curr.displayTotal, 0);
-            }, [finalDisplayData]);
+                // Fallback for single row headers (Demo data usually)
+                if (mainRow !== -1 && dateRow === -1) {
+                     if (rows[mainRow].some(c => dateRegex.test(String(c)))) dateRow = mainRow;
+                }
 
-            // ** 5. CSV Export Function **
-            const downloadCSV = () => {
-                if (finalDisplayData.length === 0) {
-                    alert("目前無資料可匯出");
+                if (mainRow === -1 || dateRow === -1) {
+                    this.toggleLoader(false);
+                    this.showError(true, "Headers not found. Check Tab Name or Sheet Structure.");
                     return;
                 }
 
-                // Headers
-                let headers = ["品名 (Product Name)"];
-                visibleSources.forEach(src => headers.push(src));
-                headers.push("總量 (Total Qty)", "效期 (Expiry)", "DTE (Days)");
+                const mainCols = rows[mainRow];
+                this.mapping.sku = mainCols.findIndex(c => c.toLowerCase().trim() === 'unique_key');
+                this.mapping.inv = mainCols.findIndex(c => c.toLowerCase().trim().includes('即時庫存數量'));
+                this.mapping.name = mainCols.findIndex(c => c.toLowerCase().trim().includes('product_name'));
 
-                // Rows
-                const rows = finalDisplayData.map(item => {
-                    let row = [`"${item.name.replace(/"/g, '""')}"`]; // Escape quotes
+                this.mapping.dateCols = [];
+                rows[dateRow].forEach((val, idx) => {
+                    if (dateRegex.test(String(val))) {
+                        const match = String(val).match(/(\d{2})\.(\d{4})/);
+                        if (match) {
+                            const y = '20' + match[1];
+                            const m = match[2].substring(0, 2);
+                            const d = match[2].substring(2, 4);
+                            this.mapping.dateCols.push({ idx, date: `${y}-${m}-${d}` });
+                        }
+                    }
+                });
+                this.mapping.dateCols.sort((a,b) => a.date.localeCompare(b.date));
+                this.recalculate();
+            },
+
+            // --- Calculation Engine (Same as before) ---
+            recalculate: function() {
+                const windowDays = document.getElementById('sel-window').value;
+                const algo = document.getElementById('sel-algo').value;
+                const targetDays = parseInt(document.getElementById('inp-target').value) || 60;
+
+                let activeCols = this.mapping.dateCols;
+                let denom = activeCols.length;
+
+                if (windowDays !== 'all') {
+                    const days = parseInt(windowDays);
+                    const cutoff = new Date();
+                    cutoff.setDate(cutoff.getDate() - days);
+                    const cutoffStr = cutoff.toISOString().split('T')[0];
+                    activeCols = activeCols.filter(c => c.date >= cutoffStr);
+                    denom = days;
+                } else {
+                    if(activeCols.length > 1) {
+                        const start = new Date(activeCols[0].date);
+                        const end = new Date(activeCols[activeCols.length-1].date);
+                        denom = Math.max(1, (end - start) / (1000 * 60 * 60 * 24));
+                    }
+                }
+
+                const results = [];
+                const startRow = Math.max(this.mapping.sku, this.mapping.inv) + 1; 
+
+                for (let i = startRow; i < this.rawData.length; i++) {
+                    // Skip header area (lenient check)
+                    if (i <= Math.max(this.mapping.sku, this.mapping.inv)) continue; 
                     
-                    visibleSources.forEach(src => {
-                        row.push(item.quantities[src] || 0);
+                    const row = this.rawData[i];
+                    if (!row[this.mapping.sku]) continue;
+
+                    let inv = parseFloat(String(row[this.mapping.inv]||'0').replace(/,/g,''));
+                    if (isNaN(inv)) inv = 0;
+
+                    let totalOut = 0;
+                    let dayMap = {};
+
+                    activeCols.forEach(col => {
+                        let val = parseFloat(String(row[col.idx]||'0').replace(/,/g,''));
+                        if (val < 0) {
+                            const qty = Math.abs(val);
+                            totalOut += qty;
+                            dayMap[col.date] = (dayMap[col.date] || 0) + qty;
+                        }
                     });
+
+                    const dailyVals = Object.values(dayMap).sort((a,b) => a-b);
+                    const activeDays = dailyVals.length;
+
+                    let dailyRate = 0;
+                    if (algo === 'simple_avg') {
+                        dailyRate = totalOut / Math.max(1, denom);
+                    } else if (algo === 'p70' && activeDays > 0) {
+                        const idx = Math.floor(dailyVals.length * 0.7);
+                        dailyRate = dailyVals[idx];
+                    }
+
+                    const dos = dailyRate > 0.001 ? inv / dailyRate : 999;
+                    const targetQty = dailyRate * targetDays;
+                    const refill = Math.max(0, targetQty - inv);
                     
-                    row.push(
-                        item.displayTotal, 
-                        item.expiry.toISOString().split('T')[0],
-                        item.dte
-                    );
-                    return row.join(",");
+                    let status = 'OK';
+                    if (activeDays < 3) status = 'Low Data';
+                    else if (dos < targetDays) status = 'Risk';
+
+                    results.push({
+                        sku: row[this.mapping.sku],
+                        name: this.mapping.name > -1 ? row[this.mapping.name] : '',
+                        inv, dailyRate, dos, refill, status, activeDays
+                    });
+                }
+
+                this.processedData = results;
+                this.updateDashboard();
+                this.toggleLoader(false);
+                document.getElementById('dashboard-content').classList.remove('hidden');
+            },
+
+            // --- Visualization Rendering (Same as before) ---
+            updateDashboard: function() {
+                const totalSkus = this.processedData.length;
+                const riskCount = this.processedData.filter(d => d.status === 'Risk').length;
+                const totalRefill = this.processedData.reduce((acc, curr) => acc + curr.refill, 0);
+                const lowConf = this.processedData.filter(d => d.status === 'Low Data').length;
+
+                document.getElementById('kpi-total-skus').innerText = totalSkus.toLocaleString();
+                document.getElementById('kpi-risk-count').innerText = riskCount.toLocaleString();
+                document.getElementById('kpi-refill-qty').innerText = Math.ceil(totalRefill).toLocaleString();
+                document.getElementById('kpi-low-conf').innerText = lowConf.toLocaleString();
+
+                this.renderCharts(riskCount, lowConf, totalSkus);
+                this.sortTable(this.sort.col, true); 
+            },
+
+            renderCharts: function(risk, lowConf, total) {
+                const healthy = total - risk - lowConf;
+                const ctxHealth = document.getElementById('chart-health').getContext('2d');
+                if (this.charts.health) this.charts.health.destroy();
+
+                this.charts.health = new Chart(ctxHealth, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Healthy Stock', 'Refill Risk', 'Low Data'],
+                        datasets: [{
+                            data: [healthy, risk, lowConf],
+                            backgroundColor: ['#22c55e', '#ef4444', '#f59e0b'],
+                            borderWidth: 0,
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, font: {family: "'Inter', sans-serif"} } } },
+                        cutout: '70%'
+                    }
                 });
 
-                const csvContent = "\ufeff" + headers.join(",") + "\n" + rows.join("\n"); // Add BOM for Excel UTF-8
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement("a");
-                const timestamp = new Date().toISOString().slice(0, 10);
-                link.setAttribute("href", url);
-                link.setAttribute("download", `Inventory_Report_${timestamp}.csv`);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            };
+                const topRefill = [...this.processedData].sort((a,b) => b.refill - a.refill).slice(0, 10);
+                const ctxRefill = document.getElementById('chart-refill').getContext('2d');
+                if (this.charts.refill) this.charts.refill.destroy();
 
-            const getDteBadge = (dte) => {
-                if (dte <= 60) return <span className="status-badge status-expired">剩 {dte} 天</span>;
-                if (dte <= 180) return <span className="status-badge status-warning">剩 {dte} 天</span>;
-                return <span className="status-badge status-good">剩 {dte} 天</span>;
-            };
+                this.charts.refill = new Chart(ctxRefill, {
+                    type: 'bar',
+                    data: {
+                        labels: topRefill.map(d => d.sku),
+                        datasets: [{
+                            label: 'Units Needed',
+                            data: topRefill.map(d => d.refill),
+                            backgroundColor: '#0ea5e9',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y',
+                        scales: { x: { grid: { display: false } }, y: { grid: { display: false } } },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            },
 
-            return (
-                <div className="max-w-7xl mx-auto p-4 md:p-6 pb-20 md:pb-6 space-y-4 md:space-y-6">
-                    {/* Header */}
-                    <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                        <div>
-                            <h1 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
-                                <Icon path={<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>} />
-                                庫存水位監控 v3.2
-                            </h1>
-                            <p className="text-xs md:text-sm text-slate-500 mt-1">
-                                {lastUpdate ? `更新: ${lastUpdate.toLocaleTimeString()}` : '等待更新...'} 
-                            </p>
-                        </div>
-                        <div className="flex gap-2 w-full md:w-auto">
-                            <button onClick={downloadCSV} className="btn btn-outline flex-1 md:flex-none justify-center" disabled={loading || finalDisplayData.length === 0}>
-                                匯出 CSV
-                            </button>
-                            <button onClick={fetchData} className="btn btn-outline flex-1 md:flex-none justify-center" disabled={loading}>
-                                {loading && <Icon path={<path d="M23 4v6h-6M1 20v-6h6"></path>} className="animate-spin mr-2" />}
-                                重新整理
-                            </button>
-                            <button onClick={() => setSettingsOpen(true)} className="btn btn-outline flex-1 md:flex-none justify-center">
-                                <Icon path={<circle cx="12" cy="12" r="3"></circle>} className="mr-2" /> 設定
-                            </button>
-                        </div>
-                    </header>
+            sortTable: function(col, keepDir) {
+                if (!keepDir) {
+                    if (this.sort.col === col) this.sort.asc = !this.sort.asc; else this.sort.asc = true;
+                    this.sort.col = col;
+                }
+                const mult = this.sort.asc ? 1 : -1;
+                this.processedData.sort((a, b) => {
+                    let v1 = a[col], v2 = b[col];
+                    if (typeof v1 === 'string') return v1.localeCompare(v2) * mult;
+                    return (v1 - v2) * mult;
+                });
+                this.renderTable();
+            },
 
-                    {/* Interactive Filter Cards */}
-                    <div className="flex flex-wrap gap-3">
-                        {/* Total Card */}
-                        <div 
-                            className={`stat-card ${activeLocations.includes('TOTAL') ? 'checked' : 'unchecked'}`}
-                            onClick={() => toggleLocation('TOTAL')}
-                        >
-                            <div className="stat-card-header">
-                                <div className={`stat-label ${activeLocations.includes('TOTAL') ? 'text-blue-200' : 'text-slate-500'}`}>Total Inventory</div>
-                                <Checkbox checked={activeLocations.includes('TOTAL')} />
-                            </div>
-                            <div className="stat-value">{dynamicTotalSum.toLocaleString()}</div>
-                            <div className={`stat-sub ${activeLocations.includes('TOTAL') ? 'text-blue-200' : 'text-slate-400'}`}>{finalDisplayData.length} items</div>
-                        </div>
+            renderTable: function(searchTerm = '') {
+                const tbody = document.getElementById('table-body');
+                tbody.innerHTML = '';
+                const term = searchTerm.toLowerCase();
+                const limit = 500;
+                let count = 0;
 
-                        {/* Individual Source Cards */}
-                        {sourceNames.map(src => {
-                            const isChecked = activeLocations.includes(src);
-                            return (
-                                <div 
-                                    key={src} 
-                                    className={`stat-card ${isChecked ? 'checked' : 'unchecked'}`}
-                                    onClick={() => toggleLocation(src)}
-                                >
-                                    <div className="stat-card-header">
-                                        <div className={`stat-label ${isChecked ? 'text-blue-200' : 'text-slate-500'}`}>{src}</div>
-                                        <Checkbox checked={isChecked} />
-                                    </div>
-                                    <div className="stat-value">{sourceStats[src]?.qty.toLocaleString() || 0}</div>
-                                    <div className={`stat-sub ${isChecked ? 'text-blue-200' : 'text-slate-400'}`}>{sourceStats[src]?.sku || 0} items</div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                for (const row of this.processedData) {
+                    if (count >= limit) break;
+                    if (term && !row.sku.toLowerCase().includes(term) && !row.name.toLowerCase().includes(term)) continue;
+                    count++;
+                    const tr = document.createElement('tr');
+                    let statusBadge = `<span class="px-2 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">OK</span>`;
+                    if (row.status === 'Risk') statusBadge = `<span class="px-2 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800">Risk</span>`;
+                    if (row.status === 'Low Data') statusBadge = `<span class="px-2 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">Low Data</span>`;
 
-                    {/* Expiry Visualizer */}
-                    <ExpiryDistribution data={finalDisplayData} />
-
-                    {/* Filter Bar */}
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 sticky top-2 z-30">
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-                            {/* Search */}
-                            <div className="md:col-span-5 relative">
-                                <input 
-                                    type="text" 
-                                    placeholder="搜尋品名..." 
-                                    className="input-base pl-9 bg-slate-50 border-slate-200 focus:bg-white"
-                                    value={searchTerm}
-                                    onChange={e => setSearchTerm(e.target.value)}
-                                />
-                                <div className="absolute left-3 top-2.5 text-gray-400">
-                                    <Icon path={<circle cx="11" cy="11" r="8"></circle>} />
-                                </div>
-                            </div>
-                            
-                            {/* Time Filter */}
-                            <div className={`md:col-span-${dteType === 'CUSTOM' ? '7' : '4'} flex gap-2 transition-all duration-300`}>
-                                <select className="input-base cursor-pointer w-full" value={dteType} onChange={e => setDteType(e.target.value)}>
-                                    <option value="ALL">全部效期 (All)</option>
-                                    <option value="60">≤ 60 天 (緊急)</option>
-                                    <option value="90">≤ 90 天 (注意)</option>
-                                    <option value="180">≤ 180 天 (半年)</option>
-                                    <option value="CUSTOM">自訂區間...</option>
-                                </select>
-                                
-                                {dteType === 'CUSTOM' && (
-                                    <div className="flex gap-2 w-full animate-in fade-in zoom-in duration-200">
-                                        <input type="number" placeholder="Min" className="input-base w-20 px-2 text-center" value={customDteMin} onChange={e => setCustomDteMin(e.target.value)} />
-                                        <span className="self-center text-slate-400">-</span>
-                                        <input type="number" placeholder="Max" className="input-base w-20 px-2 text-center" value={customDteMax} onChange={e => setCustomDteMax(e.target.value)} />
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* --- Mobile View (Cards) --- */}
-                    <div className="md:hidden space-y-3">
-                        {loading ? (
-                             <div className="text-center py-10 text-gray-400">載入中...</div>
-                        ) : finalDisplayData.length === 0 ? (
-                             <div className="text-center py-10 text-gray-400">無符合資料</div>
-                        ) : (
-                            finalDisplayData.map((row, idx) => (
-                                <div key={idx} className="mobile-card flex flex-col gap-3">
-                                    <div className="flex justify-between items-start">
-                                        <div className="font-semibold text-slate-800 text-base break-words pr-8">{row.name}</div>
-                                        <button onClick={() => toggleHideItem(row.name)} className="btn-danger-ghost absolute top-3 right-3">
-                                            <Icon path={<polyline points="3 6 5 6 21 6"></polyline>} />
-                                            <Icon path={<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>} className="ml-[-16px]" />
-                                        </button>
-                                    </div>
-                                    
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <div className="mobile-label">總庫存 (TTQ)</div>
-                                            <div className="text-lg font-bold text-blue-600">{row.displayTotal.toLocaleString()}</div>
-                                        </div>
-                                        <div>
-                                            <div className="mobile-label">效期 (EXP)</div>
-                                            <div className="text-sm font-mono text-slate-600">{row.expiry.toISOString().split('T')[0]}</div>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex justify-between items-end border-t pt-3 mt-1">
-                                        <div className="text-xs text-slate-400 space-x-2">
-                                            {visibleSources.map(src => row.quantities[src] > 0 && (
-                                                <span key={src} className="inline-block bg-slate-100 px-1.5 py-0.5 rounded">
-                                                    {src}: {row.quantities[src]}
-                                                </span>
-                                            ))}
-                                        </div>
-                                        <div>{getDteBadge(row.dte)}</div>
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-
-                    {/* --- Desktop View (Table) --- */}
-                    <div className="hidden md:block table-container">
-                        <table className="data-table">
-                            <thead>
-                                <tr>
-                                    <th 
-                                        className="text-left cursor-pointer hover:bg-slate-100 pl-4 w-1/3" 
-                                        onClick={() => requestSort('name')}
-                                    >
-                                        品名 <SortIndicator active={sortConfig.key === 'name'} direction={sortConfig.direction} />
-                                    </th>
-                                    
-                                    {/* Dynamic Columns - Sortable */}
-                                    {visibleSources.map(src => (
-                                        <th 
-                                            key={src} 
-                                            className="text-center w-24 text-slate-500 cursor-pointer hover:bg-slate-100"
-                                            onClick={() => requestSort(src)}
-                                        >
-                                            {src} <SortIndicator active={sortConfig.key === src} direction={sortConfig.direction} />
-                                        </th>
-                                    ))}
-                                    
-                                    <th 
-                                        className="text-center w-28 cursor-pointer hover:bg-slate-100 text-blue-600" 
-                                        onClick={() => requestSort('total')}
-                                    >
-                                        總量 <SortIndicator active={sortConfig.key === 'total'} direction={sortConfig.direction} />
-                                    </th>
-                                    
-                                    <th 
-                                        className="text-center w-32 cursor-pointer hover:bg-slate-100" 
-                                        onClick={() => requestSort('expiry')}
-                                    >
-                                        效期 <SortIndicator active={sortConfig.key === 'expiry'} direction={sortConfig.direction} />
-                                    </th>
-                                    
-                                    <th 
-                                        className="text-center w-32 cursor-pointer hover:bg-slate-100" 
-                                        onClick={() => requestSort('dte')}
-                                    >
-                                        DTE <SortIndicator active={sortConfig.key === 'dte'} direction={sortConfig.direction} />
-                                    </th>
-                                    <th className="w-10"></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {loading ? (
-                                    <tr><td colSpan={5 + visibleSources.length} className="text-center py-20 text-slate-400">載入數據中...</td></tr>
-                                ) : finalDisplayData.length === 0 ? (
-                                    <tr><td colSpan={5 + visibleSources.length} className="text-center py-20 text-slate-400">無符合資料</td></tr>
-                                ) : (
-                                    finalDisplayData.map((row, idx) => (
-                                        <tr key={idx} className="group transition-colors">
-                                            <td className="font-medium text-slate-700 pl-4">{row.name}</td>
-                                            
-                                            {/* Dynamic Cells */}
-                                            {visibleSources.map(src => (
-                                                <td key={src} className={`text-center font-mono ${!row.quantities[src] ? 'text-slate-200' : 'text-slate-600'}`}>
-                                                    {row.quantities[src] || 0}
-                                                </td>
-                                            ))}
-
-                                            <td className="text-center font-bold text-blue-600 bg-blue-50/30 font-mono">{row.displayTotal.toLocaleString()}</td>
-                                            <td className="text-center text-sm font-mono text-slate-500">{row.expiry.toISOString().split('T')[0]}</td>
-                                            <td className="text-center">{getDteBadge(row.dte)}</td>
-                                            <td className="text-center">
-                                                <button 
-                                                    onClick={() => toggleHideItem(row.name)}
-                                                    className="btn-danger-ghost opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    title="隱藏此商品"
-                                                >
-                                                    <Icon path={<polyline points="3 6 5 6 21 6"></polyline>} />
-                                                    <Icon path={<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>} className="hidden" />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {settingsOpen && (
-                        <SettingsPanel 
-                            sources={sources} 
-                            setSources={setSources} 
-                            hiddenCount={hiddenItems.length}
-                            onResetHidden={resetHiddenItems}
-                            onClose={() => setSettingsOpen(false)} 
-                            onSave={handleSaveSettings} 
-                        />
-                    )}
-                </div>
-            );
+                    tr.className = "hover:bg-stone-50 transition-colors";
+                    tr.innerHTML = `
+                        <td class="px-6 py-4 font-medium text-stone-900">${row.sku}</td>
+                        <td class="px-6 py-4 text-stone-500 truncate max-w-xs" title="${row.name}">${row.name}</td>
+                        <td class="px-6 py-4 text-right text-stone-700 font-mono">${Math.round(row.inv).toLocaleString()}</td>
+                        <td class="px-6 py-4 text-right text-stone-700 font-mono">${row.dailyRate.toFixed(1)}</td>
+                        <td class="px-6 py-4 text-right font-mono ${row.dos < document.getElementById('inp-target').value ? 'text-rose-600 font-bold' : 'text-stone-700'}">${row.dos > 999 ? '>999' : row.dos.toFixed(1)}</td>
+                        <td class="px-6 py-4 text-right font-mono ${row.refill > 0 ? 'text-sky-600 font-bold' : 'text-stone-400'}">${row.refill > 0 ? Math.ceil(row.refill).toLocaleString() : '-'}</td>
+                        <td class="px-6 py-4 text-center">${statusBadge}</td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+            }
         };
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<Dashboard />);
+        window.addEventListener('load', () => app.init());
     </script>
 </body>
 </html>
