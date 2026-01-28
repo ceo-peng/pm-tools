@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory Intelligence Dashboard v17</title>
+    <title>Inventory Intelligence Dashboard v18</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -34,7 +34,7 @@
         <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="bg-blue-600 text-white p-1.5 rounded-lg font-bold text-lg leading-none">PM</div>
-                <h1 class="text-lg font-bold text-slate-800 tracking-tight">Inventory Intelligence <span class="text-xs text-slate-400 font-normal ml-2">v17</span></h1>
+                <h1 class="text-lg font-bold text-slate-800 tracking-tight">Inventory Intelligence <span class="text-xs text-slate-400 font-normal ml-2">v18</span></h1>
             </div>
             <div class="flex items-center gap-4">
                 <div id="status-indicator" class="hidden flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full border border-emerald-100">
@@ -50,13 +50,7 @@
     <!-- Main -->
     <main class="flex-grow p-6 max-w-7xl mx-auto w-full space-y-6">
         
-        <div id="error-banner" class="hidden bg-rose-50 border border-rose-200 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div class="text-sm text-rose-800">
-                <strong class="font-bold">Connection Issue:</strong> <span id="error-message">Unable to fetch data.</span>
-            </div>
-            <button onclick="app.loadMockData()" class="px-4 py-2 bg-white border border-rose-200 text-rose-700 text-xs font-bold rounded shadow-sm hover:bg-rose-50 transition-colors">Load Demo Data</button>
-        </div>
-
+        <!-- Dashboard -->
         <div id="dashboard-content" class="hidden space-y-6 fade-in">
             
             <!-- Controls -->
@@ -79,7 +73,7 @@
                         <option value="p70">P70 Safety (Conservative)</option>
                     </select>
                 </div>
-
+                
                 <div class="flex-grow text-right">
                     <p id="date-range-display" class="text-xs text-stone-400 italic mt-2"></p>
                 </div>
@@ -88,7 +82,7 @@
                 </button>
             </div>
 
-            <!-- KPIs (Minimal) -->
+            <!-- KPIs -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm md:col-span-1">
                     <div class="text-xs font-medium text-stone-400 uppercase">Total SKUs</div>
@@ -245,7 +239,7 @@
             config: DEFAULT_CONFIG, rawData: [], processedData: [], sortCol: 'itemNo', sortAsc: true, map: {}, mainRowIdx: -1,
 
             init() {
-                this.config = safeStorage.getItem('pm_inv_config_v17') ? JSON.parse(safeStorage.getItem('pm_inv_config_v17')) : DEFAULT_CONFIG;
+                this.config = safeStorage.getItem('pm_inv_config_v18') ? JSON.parse(safeStorage.getItem('pm_inv_config_v18')) : DEFAULT_CONFIG;
                 this.bindEvents();
                 this.fetchData();
             },
@@ -281,22 +275,18 @@
             },
 
             parseStructure() {
-                // Fixed Header Row: Row 2 (Index 1)
-                const hRow = 1; 
+                const hRow = parseInt(this.config.ROW) - 1; 
                 if (!this.rawData[hRow]) {
                     console.error("Header row not found."); return;
                 }
 
                 const header = this.rawData[hRow].map(c => c.toLowerCase().trim());
                 
-                // Fixed Date Start: Column L (Index 11)
                 const dateStartIndex = letterToIndex(this.config.DATE_START_COL);
                 
                 const dateCols = [];
-                // Only scan from Column L onwards
                 for (let i = dateStartIndex; i < header.length; i++) {
                     const txt = header[i];
-                    // Strict format: YY.MMDD.HHMM (e.g., 25.0907.2241)
                     if (/\d{2}\.\d{4}\.\d{4}/.test(txt)) {
                         const m = txt.match(/(\d{2})\.(\d{4})/);
                         if (m) dateCols.push({ idx: i, date: `20${m[1]}-${m[2].substr(0,2)}-${m[2].substr(2,2)}`, raw: txt });
@@ -316,7 +306,6 @@
                 this.recalculate();
             },
 
-            // Clean Name: Remove date and trailing hyphen
             deriveName(sku) {
                 if(!sku) return "";
                 return sku.replace(/\s*\(?\d{4}-\d{2}-\d{2}\)?.*$/, "").replace(/\s*-\s*$/, "").trim();
@@ -326,7 +315,6 @@
                 const winValue = document.getElementById('sel-window').value; 
                 const algo = document.getElementById('sel-algo').value;
 
-                // --- DATE LOGIC: Strict Exclude Current Month ---
                 const today = new Date();
                 const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1); 
                 const exclusionISO = currentMonthStart.toISOString().split('T')[0]; 
@@ -334,7 +322,6 @@
                 let startISO = "1900-01-01";
                 let windowDesc = "All History";
 
-                // Filter 1: Valid Past Columns (Before this month)
                 let validHistoryCols = this.map.dates.filter(d => d.date < exclusionISO);
 
                 if (winValue !== 'all') {
@@ -345,22 +332,15 @@
                     windowDesc = `Last ${monthsBack} Months`;
                 }
 
-                // Filter 2: Apply Window
                 const activeCols = validHistoryCols.filter(d => d.date >= startISO);
 
-                // --- DENOMINATOR LOGIC: Full Calendar Months ---
-                let denomMonths = 1;
-                
+                let denomMonths = 0;
                 if (winValue !== 'all') {
-                    // Fixed window
                     denomMonths = parseInt(winValue);
                 } else {
-                    // Dynamic window (From Col L to Last Valid Col)
-                    // If we have history, calc months between First Date and Last Date
                     if (activeCols.length > 0) {
                         const firstDate = new Date(activeCols[0].date);
                         const lastDate = new Date(activeCols[activeCols.length-1].date);
-                        // Month diff + 1 (Inclusive)
                         const months = (lastDate.getFullYear() - firstDate.getFullYear()) * 12 + (lastDate.getMonth() - firstDate.getMonth()) + 1;
                         denomMonths = Math.max(1, months);
                     } else {
@@ -372,30 +352,26 @@
                     `${windowDesc} (Excl. Current Month). Denom: ${denomMonths} Mo.`;
 
                 const results = [];
-                // Fixed Data Start: Row 4 (Index 3)
-                const startRow = 3;
+                // CRITICAL FIX: Dynamic Start Row (Header Index + 2 = Header -> Skip -> Data)
+                const startLoop = this.mainRowIdx + 2;
 
-                for(let i = startRow; i < this.rawData.length; i++) {
+                for(let i = startLoop; i < this.rawData.length; i++) {
                     const row = this.rawData[i];
                     
-                    // Robust check: Skip if SKU cell is empty
-                    if(!row || !row[this.map.sku] || row[this.map.sku].trim() === "") continue;
+                    if(!row || !row[this.map.sku]) continue;
                     
                     const rawSku = row[this.map.sku].trim();
-                    // Skip placeholders or empty SKUs
                     if(rawSku === "" || rawSku.toLowerCase().includes("unique_key")) continue;
 
-                    // Get Item No
                     const itemNoStr = String(row[this.map.itemNo] || '').trim();
-                    const itemNo = parseInt(itemNoStr); // Used for sorting
+                    const itemNo = parseInt(itemNoStr);
 
-                    // Display Only
                     const invStr = String(row[this.map.inv]||'0').replace(/,/g,'').trim();
                     const inv = parseFloat(invStr) || 0;
                     
                     let totalOut = 0;
                     let transactions = [];
-                    let dayVals = []; // For P70
+                    let dayVals = []; 
 
                     activeCols.forEach(col => {
                         const valStr = String(row[col.idx]||'0').replace(/,/g,'');
@@ -408,13 +384,10 @@
                         }
                     });
 
-                    // Algorithm
                     let monthlyRate = 0;
                     if(algo === 'simple_avg') {
-                        // Total Outflow / Count of Months
                         monthlyRate = totalOut / denomMonths;
                     } else if (algo === 'p70') {
-                        // P70 of daily sales, extrapolated to 30 days
                         if(dayVals.length > 0) {
                             dayVals.sort((a,b)=>a-b);
                             const p70Daily = dayVals[Math.floor(dayVals.length * 0.7)];
@@ -426,11 +399,11 @@
                     
                     let status = 'OK';
                     if (transactions.length === 0 && winValue !== 'all') status = 'Low Data';
-                    // Risk check logic (2 months coverage)
+                    // Simple check against 2 months target
                     if (monthlyRate > 0 && (inv / monthlyRate) < 2) status = 'Risk';
 
                     results.push({
-                        itemNo: isNaN(itemNo) ? 9999 : itemNo, // Valid number or push to end
+                        itemNo: isNaN(itemNo) ? 9999 : itemNo,
                         itemNoDisplay: itemNoStr,
                         sku: rawSku,
                         name: this.deriveName(rawSku),
@@ -450,7 +423,7 @@
                 const total = this.processedData.length;
                 document.getElementById('kpi-total-skus').innerText = total;
                 document.getElementById('row-stats').innerText = `Fetched: ${this.rawData.length} rows | Valid SKUs: ${total}`;
-                this.sort(this.sortCol, true); // Keep current sort if set, or default
+                this.sort(this.sortCol, true);
             },
 
             sort(col, keepDir) {
@@ -497,7 +470,6 @@
             }
         };
 
-        // CSV Parser
         const parseCSV = (text) => {
             const rows = [];
             let row = [];
@@ -517,7 +489,6 @@
             return rows;
         };
 
-        // Debug Modal Logic
         app.showDebug = function(row) {
             const el = document.getElementById('debug-content');
             const d = row.debug;
@@ -580,7 +551,7 @@
             this.config.INV = document.getElementById('conf-col-inv').value.trim();
             this.config.SKU = document.getElementById('conf-col-sku').value.trim();
             this.config.ITEM_NO = document.getElementById('conf-col-no').value.trim();
-            safeStorage.setItem('pm_inv_config_v17', JSON.stringify(this.config));
+            safeStorage.setItem('pm_inv_config_v18', JSON.stringify(this.config));
             this.toggleSettings(false);
             this.fetchData();
         };
