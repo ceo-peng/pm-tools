@@ -5,16 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inventory Intelligence Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #334155; }
-        .chart-container { position: relative; width: 100%; height: 300px; margin: auto; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
         .loader { border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #2563eb; width: 24px; height: 24px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
         .modal { transition: opacity 0.2s ease-in-out; }
         body.modal-active { overflow-x: hidden; overflow-y: visible !important; }
-        tr.cursor-pointer:hover td { background-color: #eff6ff; }
+        
+        /* Sortable Header Styles */
+        th.sortable { cursor: pointer; user-select: none; transition: background-color 0.2s; }
+        th.sortable:hover { background-color: #e2e8f0; }
+        th.sortable .icon { display: inline-block; width: 12px; margin-left: 4px; opacity: 0.3; }
+        th.sortable.asc .icon { opacity: 1; transform: rotate(0deg); }
+        th.sortable.desc .icon { opacity: 1; transform: rotate(180deg); }
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
@@ -40,8 +52,10 @@
     <!-- Main -->
     <main class="flex-grow p-6 max-w-7xl mx-auto w-full space-y-6">
         
-        <div id="error-banner" class="hidden bg-rose-50 border border-rose-200 rounded-lg p-4 flex flex-wrap gap-4 justify-between items-center">
-            <span id="error-message" class="text-sm text-rose-800 font-medium">Connection Error</span>
+        <div id="error-banner" class="hidden bg-rose-50 border border-rose-200 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div class="text-sm text-rose-800">
+                <strong class="font-bold">Connection Issue:</strong> <span id="error-message">Unable to fetch data.</span>
+            </div>
             <button onclick="app.loadMockData()" class="px-4 py-2 bg-white border border-rose-200 text-rose-700 text-xs font-bold rounded shadow-sm hover:bg-rose-50 transition-colors">Load Demo Data</button>
         </div>
 
@@ -51,7 +65,7 @@
             <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-wrap gap-6 items-end">
                 <div class="space-y-1.5">
                     <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Analysis Interval</label>
-                    <select id="sel-window" class="block w-48 text-sm border-slate-300 rounded-lg bg-slate-50 p-2.5">
+                    <select id="sel-window" class="block w-48 text-sm border-slate-300 rounded-lg bg-slate-50 p-2.5 focus:ring-blue-500">
                         <option value="all" selected>All History</option>
                         <option value="1">Last 1 Month</option>
                         <option value="2">Last 2 Months</option>
@@ -62,7 +76,7 @@
                 </div>
                 <div class="space-y-1.5">
                     <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Algorithm</label>
-                    <select id="sel-algo" class="block w-48 text-sm border-slate-300 rounded-lg bg-slate-50 p-2.5">
+                    <select id="sel-algo" class="block w-48 text-sm border-slate-300 rounded-lg bg-slate-50 p-2.5 focus:ring-blue-500">
                         <option value="simple_avg" selected>Average Velocity</option>
                         <option value="p70">P70 Safety (Conservative)</option>
                     </select>
@@ -70,70 +84,69 @@
                 <div class="space-y-1.5">
                     <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Target Stock</label>
                     <div class="flex items-center gap-2">
-                        <input type="number" id="inp-target" value="2" class="block w-20 text-sm border-slate-300 rounded-lg bg-slate-50 p-2.5 text-center">
+                        <input type="number" id="inp-target" value="2" class="block w-20 text-sm border-slate-300 rounded-lg bg-slate-50 p-2.5 text-center focus:ring-blue-500">
                         <span class="text-sm text-slate-400">Months</span>
                     </div>
                 </div>
                 <div class="flex-grow text-right">
                     <p id="date-range-display" class="text-xs text-stone-400 italic mt-2"></p>
                 </div>
-                <button id="btn-refresh" class="text-stone-500 hover:text-sky-600 text-sm font-bold flex items-center gap-2 px-3 py-2"><span>&#8635;</span> Refresh</button>
+                <button id="btn-refresh" class="text-stone-500 hover:text-blue-600 text-sm font-bold flex items-center gap-2 px-3 py-2 transition-colors">
+                    <span>&#8635;</span> Refresh
+                </button>
             </div>
 
             <!-- KPIs -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                    <div class="text-xs font-bold text-slate-400 uppercase">Total SKUs</div>
-                    <div id="kpi-total" class="text-2xl font-bold text-slate-800 mt-1">-</div>
+                <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm">
+                    <div class="text-xs font-medium text-stone-400 uppercase">Total SKUs</div>
+                    <div id="kpi-total-skus" class="text-2xl font-bold text-stone-800 mt-1">-</div>
                 </div>
                 <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm">
-                    <div class="text-xs font-bold text-stone-400 uppercase">Refill Alerts</div>
-                    <div id="kpi-risk" class="text-2xl font-bold text-rose-500 mt-1">-</div>
-                    <div class="text-xs text-stone-400">Below target</div>
+                    <div class="text-xs font-medium text-stone-400 uppercase">Refill Alerts</div>
+                    <div id="kpi-risk-count" class="text-2xl font-bold text-rose-500 mt-1">-</div>
+                    <div class="text-xs text-stone-400 mt-1">Below target months</div>
                 </div>
                 <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm">
-                    <div class="text-xs font-bold text-stone-400 uppercase">Restock Units</div>
-                    <div id="kpi-units" class="text-2xl font-bold text-sky-600 mt-1">-</div>
+                    <div class="text-xs font-medium text-stone-400 uppercase">Total Units Needed</div>
+                    <div id="kpi-refill-qty" class="text-2xl font-bold text-sky-600 mt-1">-</div>
+                    <div class="text-xs text-stone-400 mt-1">To reach target</div>
                 </div>
                 <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm">
-                    <div class="text-xs font-bold text-stone-400 uppercase">Low Confidence</div>
-                    <div id="kpi-conf" class="text-2xl font-bold text-amber-500 mt-1">-</div>
-                    <div class="text-xs text-stone-400">Sparse data</div>
-                </div>
-            </div>
-
-            <!-- Charts -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
-                    <h3 class="text-sm font-bold text-stone-800 mb-4">Inventory Health (Months)</h3>
-                    <div class="chart-container"><canvas id="chart-health"></canvas></div>
-                </div>
-                <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
-                    <h3 class="text-sm font-bold text-stone-800 mb-4">Top Refill Priorities (Qty)</h3>
-                    <div class="chart-container"><canvas id="chart-refill"></canvas></div>
+                    <div class="text-xs font-medium text-stone-400 uppercase">Low Confidence</div>
+                    <div id="kpi-low-conf" class="text-2xl font-bold text-amber-500 mt-1">-</div>
+                    <div class="text-xs text-stone-400 mt-1">&lt; 3 active sales days</div>
                 </div>
             </div>
 
             <!-- Table -->
-            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[600px]">
+            <div class="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden flex flex-col h-[650px]">
                 <div class="p-4 border-b border-stone-200 bg-stone-50 flex justify-between items-center gap-4 shrink-0">
-                    <div>
-                        <h3 class="text-sm font-bold text-slate-800">Detail View</h3>
-                        <p class="text-[10px] text-slate-400">Click any row to verify math</p>
+                    <div class="flex items-center gap-3">
+                        <h3 class="text-sm font-bold text-stone-800">Detail View</h3>
+                        <p id="row-stats" class="text-xs text-stone-400 font-mono"></p>
                     </div>
-                    <input type="text" id="inp-search" placeholder="Search SKU..." class="pl-4 pr-4 py-2 text-sm border border-stone-300 rounded-lg w-64 focus:ring-sky-500">
+                    <input type="text" id="inp-search" placeholder="Search SKU..." class="pl-4 pr-4 py-2 text-sm border border-stone-300 rounded-lg w-64 focus:ring-blue-500 outline-none">
                 </div>
                 <div class="overflow-auto flex-grow">
                     <table class="min-w-full divide-y divide-stone-200 relative">
                         <thead class="bg-stone-100 sticky top-0 z-10 shadow-sm">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-stone-500 uppercase cursor-pointer hover:bg-stone-200" onclick="app.sort('sku')">SKU</th>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-stone-500 uppercase cursor-pointer hover:bg-stone-200" onclick="app.sort('name')">Product</th>
-                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase cursor-pointer" onclick="app.sort('inv', true)">Stock</th>
-                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase cursor-pointer" onclick="app.sort('monthlyRate', true)">Est. Mo. Runrate</th>
-                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase cursor-pointer" onclick="app.sort('mos', true)">Mo. Left</th>
-                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase cursor-pointer" onclick="app.sort('refill', true)">Refill</th>
-                                <th class="px-6 py-3 text-center text-xs font-bold text-stone-500 uppercase">Status</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-stone-500 uppercase sortable" data-col="sku" onclick="app.sort('sku')">
+                                    SKU <span class="icon">▼</span>
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-stone-500 uppercase sortable" data-col="name" onclick="app.sort('name')">
+                                    Product <span class="icon">▼</span>
+                                </th>
+                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase sortable" data-col="inv" onclick="app.sort('inv')">
+                                    Stock <span class="icon">▼</span>
+                                </th>
+                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase sortable" data-col="monthlyRate" onclick="app.sort('monthlyRate')">
+                                    Est. Monthly Runrate <span class="icon">▼</span>
+                                </th>
+                                <th class="px-6 py-3 text-center text-xs font-bold text-stone-500 uppercase sortable" data-col="status" onclick="app.sort('status')">
+                                    Status <span class="icon">▼</span>
+                                </th>
                             </tr>
                         </thead>
                         <tbody id="table-body" class="bg-white divide-y divide-stone-200 text-sm text-stone-600"></tbody>
@@ -164,11 +177,11 @@
                 <div class="grid grid-cols-1 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-stone-500 uppercase mb-1">Sheet ID</label>
-                        <input id="conf-sheet-id" class="w-full p-2 text-sm border rounded">
+                        <input id="conf-sheet-id" class="w-full p-2 text-sm border rounded focus:ring-blue-500 outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-stone-500 uppercase mb-1">Tab Name</label>
-                        <input id="conf-tab-name" class="w-full p-2 text-sm border rounded">
+                        <input id="conf-tab-name" class="w-full p-2 text-sm border rounded focus:ring-blue-500 outline-none">
                     </div>
                 </div>
                 <div class="pt-4 border-t border-stone-100">
@@ -188,13 +201,13 @@
                         </div>
                         <div class="opacity-50">
                             <label class="block text-[10px] font-bold text-stone-400 uppercase mb-1">Name Col</label>
-                            <input disabled placeholder="Auto-Derived" class="w-full p-2 text-xs border rounded bg-slate-50 italic">
+                            <input disabled placeholder="Same as SKU" class="w-full p-2 text-xs border rounded bg-slate-50 italic">
                         </div>
                     </div>
                 </div>
             </div>
             <div class="flex justify-end mt-6">
-                <button onclick="app.saveSettings()" class="bg-sky-600 text-white font-bold py-2 px-4 rounded text-sm hover:bg-sky-700">Save & Reload</button>
+                <button onclick="app.saveSettings()" class="bg-blue-600 text-white font-bold py-2 px-4 rounded text-sm hover:bg-blue-700 shadow-md">Save & Reload</button>
             </div>
         </div>
     </div>
@@ -202,12 +215,10 @@
     <!-- Loading Overlay -->
     <div id="loader" class="fixed inset-0 bg-white/90 z-50 flex flex-col items-center justify-center backdrop-blur-sm">
         <div class="loader"></div>
-        <p class="mt-4 text-stone-600 font-medium">Connecting (CSV Mode)...</p>
+        <p class="mt-4 text-stone-600 font-medium">Connecting...</p>
     </div>
 
     <script>
-        // CONFIG UPDATED BASED ON SCREENSHOTS
-        // Header Row = 2. Data Start = 4. SKU = D. Inventory = J.
         const DEFAULT_CONFIG = {
             ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI',
             TAB: 'inventory_tracking',
@@ -217,38 +228,41 @@
             NAME: 'D' 
         };
 
+        // JSONP Callback
+        window.googleSheetCallback = function(json) {
+            if (json.status === 'error') {
+                app.showError(true, "Google API Error: " + json.errors[0].detailed_message);
+                app.toggleLoader(false);
+                return;
+            }
+            const rows = json.table.rows.map(r => 
+                r.c.map(cell => (cell && cell.v !== null) ? String(cell.v) : "")
+            );
+            app.rawData = rows;
+            app.parseStructure();
+            document.getElementById('connection-status').classList.remove('hidden');
+        };
+
         const safeStorage = {
             getItem: (k) => { try { return localStorage.getItem(k); } catch(e){ return null; } },
             setItem: (k, v) => { try { localStorage.setItem(k, v); } catch(e){} }
         };
 
-        // CSV Parser
-        const parseCSV = (text) => {
-            const rows = [];
-            let row = [];
-            let cell = "";
-            let inQuote = false;
-            for (let i = 0; i < text.length; i++) {
-                const char = text[i];
-                if (char === '"') { inQuote = !inQuote; }
-                else if (char === ',' && !inQuote) { row.push(cell.trim()); cell = ""; }
-                else if ((char === '\r' || char === '\n') && !inQuote) {
-                    if (cell || row.length) row.push(cell.trim());
-                    if (row.length) rows.push(row);
-                    row = []; cell = "";
-                } else { cell += char; }
+        function letterToIndex(letter) {
+            if (!letter) return -1;
+            let column = letter.toUpperCase();
+            let sum = 0;
+            for (let i = 0; i < column.length; i++) {
+                sum *= 26; sum += (column.charCodeAt(i) - 'A'.charCodeAt(0) + 1);
             }
-            if (cell || row.length) { row.push(cell.trim()); rows.push(row); }
-            return rows;
-        };
-
-        const letterToIndex = (l) => !l ? -1 : l.toUpperCase().split('').reduce((p,c) => p*26 + c.charCodeAt(0) - 64, 0) - 1;
+            return sum - 1;
+        }
 
         const app = {
-            config: DEFAULT_CONFIG, rawData: [], processedData: [], sortCol: 'refill', sortAsc: false, map: {},
+            config: DEFAULT_CONFIG, rawData: [], processedData: [], sortCol: 'monthlyRate', sortAsc: false, map: {},
 
             init() {
-                this.config = safeStorage.getItem('pm_inv_config_v11') ? JSON.parse(safeStorage.getItem('pm_inv_config_v11')) : DEFAULT_CONFIG;
+                this.config = safeStorage.getItem('pm_inv_config_v12') ? JSON.parse(safeStorage.getItem('pm_inv_config_v12')) : DEFAULT_CONFIG;
                 this.bindEvents();
                 this.fetchData();
             },
@@ -288,7 +302,6 @@
             },
 
             parseStructure() {
-                // Configurable Header Row
                 const hRow = parseInt(this.config.ROW) - 1; 
                 if (!this.rawData[hRow]) {
                     alert("Header row not found. Check Settings."); return;
@@ -301,7 +314,6 @@
                 const dateRegex = /\d{2}\.\d{4}\.\d{4}/;
                 header.forEach((txt, idx) => {
                     if (dateRegex.test(txt)) {
-                        // Parse 25.0907 -> 2025-09-07
                         const m = txt.match(/(\d{2})\.(\d{4})/);
                         if (m) dateCols.push({ idx, date: `20${m[1]}-${m[2].substr(0,2)}-${m[2].substr(2,2)}`, raw: txt });
                     }
@@ -310,7 +322,6 @@
 
                 this.map = {
                     sku: letterToIndex(this.config.SKU),
-                    // Name uses same col as SKU initially
                     name: letterToIndex(this.config.SKU), 
                     inv: letterToIndex(this.config.INV),
                     dates: dateCols
@@ -355,7 +366,6 @@
                     if (activeCols.length > 0) {
                         const firstDate = new Date(activeCols[0].date);
                         const lastDate = new Date(activeCols[activeCols.length-1].date);
-                        // Full months + 1
                         const months = (lastDate.getFullYear() - firstDate.getFullYear()) * 12 + (lastDate.getMonth() - firstDate.getMonth()) + 1;
                         denomMonths = Math.max(1, months);
                     } else {
@@ -372,9 +382,10 @@
 
                 for(let i = startRow; i < this.rawData.length; i++) {
                     const row = this.rawData[i];
-                    if(!row || !row[this.map.sku]) continue;
+                    
+                    // Robust check: Skip if SKU cell is empty or undefined
+                    if(!row || !row[this.map.sku] || row[this.map.sku].trim() === "") continue;
 
-                    // Parse Inventory
                     const invStr = String(row[this.map.inv]||'0').replace(/,/g,'').trim();
                     const inv = parseFloat(invStr) || 0;
                     
@@ -391,9 +402,7 @@
                         }
                     });
 
-                    // Monthly Run Rate (Rounded Up)
                     const monthlyRate = Math.ceil(totalOut / denomMonths);
-
                     const mos = monthlyRate > 0 ? inv / monthlyRate : 999;
                     const refill = Math.max(0, (monthlyRate * targetMonths) - inv);
 
@@ -401,11 +410,9 @@
                     if (transactions.length === 0 && winValue !== 'all') status = 'Low Data';
                     else if (mos < targetMonths) status = 'Risk';
 
-                    const skuRaw = row[this.map.sku];
-                    
                     results.push({
-                        sku: skuRaw,
-                        name: this.deriveName(skuRaw),
+                        sku: row[this.map.sku],
+                        name: this.deriveName(row[this.map.sku]),
                         inv, monthlyRate, mos, refill, status,
                         debug: { totalOut, denomMonths, windowDesc, transactions }
                     });
@@ -424,17 +431,27 @@
                 const low = this.processedData.filter(x => x.status === 'Low Data').length;
                 const units = this.processedData.reduce((a,b) => a + b.refill, 0);
 
-                document.getElementById('kpi-total').innerText = total;
-                document.getElementById('kpi-risk').innerText = risk;
-                document.getElementById('kpi-units').innerText = Math.ceil(units).toLocaleString();
-                document.getElementById('kpi-conf').innerText = low;
+                document.getElementById('kpi-total-skus').innerText = total;
+                document.getElementById('kpi-risk-count').innerText = risk;
+                document.getElementById('kpi-refill-qty').innerText = Math.ceil(units).toLocaleString();
+                document.getElementById('kpi-low-conf').innerText = low;
                 
+                // Update Row Stats for Debugging
+                document.getElementById('row-stats').innerText = `Fetched: ${this.rawData.length} rows | Valid SKUs: ${total}`;
+
                 this.sort(this.sortCol, true);
             },
 
             sort(col, keepDir) {
                 if (!keepDir) { this.sortAsc = this.sortCol === col ? !this.sortAsc : true; this.sortCol = col; }
                 const m = this.sortAsc ? 1 : -1;
+                
+                // Update header classes
+                document.querySelectorAll('th.sortable').forEach(th => {
+                    th.classList.remove('asc', 'desc');
+                    if(th.dataset.col === col) th.classList.add(this.sortAsc ? 'asc' : 'desc');
+                });
+
                 this.processedData.sort((a, b) => {
                     let v1 = a[col], v2 = b[col];
                     if (typeof v1 === 'string') return v1.localeCompare(v2) * m;
@@ -447,28 +464,22 @@
                 const tbody = document.getElementById('table-body');
                 tbody.innerHTML = '';
                 const term = filter.toLowerCase();
-                let count = 0;
-
+                
                 for (const row of this.processedData) {
-                    if (count >= 500) break;
                     if (term && !row.sku.toLowerCase().includes(term) && !row.name.toLowerCase().includes(term)) continue;
-                    count++;
                     
                     const tr = document.createElement('tr');
                     tr.className = "hover:bg-blue-50 border-b border-stone-100 transition-colors cursor-pointer group";
                     tr.onclick = () => this.showDebug(row);
                     
-                    let statusClass = row.status === 'Risk' ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800';
-                    if (row.status === 'Low Data') statusClass = 'bg-amber-100 text-amber-800';
+                    let statusClass = row.status === 'Risk' ? 'bg-rose-100 text-rose-800' : (row.status === 'Low Data' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800');
 
                     tr.innerHTML = `
                         <td class="px-6 py-4 font-medium text-stone-900 group-hover:text-blue-700">${row.sku}</td>
                         <td class="px-6 py-4 text-stone-500 truncate max-w-xs" title="${row.name}">${row.name}</td>
                         <td class="px-6 py-4 text-right font-mono">${Math.round(row.inv).toLocaleString()}</td>
                         <td class="px-6 py-4 text-right font-mono font-bold">${Math.round(row.monthlyRate).toLocaleString()}</td>
-                        <td class="px-6 py-4 text-right font-mono ${row.status === 'Risk' ? 'text-rose-600 font-bold' : ''}">${row.mos > 999 ? '>999' : row.mos.toFixed(1)}</td>
-                        <td class="px-6 py-4 text-right font-mono ${row.refill > 0 ? 'text-blue-600 font-bold' : 'text-slate-400'}">${row.refill > 0 ? Math.ceil(row.refill).toLocaleString() : '-'}</td>
-                        <td class="px-6 py-4 text-center"><span class="px-2 py-1 rounded-full text-xs font-bold ${statusClass}">${row.status}</span></td>
+                        <td class="px-6 py-4 text-center"><span class="px-2.5 py-1 rounded-full text-xs font-bold ${statusClass}">${row.status}</span></td>
                     `;
                     tbody.appendChild(tr);
                 }
@@ -530,11 +541,11 @@
 
             saveSettings() {
                 this.config.ID = document.getElementById('conf-sheet-id').value.trim();
-                this.config.TAB_NAME = document.getElementById('conf-tab-name').value.trim();
+                this.config.TAB = document.getElementById('conf-tab-name').value.trim();
                 this.config.ROW = document.getElementById('conf-row-header').value.trim();
                 this.config.INV = document.getElementById('conf-col-inv').value.trim();
                 this.config.SKU = document.getElementById('conf-col-sku').value.trim();
-                safeStorage.setItem('pm_inv_config_v11', JSON.stringify(this.config));
+                safeStorage.setItem('pm_inv_config_v12', JSON.stringify(this.config));
                 this.toggleSettings(false);
                 this.fetchData();
             },
@@ -545,13 +556,50 @@
             },
 
             loadMockData() {
-                // Mock data logic can be kept for testing if needed
                 this.toggleLoader(true);
                 setTimeout(() => {
-                    this.toggleLoader(false);
-                    // ... (Mock data generation would go here)
-                }, 1000);
+                    const head = ['unique_key', 'product_name', '即時庫存數量'];
+                    const dates = [];
+                    for(let i=120; i>=105; i--) {
+                        const d = new Date(); d.setDate(d.getDate()-i);
+                        const str = `${d.getFullYear().toString().substr(2)}.${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.1200`;
+                        head.push(str); dates.push(str);
+                    }
+                    this.rawData = [['junk'], head]; 
+                    for(let i=1; i<=20; i++) {
+                        const inv = Math.floor(Math.random()*200);
+                        const row = [`DEMO-${i}`, `Product ${i}`, String(inv)];
+                        for(let j=0; j<15; j++) row.push(Math.random()>0.7 ? String(-Math.floor(Math.random()*10)) : "0");
+                        this.rawData.push(row);
+                    }
+                    const backup = {...this.config};
+                    this.config.ROW = ''; 
+                    this.parseStructure();
+                    this.config = backup; 
+                    document.getElementById('connection-status').innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span> Demo';
+                    document.getElementById('connection-status').classList.remove('hidden');
+                }, 600);
             }
+        };
+
+        // CSV Parser
+        const parseCSV = (text) => {
+            const rows = [];
+            let row = [];
+            let cell = "";
+            let inQuote = false;
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                if (char === '"') { inQuote = !inQuote; }
+                else if (char === ',' && !inQuote) { row.push(cell.trim()); cell = ""; }
+                else if ((char === '\r' || char === '\n') && !inQuote) {
+                    if (cell || row.length) row.push(cell.trim());
+                    if (row.length) rows.push(row);
+                    row = []; cell = "";
+                } else { cell += char; }
+            }
+            if (cell || row.length) { row.push(cell.trim()); rows.push(row); }
+            return rows;
         };
 
         window.addEventListener('load', () => app.init());
