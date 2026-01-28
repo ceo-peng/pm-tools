@@ -6,7 +6,7 @@
     <title>Inventory Intelligence Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- REMOVED: Google Identity Services Script (Not needed for this pattern) -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
@@ -16,7 +16,6 @@
             color: #44403c; /* stone-700 */
         }
 
-        /* Chart Container Styling - MANDATORY */
         .chart-container {
             position: relative;
             width: 100%;
@@ -27,21 +26,10 @@
             margin-right: auto;
         }
 
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #f5f5f4; 
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #d6d3d1; 
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #a8a29e; 
-        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f5f5f4; }
+        ::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a29e; }
 
         .loader {
             border: 3px solid #f3f3f3;
@@ -49,25 +37,19 @@
             border-top: 3px solid #0ea5e9;
             width: 20px;
             height: 20px;
-            -webkit-animation: spin 1s linear infinite; /* Safari */
             animation: spin 1s linear infinite;
             display: inline-block;
             vertical-align: middle;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Modal Transitions */
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .modal { transition: opacity 0.25s ease; }
         body.modal-active { overflow-x: hidden; overflow-y: visible !important; }
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
 
-    <!-- Header & Auth -->
+    <!-- Header -->
     <header class="bg-white border-b border-stone-200 sticky top-0 z-20 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
@@ -87,9 +69,6 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                 </button>
-                <button id="btn-auth" class="bg-stone-900 hover:bg-stone-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors shadow-sm">
-                    Connect Google Sheet
-                </button>
             </div>
         </div>
     </header>
@@ -97,23 +76,33 @@
     <!-- Main Content Area -->
     <main class="flex-grow p-6 max-w-7xl mx-auto w-full space-y-8">
 
-        <!-- Intro / Context -->
+        <!-- Intro -->
         <section class="space-y-2">
             <h2 class="text-lg font-semibold text-stone-800">Operational Overview</h2>
             <p class="text-stone-500 text-sm max-w-3xl leading-relaxed">
-                This dashboard connects directly to your inventory records to calculate real-time run rates based on historical outflow. 
-                It categorizes stock health by comparing current inventory against calculated daily velocity, identifying immediate refill risks based on your 60-day target.
+                Real-time run rates based on historical outflow. 
+                <strong class="text-stone-600">Requirement:</strong> The source Google Sheet must be set to "Anyone with the link can view" to load live data.
             </p>
         </section>
 
-        <!-- Loading State -->
-        <div id="loading-overlay" class="hidden fixed inset-0 bg-white/80 z-50 flex flex-col items-center justify-center backdrop-blur-sm">
+        <!-- Error / Notification Banner -->
+        <div id="error-banner" class="hidden bg-rose-50 border border-rose-200 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div class="text-sm text-rose-800">
+                <strong class="font-bold">Connection Issue:</strong> <span id="error-message">Unable to fetch data.</span>
+            </div>
+            <button onclick="app.loadMockData()" class="text-xs bg-white border border-rose-200 text-rose-700 hover:bg-rose-100 px-3 py-2 rounded-md font-medium transition-colors whitespace-nowrap shadow-sm">
+                Load Demo Data
+            </button>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="fixed inset-0 bg-white/90 z-50 flex flex-col items-center justify-center backdrop-blur-sm transition-opacity duration-300">
             <div class="loader w-12 h-12 border-4 border-t-sky-500 border-stone-200"></div>
-            <p class="mt-4 text-stone-600 font-medium animate-pulse">Analyzing Inventory Data...</p>
+            <p class="mt-4 text-stone-600 font-medium animate-pulse">Fetching Public Data...</p>
         </div>
 
         <!-- Dashboard Content (Hidden until loaded) -->
-        <div id="dashboard-content" class="hidden space-y-8">
+        <div id="dashboard-content" class="hidden space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             
             <!-- Controls Bar -->
             <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm flex flex-wrap gap-6 items-end">
@@ -152,26 +141,22 @@
 
             <!-- KPI Cards -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <!-- KPI 1 -->
-                <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm hover:shadow-md transition-shadow">
+                <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm">
                     <div class="text-xs font-medium text-stone-400 uppercase">Total SKUs</div>
                     <div id="kpi-total-skus" class="text-2xl font-bold text-stone-800 mt-1">-</div>
                     <div class="text-xs text-stone-400 mt-1">Active items tracked</div>
                 </div>
-                <!-- KPI 2 -->
-                <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm hover:shadow-md transition-shadow">
+                <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm">
                     <div class="text-xs font-medium text-stone-400 uppercase">Refill Alerts</div>
                     <div id="kpi-risk-count" class="text-2xl font-bold text-rose-500 mt-1">-</div>
                     <div class="text-xs text-stone-400 mt-1">Items below target DOS</div>
                 </div>
-                <!-- KPI 3 -->
-                <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm hover:shadow-md transition-shadow">
+                <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm">
                     <div class="text-xs font-medium text-stone-400 uppercase">Total Units Needed</div>
                     <div id="kpi-refill-qty" class="text-2xl font-bold text-sky-600 mt-1">-</div>
                     <div class="text-xs text-stone-400 mt-1">To reach target levels</div>
                 </div>
-                <!-- KPI 4 -->
-                <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm hover:shadow-md transition-shadow">
+                <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm">
                     <div class="text-xs font-medium text-stone-400 uppercase">Low Confidence</div>
                     <div id="kpi-low-conf" class="text-2xl font-bold text-amber-500 mt-1">-</div>
                     <div class="text-xs text-stone-400 mt-1">&lt; 3 active sales days</div>
@@ -180,22 +165,17 @@
 
             <!-- Visualizations -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- Chart 1: Inventory Health -->
                 <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
                     <h3 class="text-sm font-semibold text-stone-800 mb-4">Inventory Health Distribution</h3>
                     <div class="chart-container">
                         <canvas id="chart-health"></canvas>
                     </div>
-                    <p class="text-xs text-stone-400 mt-4 text-center">Breakdown of SKUs by their Days of Stock (DOS) status.</p>
                 </div>
-
-                <!-- Chart 2: Top Refill Priorities -->
                 <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
                     <h3 class="text-sm font-semibold text-stone-800 mb-4">Top 10 Refill Priorities (Units)</h3>
                     <div class="chart-container">
                         <canvas id="chart-refill"></canvas>
                     </div>
-                    <p class="text-xs text-stone-400 mt-4 text-center">Items requiring the largest quantity volume to reach safety stock.</p>
                 </div>
             </div>
 
@@ -237,7 +217,7 @@
 
             <!-- Footer -->
             <footer class="text-center text-xs text-stone-400 pb-6">
-                Generated by Prophecy Morocco Inventory Tool &bull; Secured by Google OAuth
+                Generated by Prophecy Morocco Inventory Tool
             </footer>
 
         </div>
@@ -248,25 +228,15 @@
         <div class="modal-overlay absolute w-full h-full bg-stone-900 opacity-50"></div>
         <div class="modal-container bg-white w-11/12 md:max-w-md mx-auto rounded-xl shadow-lg z-50 overflow-y-auto">
             <div class="modal-content py-4 text-left px-6">
-                <!-- Title -->
                 <div class="flex justify-between items-center pb-3 border-b border-stone-100">
-                    <p class="text-lg font-bold text-stone-800">Configuration</p>
+                    <p class="text-lg font-bold text-stone-800">Source Configuration</p>
                     <div class="modal-close cursor-pointer z-50 p-2 hover:bg-stone-100 rounded-full" onclick="app.toggleSettings(false)">
-                        <svg class="fill-current text-stone-500" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18">
-                            <path d="M14.53 4.53l-1.06-1.06L9 7.94 4.53 3.47 3.47 4.53 7.94 9l-4.47 4.47 1.06 1.06L9 10.06l4.47 4.47 1.06-1.06L10.06 9z"></path>
-                        </svg>
+                        <svg class="fill-current text-stone-500" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><path d="M14.53 4.53l-1.06-1.06L9 7.94 4.53 3.47 3.47 4.53 7.94 9l-4.47 4.47 1.06 1.06L9 10.06l4.47 4.47 1.06-1.06L10.06 9z"></path></svg>
                     </div>
                 </div>
-
-                <!-- Body -->
                 <div class="py-4 space-y-4">
-                    <div class="bg-sky-50 text-sky-800 p-3 rounded-lg text-xs">
-                        Ensure your Client ID is configured in Google Cloud with <strong>http://tools.prophecymorocco.com.tw</strong> listed in "Authorized JavaScript origins".
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-stone-600 uppercase mb-1">OAuth Client ID</label>
-                        <input id="conf-client-id" type="text" class="w-full p-2 text-sm border border-stone-300 rounded-md focus:ring-sky-500 focus:border-sky-500" placeholder="...apps.googleusercontent.com">
-                        <p id="conf-error" class="text-xs text-rose-500 mt-1 hidden">Invalid ID format. Do not use GID.</p>
+                    <div class="bg-amber-50 text-amber-800 p-3 rounded-lg text-xs">
+                        <strong>Important:</strong> Your Google Sheet must be shared as <u>"Anyone with the link can view"</u> for this to work without login.
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-stone-600 uppercase mb-1">Spreadsheet ID</label>
@@ -277,12 +247,8 @@
                         <input id="conf-tab-name" type="text" class="w-full p-2 text-sm border border-stone-300 rounded-md focus:ring-sky-500 focus:border-sky-500">
                     </div>
                 </div>
-
-                <!-- Footer -->
                 <div class="flex justify-end pt-2">
-                    <button onclick="app.saveSettings()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors">
-                        Save & Connect
-                    </button>
+                    <button onclick="app.saveSettings()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors">Save & Reload</button>
                 </div>
             </div>
         </div>
@@ -290,77 +256,77 @@
 
     <script>
         /**
-         * APPLICATION CONFIGURATION
+         * CONFIGURATION
          */
-        // Defaults if local storage is empty
         const DEFAULT_CONFIG = {
-            CLIENT_ID: '700367171439-avgriehld6qgucdrtborca884nlliu7o.apps.googleusercontent.com',
             SHEET_ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI',
-            TAB_NAME: 'inventory_tracking',
-            SCOPE: 'https://www.googleapis.com/auth/spreadsheets.readonly'
+            TAB_NAME: 'inventory_tracking'
         };
+
+        /**
+         * SAFE STORAGE UTILS (Prevents Preview Crashes)
+         */
+        const safeStorage = {
+            getItem: (key) => {
+                try { return localStorage.getItem(key); } catch(e) { return null; }
+            },
+            setItem: (key, val) => {
+                try { localStorage.setItem(key, val); } catch(e) { /* ignore */ }
+            }
+        };
+
+        /**
+         * CSV UTILS
+         */
+        function parseCSV(text) {
+            const rows = [];
+            let row = [];
+            let cell = "";
+            let inQuote = false;
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                if (char === '"') { inQuote = !inQuote; }
+                else if (char === ',' && !inQuote) { row.push(cell.trim()); cell = ""; }
+                else if ((char === '\r' || char === '\n') && !inQuote) {
+                    if (cell || row.length) row.push(cell.trim());
+                    if (row.length) rows.push(row);
+                    row = []; cell = "";
+                } else { cell += char; }
+            }
+            if (cell || row.length) { row.push(cell.trim()); rows.push(row); }
+            return rows;
+        }
 
         /**
          * CORE APP LOGIC
          */
         const app = {
-            // State
             config: {},
-            tokenClient: null,
-            accessToken: null,
             rawData: [],
             mapping: { sku: -1, name: -1, inv: -1, dateCols: [] },
             processedData: [],
             charts: {},
             sort: { col: 'refill', asc: false },
 
-            // Initialization
             init: function() {
                 this.loadConfig();
                 this.setupListeners();
-                setTimeout(() => this.initAuth(), 1000);
+                this.fetchData();
             },
 
             loadConfig: function() {
-                const stored = localStorage.getItem('inventory_config');
+                const stored = safeStorage.getItem('inventory_config_v2');
                 this.config = stored ? JSON.parse(stored) : { ...DEFAULT_CONFIG };
-                
-                // Populate Modal Inputs
-                document.getElementById('conf-client-id').value = this.config.CLIENT_ID;
                 document.getElementById('conf-sheet-id').value = this.config.SHEET_ID;
                 document.getElementById('conf-tab-name').value = this.config.TAB_NAME;
             },
 
             saveSettings: function() {
-                const newClient = document.getElementById('conf-client-id').value.trim();
-                const newSheet = document.getElementById('conf-sheet-id').value.trim();
-                const newTab = document.getElementById('conf-tab-name').value.trim();
-                const errorText = document.getElementById('conf-error');
-
-                // Validation
-                if (!newClient.endsWith('.apps.googleusercontent.com')) {
-                    errorText.innerText = "Invalid Client ID. Must end in .apps.googleusercontent.com";
-                    errorText.classList.remove('hidden');
-                    return;
-                }
-                if (/^\d+$/.test(newClient)) {
-                    errorText.innerText = "Error: You entered a numeric GID, not a Client ID.";
-                    errorText.classList.remove('hidden');
-                    return;
-                }
-                errorText.classList.add('hidden');
-
-                this.config.CLIENT_ID = newClient;
-                this.config.SHEET_ID = newSheet;
-                this.config.TAB_NAME = newTab;
-
-                localStorage.setItem('inventory_config', JSON.stringify(this.config));
+                this.config.SHEET_ID = document.getElementById('conf-sheet-id').value.trim();
+                this.config.TAB_NAME = document.getElementById('conf-tab-name').value.trim();
+                safeStorage.setItem('inventory_config_v2', JSON.stringify(this.config));
                 this.toggleSettings(false);
-                
-                // Re-init auth with new ID
-                this.tokenClient = null;
-                this.initAuth();
-                alert("Settings saved. Please click 'Connect' again.");
+                this.fetchData();
             },
 
             toggleSettings: function(show) {
@@ -376,132 +342,131 @@
             },
 
             setupListeners: function() {
-                document.getElementById('btn-auth').addEventListener('click', () => this.handleAuthClick());
-                document.getElementById('btn-refresh').addEventListener('click', () => this.recalculate());
+                document.getElementById('btn-refresh').addEventListener('click', () => this.fetchData());
                 document.getElementById('btn-settings').addEventListener('click', () => this.toggleSettings(true));
-                
-                // Close modal on overlay click
                 document.querySelector('.modal-overlay').addEventListener('click', () => this.toggleSettings(false));
-
-                // Live recalculation on control changes
                 ['sel-window', 'sel-algo', 'inp-target'].forEach(id => {
                     document.getElementById(id).addEventListener('change', () => this.recalculate());
                 });
-
-                // Search
                 document.getElementById('inp-search').addEventListener('keyup', (e) => this.renderTable(e.target.value));
             },
 
-            // --- Authentication ---
-            initAuth: function() {
-                if (!google || !google.accounts || !google.accounts.oauth2) {
-                    console.warn("Google GIS not loaded yet.");
-                    return;
-                }
+            // --- Data Fetching (GViz Pattern) ---
+            fetchData: async function() {
+                this.showError(false);
+                this.toggleLoader(true);
+                
+                // Use Google Visualization API (GViz) to get CSV
+                const url = `https://docs.google.com/spreadsheets/d/${this.config.SHEET_ID}/gviz/tq?sheet=${this.config.TAB_NAME}&tqx=out:csv&range=A1:ZZ`;
                 
                 try {
-                    this.tokenClient = google.accounts.oauth2.initTokenClient({
-                        client_id: this.config.CLIENT_ID,
-                        scope: DEFAULT_CONFIG.SCOPE,
-                        callback: (resp) => {
-                            if (resp.error) {
-                                alert("Auth Error: " + resp.error + "\nCheck console for details or update Client ID in Settings.");
-                                console.error(resp);
-                                return;
-                            }
-                            this.accessToken = resp.access_token;
-                            this.updateAuthUI(true);
-                            this.fetchData();
-                        }
-                    });
-                } catch(e) { console.error("Auth Init Failed", e); }
-            },
-
-            handleAuthClick: function() {
-                if (!this.tokenClient) this.initAuth();
-                if (this.tokenClient) this.tokenClient.requestAccessToken({prompt: ''});
-            },
-
-            updateAuthUI: function(connected) {
-                const btn = document.getElementById('btn-auth');
-                const status = document.getElementById('connection-status');
-                if (connected) {
-                    btn.classList.add('hidden');
-                    status.classList.remove('hidden');
-                } else {
-                    btn.classList.remove('hidden');
-                    status.classList.add('hidden');
-                }
-            },
-
-            // --- Data Fetching ---
-            fetchData: async function() {
-                this.toggleLoader(true);
-                const range = `${this.config.TAB_NAME}!A1:ZZ`;
-                try {
-                    const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.config.SHEET_ID}/values/${range}`;
-                    const res = await fetch(url, {
-                        headers: { 'Authorization': `Bearer ${this.accessToken}` }
-                    });
-
-                    if (res.status === 401) {
-                        this.accessToken = null;
-                        this.updateAuthUI(false);
-                        alert("Session Expired. Please reconnect.");
-                        this.toggleLoader(false);
-                        return;
-                    }
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error(`Fetch Error (${res.status}). Check Sheet ID.`);
                     
-                    if (!res.ok) {
-                        const err = await res.json();
-                        throw new Error(err.error.message || res.statusText);
+                    const text = await res.text();
+                    
+                    // Simple check for HTML response (implies auth wall)
+                    if(text.trim().startsWith('<!DOCTYPE html>')) {
+                        throw new Error("Sheet is Private. Please set sharing to 'Anyone with the link'.");
                     }
 
-                    const data = await res.json();
-                    if (!data.values) throw new Error("No data found.");
-
-                    this.rawData = data.values;
+                    const rows = parseCSV(text);
+                    this.rawData = rows.map(r => r.map(c => c.replace(/^"|"$/g, '')));
+                    
                     this.parseStructure();
+                    document.getElementById('connection-status').classList.remove('hidden');
 
                 } catch (e) {
                     console.error(e);
-                    alert("Data Fetch Failed: " + e.message + "\nCheck Sheet ID and Tab Name in Settings.");
                     this.toggleLoader(false);
+                    this.showError(true, e.message);
+                }
+            },
+
+            loadMockData: function() {
+                this.showError(false);
+                this.toggleLoader(true);
+                setTimeout(() => {
+                    // Generate Demo Data
+                    const today = new Date();
+                    const demoHeader = ['unique_key', 'product_name', '即時庫存數量'];
+                    const dateCols = [];
+                    // Generate 14 days of headers
+                    for(let i=14; i>=0; i--) {
+                        const d = new Date(); d.setDate(d.getDate() - i);
+                        const y = d.getFullYear().toString().substr(2);
+                        const m = (d.getMonth()+1).toString().padStart(2,'0');
+                        const day = d.getDate().toString().padStart(2,'0');
+                        dateCols.push(`${y}.${m}${day}.1200`);
+                        demoHeader.push(`${y}.${m}${day}.1200`);
+                    }
+                    
+                    this.rawData = [demoHeader];
+                    // Generate 20 random SKUs
+                    for(let i=1; i<=20; i++) {
+                        const inv = Math.floor(Math.random() * 500);
+                        const row = [`SKU-DEMO-${i}`, `Demo Product ${i} (Test Mode)`, inv.toString()];
+                        // Add transactions
+                        dateCols.forEach(() => {
+                            // 30% chance of sales
+                            if(Math.random() > 0.7) {
+                                row.push(`-${Math.floor(Math.random() * 20)}`);
+                            } else {
+                                row.push("0");
+                            }
+                        });
+                        this.rawData.push(row);
+                    }
+                    
+                    this.parseStructure();
+                    document.getElementById('connection-status').innerText = 'Demo Mode';
+                    document.getElementById('connection-status').classList.remove('hidden');
+                }, 800);
+            },
+
+            showError: function(show, msg) {
+                const banner = document.getElementById('error-banner');
+                if(show) {
+                    document.getElementById('error-message').innerText = msg || "Connection Error";
+                    banner.classList.remove('hidden');
+                } else {
+                    banner.classList.add('hidden');
                 }
             },
 
             toggleLoader: function(show) {
                 const el = document.getElementById('loading-overlay');
-                if(show) el.classList.remove('hidden');
-                else el.classList.add('hidden');
+                if(show) el.classList.remove('hidden'); else el.classList.add('hidden');
             },
 
-            // --- Parsing (Split Header Logic) ---
+            // --- Parsing Logic (Adapted for CSV Array) ---
             parseStructure: function() {
                 const rows = this.rawData;
                 let mainRow = -1, dateRow = -1;
-                const dateRegex = /\d{2}\.\d{4}\.\d{4}/;
+                const dateRegex = /\d{2}\.\d{4}\.\d{4}/; // Matches 25.0907.2241
 
-                // Scan first 15 rows for header patterns
                 for (let i = 0; i < Math.min(rows.length, 15); i++) {
                     const str = rows[i].join('|').toLowerCase();
                     if (str.includes('unique_key') && str.includes('即時庫存數量')) mainRow = i;
                     if (rows[i].some(c => dateRegex.test(String(c)))) dateRow = i;
                 }
 
+                // Fallback for single row headers (Demo data usually)
+                if (mainRow !== -1 && dateRow === -1) {
+                     if (rows[mainRow].some(c => dateRegex.test(String(c)))) dateRow = mainRow;
+                }
+
                 if (mainRow === -1 || dateRow === -1) {
-                    alert("Could not detect headers. Check sheet structure.");
                     this.toggleLoader(false);
+                    this.showError(true, "Headers not found. Check Tab Name or Sheet Structure.");
                     return;
                 }
 
-                // Map Columns
                 const mainCols = rows[mainRow];
                 this.mapping.sku = mainCols.findIndex(c => c.toLowerCase().trim() === 'unique_key');
                 this.mapping.inv = mainCols.findIndex(c => c.toLowerCase().trim().includes('即時庫存數量'));
                 this.mapping.name = mainCols.findIndex(c => c.toLowerCase().trim().includes('product_name'));
 
-                // Map Dates
                 this.mapping.dateCols = [];
                 rows[dateRow].forEach((val, idx) => {
                     if (dateRegex.test(String(val))) {
@@ -515,18 +480,15 @@
                     }
                 });
                 this.mapping.dateCols.sort((a,b) => a.date.localeCompare(b.date));
-
-                // Proceed to calculate
                 this.recalculate();
             },
 
-            // --- Calculation Engine ---
+            // --- Calculation Engine (Same as before) ---
             recalculate: function() {
                 const windowDays = document.getElementById('sel-window').value;
                 const algo = document.getElementById('sel-algo').value;
                 const targetDays = parseInt(document.getElementById('inp-target').value) || 60;
 
-                // Filter Date Columns
                 let activeCols = this.mapping.dateCols;
                 let denom = activeCols.length;
 
@@ -546,26 +508,23 @@
                 }
 
                 const results = [];
-                const startRow = Math.max(this.mapping.sku, this.mapping.inv) + 2; 
+                const startRow = Math.max(this.mapping.sku, this.mapping.inv) + 1; 
 
-                for (let i = 0; i < this.rawData.length; i++) {
-                    if (i <= Math.max(this.mapping.sku, 5)) {
-                        const rowStr = this.rawData[i].join('|').toLowerCase();
-                        if (rowStr.includes('unique_key')) continue;
-                    }
-
+                for (let i = startRow; i < this.rawData.length; i++) {
+                    // Skip header area (lenient check)
+                    if (i <= Math.max(this.mapping.sku, this.mapping.inv)) continue; 
+                    
                     const row = this.rawData[i];
                     if (!row[this.mapping.sku]) continue;
 
-                    let inv = parseFloat((row[this.mapping.inv]||'0').replace(/,/g,''));
+                    let inv = parseFloat(String(row[this.mapping.inv]||'0').replace(/,/g,''));
                     if (isNaN(inv)) inv = 0;
 
-                    // Aggregate Outflow
                     let totalOut = 0;
                     let dayMap = {};
 
                     activeCols.forEach(col => {
-                        let val = parseFloat((row[col.idx]||'0').replace(/,/g,''));
+                        let val = parseFloat(String(row[col.idx]||'0').replace(/,/g,''));
                         if (val < 0) {
                             const qty = Math.abs(val);
                             totalOut += qty;
@@ -605,9 +564,8 @@
                 document.getElementById('dashboard-content').classList.remove('hidden');
             },
 
-            // --- Visualization Rendering ---
+            // --- Visualization Rendering (Same as before) ---
             updateDashboard: function() {
-                // 1. KPIs
                 const totalSkus = this.processedData.length;
                 const riskCount = this.processedData.filter(d => d.status === 'Risk').length;
                 const totalRefill = this.processedData.reduce((acc, curr) => acc + curr.refill, 0);
@@ -618,17 +576,12 @@
                 document.getElementById('kpi-refill-qty').innerText = Math.ceil(totalRefill).toLocaleString();
                 document.getElementById('kpi-low-conf').innerText = lowConf.toLocaleString();
 
-                // 2. Charts
                 this.renderCharts(riskCount, lowConf, totalSkus);
-                
-                // 3. Table
                 this.sortTable(this.sort.col, true); 
             },
 
             renderCharts: function(risk, lowConf, total) {
                 const healthy = total - risk - lowConf;
-
-                // Chart 1: Health (Doughnut)
                 const ctxHealth = document.getElementById('chart-health').getContext('2d');
                 if (this.charts.health) this.charts.health.destroy();
 
@@ -646,18 +599,12 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: {
-                            legend: { position: 'bottom', labels: { usePointStyle: true, font: {family: "'Inter', sans-serif"} } }
-                        },
+                        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, font: {family: "'Inter', sans-serif"} } } },
                         cutout: '70%'
                     }
                 });
 
-                // Chart 2: Top Refill (Bar)
-                const topRefill = [...this.processedData]
-                    .sort((a,b) => b.refill - a.refill)
-                    .slice(0, 10);
-                
+                const topRefill = [...this.processedData].sort((a,b) => b.refill - a.refill).slice(0, 10);
                 const ctxRefill = document.getElementById('chart-refill').getContext('2d');
                 if (this.charts.refill) this.charts.refill.destroy();
 
@@ -676,32 +623,23 @@
                         responsive: true,
                         maintainAspectRatio: false,
                         indexAxis: 'y',
-                        scales: {
-                            x: { grid: { display: false } },
-                            y: { grid: { display: false } }
-                        },
-                        plugins: {
-                            legend: { display: false }
-                        }
+                        scales: { x: { grid: { display: false } }, y: { grid: { display: false } } },
+                        plugins: { legend: { display: false } }
                     }
                 });
             },
 
-            // --- Table Logic ---
             sortTable: function(col, keepDir) {
                 if (!keepDir) {
-                    if (this.sort.col === col) this.sort.asc = !this.sort.asc;
-                    else this.sort.asc = true;
+                    if (this.sort.col === col) this.sort.asc = !this.sort.asc; else this.sort.asc = true;
                     this.sort.col = col;
                 }
-
                 const mult = this.sort.asc ? 1 : -1;
                 this.processedData.sort((a, b) => {
                     let v1 = a[col], v2 = b[col];
                     if (typeof v1 === 'string') return v1.localeCompare(v2) * mult;
                     return (v1 - v2) * mult;
                 });
-
                 this.renderTable();
             },
 
@@ -709,18 +647,14 @@
                 const tbody = document.getElementById('table-body');
                 tbody.innerHTML = '';
                 const term = searchTerm.toLowerCase();
-
                 const limit = 500;
                 let count = 0;
 
                 for (const row of this.processedData) {
                     if (count >= limit) break;
                     if (term && !row.sku.toLowerCase().includes(term) && !row.name.toLowerCase().includes(term)) continue;
-
                     count++;
                     const tr = document.createElement('tr');
-                    
-                    // Styling helpers
                     let statusBadge = `<span class="px-2 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">OK</span>`;
                     if (row.status === 'Risk') statusBadge = `<span class="px-2 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800">Risk</span>`;
                     if (row.status === 'Low Data') statusBadge = `<span class="px-2 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">Low Data</span>`;
@@ -731,12 +665,8 @@
                         <td class="px-6 py-4 text-stone-500 truncate max-w-xs" title="${row.name}">${row.name}</td>
                         <td class="px-6 py-4 text-right text-stone-700 font-mono">${Math.round(row.inv).toLocaleString()}</td>
                         <td class="px-6 py-4 text-right text-stone-700 font-mono">${row.dailyRate.toFixed(1)}</td>
-                        <td class="px-6 py-4 text-right font-mono ${row.dos < document.getElementById('inp-target').value ? 'text-rose-600 font-bold' : 'text-stone-700'}">
-                            ${row.dos > 999 ? '>999' : row.dos.toFixed(1)}
-                        </td>
-                        <td class="px-6 py-4 text-right font-mono ${row.refill > 0 ? 'text-sky-600 font-bold' : 'text-stone-400'}">
-                            ${row.refill > 0 ? Math.ceil(row.refill).toLocaleString() : '-'}
-                        </td>
+                        <td class="px-6 py-4 text-right font-mono ${row.dos < document.getElementById('inp-target').value ? 'text-rose-600 font-bold' : 'text-stone-700'}">${row.dos > 999 ? '>999' : row.dos.toFixed(1)}</td>
+                        <td class="px-6 py-4 text-right font-mono ${row.refill > 0 ? 'text-sky-600 font-bold' : 'text-stone-400'}">${row.refill > 0 ? Math.ceil(row.refill).toLocaleString() : '-'}</td>
                         <td class="px-6 py-4 text-center">${statusBadge}</td>
                     `;
                     tbody.appendChild(tr);
@@ -744,7 +674,6 @@
             }
         };
 
-        // Initialize App
         window.addEventListener('load', () => app.init());
     </script>
 </body>
