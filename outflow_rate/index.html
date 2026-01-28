@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory Intelligence Dashboard v18</title>
+    <title>Inventory Intelligence Dashboard v19</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -34,7 +34,7 @@
         <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="bg-blue-600 text-white p-1.5 rounded-lg font-bold text-lg leading-none">PM</div>
-                <h1 class="text-lg font-bold text-slate-800 tracking-tight">Inventory Intelligence <span class="text-xs text-slate-400 font-normal ml-2">v18</span></h1>
+                <h1 class="text-lg font-bold text-slate-800 tracking-tight">Inventory Intelligence <span class="text-xs text-slate-400 font-normal ml-2">v19</span></h1>
             </div>
             <div class="flex items-center gap-4">
                 <div id="status-indicator" class="hidden flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full border border-emerald-100">
@@ -50,7 +50,13 @@
     <!-- Main -->
     <main class="flex-grow p-6 max-w-7xl mx-auto w-full space-y-6">
         
-        <!-- Dashboard -->
+        <div id="error-banner" class="hidden bg-rose-50 border border-rose-200 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div class="text-sm text-rose-800">
+                <strong class="font-bold">Connection Issue:</strong> <span id="error-message">Unable to fetch data.</span>
+            </div>
+            <button onclick="app.loadMockData()" class="px-4 py-2 bg-white border border-rose-200 text-rose-700 text-xs font-bold rounded shadow-sm hover:bg-rose-50 transition-colors">Load Demo Data</button>
+        </div>
+
         <div id="dashboard-content" class="hidden space-y-6 fade-in">
             
             <!-- Controls -->
@@ -82,7 +88,7 @@
                 </button>
             </div>
 
-            <!-- KPIs -->
+            <!-- KPIs (Reduced) -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm md:col-span-1">
                     <div class="text-xs font-medium text-stone-400 uppercase">Total SKUs</div>
@@ -200,7 +206,7 @@
             ROW: '2', 
             ITEM_NO: 'A',
             INV: 'J', 
-            SKU: 'D', 
+            SKU: 'D', // Strictly D
             NAME: 'D',
             DATE_START_COL: 'L'
         };
@@ -239,7 +245,8 @@
             config: DEFAULT_CONFIG, rawData: [], processedData: [], sortCol: 'itemNo', sortAsc: true, map: {}, mainRowIdx: -1,
 
             init() {
-                this.config = safeStorage.getItem('pm_inv_config_v18') ? JSON.parse(safeStorage.getItem('pm_inv_config_v18')) : DEFAULT_CONFIG;
+                // v19 key forces a reset to new defaults (SKU=D)
+                this.config = safeStorage.getItem('pm_inv_config_v19') ? JSON.parse(safeStorage.getItem('pm_inv_config_v19')) : DEFAULT_CONFIG;
                 this.bindEvents();
                 this.fetchData();
             },
@@ -352,10 +359,10 @@
                     `${windowDesc} (Excl. Current Month). Denom: ${denomMonths} Mo.`;
 
                 const results = [];
-                // CRITICAL FIX: Dynamic Start Row (Header Index + 2 = Header -> Skip -> Data)
-                const startLoop = this.mainRowIdx + 2;
+                // Fixed Data Start: Row 4 (Index 3)
+                const startRow = 3;
 
-                for(let i = startLoop; i < this.rawData.length; i++) {
+                for(let i = startRow; i < this.rawData.length; i++) {
                     const row = this.rawData[i];
                     
                     if(!row || !row[this.map.sku]) continue;
@@ -399,7 +406,7 @@
                     
                     let status = 'OK';
                     if (transactions.length === 0 && winValue !== 'all') status = 'Low Data';
-                    // Simple check against 2 months target
+                    // Risk check logic (2 months coverage)
                     if (monthlyRate > 0 && (inv / monthlyRate) < 2) status = 'Risk';
 
                     results.push({
@@ -470,6 +477,7 @@
             }
         };
 
+        // CSV Parser
         const parseCSV = (text) => {
             const rows = [];
             let row = [];
@@ -489,6 +497,7 @@
             return rows;
         };
 
+        // Debug Modal Logic
         app.showDebug = function(row) {
             const el = document.getElementById('debug-content');
             const d = row.debug;
@@ -551,7 +560,7 @@
             this.config.INV = document.getElementById('conf-col-inv').value.trim();
             this.config.SKU = document.getElementById('conf-col-sku').value.trim();
             this.config.ITEM_NO = document.getElementById('conf-col-no').value.trim();
-            safeStorage.setItem('pm_inv_config_v18', JSON.stringify(this.config));
+            safeStorage.setItem('pm_inv_config_v19', JSON.stringify(this.config));
             this.toggleSettings(false);
             this.fetchData();
         };
