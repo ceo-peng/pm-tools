@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Analyzer (Split-Header Support)</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --danger: #ef4444;
+            --success: #22c55e;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Layout */
+        .app-container { display: flex; flex: 1; overflow: hidden; }
+        aside { width: 340px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 1rem; overflow-y: auto; flex-shrink: 0; }
+        main { flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 1rem; }
+
+        /* UI Elements */
+        h1 { font-size: 1.25rem; margin: 0 0 1rem 0; font-weight: 700; }
+        h3 { font-size: 0.9rem; margin: 0 0 0.5rem 0; font-weight: 600; text-transform: uppercase; color: var(--text-light); }
+        
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .note { font-size: 0.75rem; color: var(--text-light); background: #f1f5f9; padding: 0.5rem; border-radius: 4px; margin-bottom: 0.75rem; line-height: 1.4; }
+
+        label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--text); margin: 0.75rem 0 0.25rem; }
+        input, select, button { width: 100%; padding: 0.6rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.875rem; box-sizing: border-box; }
+        
+        button { background-color: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; margin-top: 1rem; transition: all 0.2s; }
+        button:hover { background-color: var(--primary-hover); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        button.secondary { background-color: white; border: 1px solid var(--border); color: var(--text); }
+        button.secondary:hover { background-color: var(--bg); border-color: var(--text-light); }
+
+        .status-badge { display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 99px; font-size: 0.75rem; font-weight: 600; margin-bottom: 1rem; }
+        .status-disconnected { background: #fee2e2; color: #991b1b; }
+        .status-connected { background: #dcfce7; color: #166534; }
+        .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid currentColor; border-radius: 50%; border-right-color: transparent; animation: spin 1s linear infinite; margin-right: 6px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Table */
+        .toolbar { display: flex; gap: 1rem; margin-bottom: 1rem; }
+        .table-wrapper { flex: 1; overflow: auto; border: 1px solid var(--border); border-radius: 8px; background: white; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; white-space: nowrap; }
+        th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background-color: #f8fafc; position: sticky; top: 0; z-index: 10; font-weight: 600; cursor: pointer; user-select: none; }
+        th:hover { background-color: #e2e8f0; }
+        tr:hover td { background-color: #f8fafc; }
+
+        /* Data Colors */
+        .risk-high { color: #dc2626; background: #fef2f2; font-weight: 700; }
+        .risk-ok { color: #16a34a; }
+        .conf-low { color: #d97706; font-style: italic; }
+        .refill-alert { color: #2563eb; font-weight: 700; }
+
+        /* Log */
+        #log-panel { font-family: 'Consolas', monospace; font-size: 0.7rem; color: #cbd5e1; background: #0f172a; padding: 0.75rem; max-height: 120px; overflow-y: auto; border-top: 1px solid var(--border); }
+    </style>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+
+<div class="app-container">
+    <aside>
+        <h1>Inventory Analyzer</h1>
+        <div id="auth-status" class="status-badge status-disconnected">Not Connected</div>
+
+        <div class="card">
+            <h3>1. Connection</h3>
+            <div class="note">Requires local server (http://localhost). Will NOT work on file://.</div>
+            
+            <label>Client ID</label>
+            <input type="text" id="inp-client-id" placeholder="Paste Google Client ID here">
+            
+            <label>Spreadsheet ID</label>
+            <input type="text" id="inp-sheet-id" value="14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI">
+            
+            <label>Tab Name (Sensitive)</label>
+            <input type="text" id="inp-sheet-name" value="inventory_tracking">
+            
+            <button id="btn-connect" onclick="handleAuthClick()">Connect Google</button>
+            <button id="btn-refresh" class="secondary" onclick="fetchData()" disabled>Refresh Data</button>
+        </div>
+
+        <div class="card">
+            <h3>2. Structure Detection</h3>
+            <div class="note" id="structure-info">
+                Scanning for split headers...
+            </div>
+            
+            <label>SKU Column (Row <span id="lbl-row-main">-</span>)</label>
+            <select id="sel-col-sku"></select>
+            
+            <label>Inventory Column</label>
+            <select id="sel-col-inv"></select>
+        </div>
+
+        <div class="card">
+            <h3>3. Analysis Settings</h3>
+            <label>Window</label>
+            <select id="sel-window" onchange="recalculate()">
+                <option value="14">Last 14 Days</option>
+                <option value="30" selected>Last 30 Days</option>
+                <option value="60">Last 60 Days</option>
+                <option value="all">All History</option>
+            </select>
+
+            <label>Method</label>
+            <select id="sel-algo" onchange="recalculate()">
+                <option value="simple_avg" selected>Simple Avg (Total / Days)</option>
+                <option value="p70">P70 Safety (Conservative)</option>
+            </select>
+
+            <label>Safety Stock Target (Days)</label>
+            <input type="number" id="inp-target-days" value="60" onchange="recalculate()">
+        </div>
+    </aside>
+
+    <main>
+        <div class="toolbar">
+            <input type="text" id="inp-search" placeholder="Filter by SKU or Name..." onkeyup="filterTable()">
+            <div style="flex:1"></div>
+            <button class="secondary" onclick="exportCSV()" style="margin:0">Download CSV</button>
+        </div>
+        
+        <div class="table-wrapper">
+            <table id="results-table">
+                <thead>
+                    <tr>
+                        <th onclick="sortTable(0)">SKU</th>
+                        <th onclick="sortTable(1)">Name</th>
+                        <th onclick="sortTable(2, true)">Stock</th>
+                        <th onclick="sortTable(3, true)">Daily Out</th>
+                        <th onclick="sortTable(4, true)">DOS</th>
+                        <th onclick="sortTable(5, true)">Refill Qty</th>
+                        <th onclick="sortTable(6)">Status</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </main>
+</div>
+
+<div id="log-panel">Ready.</div>
+
+<script>
+    /** STATE & CONFIG */
+    const state = {
+        tokenClient: null,
+        accessToken: null,
+        rawData: [],
+        mainHeaderRow: 0,
+        dateHeaderRow: 0,
+        mapping: { sku: -1, name: -1, inv: -1, dateCols: [] },
+        processed: []
+    };
+
+    const log = (msg, err=false) => {
+        const p = document.getElementById('log-panel');
+        p.innerHTML = `<div style="color:${err?'#f87171':'#bef264'}">[${new Date().toLocaleTimeString()}] ${msg}</div>` + p.innerHTML;
+        console.log(msg);
+    };
+
+    /** GOOGLE AUTH */
+    function initAuth() {
+        const clientId = document.getElementById('inp-client-id').value.trim();
+        if (!clientId) return alert("Please enter Client ID");
+
+        try {
+            state.tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: clientId,
+                scope: 'https://www.googleapis.com/auth/spreadsheets.readonly',
+                callback: (resp) => {
+                    if (resp.error) return log('Auth Error: ' + resp.error, true);
+                    state.accessToken = resp.access_token;
+                    updateUI(true);
+                    fetchData();
+                }
+            });
+            state.tokenClient.requestAccessToken({prompt: ''});
+        } catch(e) {
+            log("Error initializing Google Auth. Check console.", true);
+            alert("Google Scripts not loaded. Check internet/blockers.");
+        }
+    }
+
+    function handleAuthClick() {
+        document.getElementById('btn-connect').innerHTML = '<span class="spinner"></span> Connecting...';
+        setTimeout(initAuth, 500); // Small delay for UI update
+    }
+
+    function updateUI(connected) {
+        const badge = document.getElementById('auth-status');
+        const btn = document.getElementById('btn-connect');
+        if (connected) {
+            badge.className = 'status-badge status-connected';
+            badge.textContent = 'Connected';
+            btn.textContent = 'Reconnect';
+            document.getElementById('btn-refresh').disabled = false;
+        } else {
+            badge.className = 'status-badge status-disconnected';
+            badge.textContent = 'Disconnected';
+            btn.textContent = 'Connect Google';
+        }
+    }
+
+    /** API FETCH */
+    async function fetchData() {
+        if (!state.accessToken) return;
+        const sheetId = document.getElementById('inp-sheet-id').value;
+        const tabName = document.getElementById('inp-sheet-name').value;
+        const range = tabName ? `${tabName}!A1:ZZ` : 'A1:ZZ';
+
+        log(`Fetching ${range}...`);
+        
+        try {
+            const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}`, {
+                headers: { 'Authorization': `Bearer ${state.accessToken}` }
+            });
+            
+            if (res.status === 401) {
+                updateUI(false);
+                return log("Token expired. Reconnect.", true);
+            }
+            if (!res.ok) throw new Error((await res.json()).error.message);
+
+            const data = await res.json();
+            if (!data.values) return log("No data found.", true);
+
+            state.rawData = data.values;
+            log(`Loaded ${data.values.length} rows.`);
+            parseStructure();
+
+        } catch(e) {
+            log("Fetch failed: " + e.message, true);
+        }
+    }
+
+    /** PARSING LOGIC (SPLIT HEADER SUPPORT) */
+    function parseStructure() {
+        const rows = state.rawData;
+        let mainRow = -1, dateRow = -1;
+
+        // 1. Find Main Header (SKU, Inventory)
+        // Looking for "unique_key" AND "即時庫存數量"
+        for (let i = 0; i < Math.min(rows.length, 10); i++) {
+            const str = rows[i].join('|').toLowerCase();
+            if (str.includes('unique_key') && str.includes('即時庫存數量')) {
+                mainRow = i;
+                break;
+            }
+        }
+
+        // 2. Find Date Header (YY.MMDD or similar)
+        // Usually Row after Main, but lets scan
+        const dateRegex = /\d{2}\.\d{4}\.\d{4}/; // Matches 25.0907.2241
+        for (let i = 0; i < Math.min(rows.length, 10); i++) {
+            if (rows[i].some(cell => dateRegex.test(String(cell)))) {
+                dateRow = i;
+                break;
+            }
+        }
+
+        if (mainRow === -1 || dateRow === -1) {
+            log("Could not auto-detect headers. Please check sheet structure.", true);
+            return;
+        }
+
+        state.mainHeaderRow = mainRow;
+        state.dateHeaderRow = dateRow;
+        
+        document.getElementById('structure-info').innerHTML = 
+            `Main Headers: Row ${mainRow+1}<br>Date Headers: Row ${dateRow+1}`;
+        document.getElementById('lbl-row-main').innerText = mainRow + 1;
+
+        // Map Columns
+        const mainCols = rows[mainRow];
+        state.mapping.sku = mainCols.findIndex(c => c.toLowerCase().trim() === 'unique_key');
+        state.mapping.inv = mainCols.findIndex(c => c.toLowerCase().trim().includes('即時庫存數量'));
+        state.mapping.name = mainCols.findIndex(c => c.toLowerCase().trim().includes('product_name')); // Optional
+
+        // Map Dates
+        state.mapping.dateCols = [];
+        const dateCols = rows[dateRow];
+        dateCols.forEach((val, idx) => {
+            if (dateRegex.test(String(val))) {
+                // Parse 25.0907 -> 2025-09-07
+                const match = String(val).match(/(\d{2})\.(\d{4})/);
+                if (match) {
+                    const y = '20' + match[1];
+                    const m = match[2].substring(0, 2);
+                    const d = match[2].substring(2, 4);
+                    state.mapping.dateCols.push({
+                        idx: idx,
+                        date: `${y}-${m}-${d}`, // ISO format for sorting
+                        orig: val
+                    });
+                }
+            }
+        });
+
+        // Sort dates chronologically
+        state.mapping.dateCols.sort((a,b) => a.date.localeCompare(b.date));
+
+        populateSelects();
+        recalculate();
+    }
+
+    function populateSelects() {
+        const skuSel = document.getElementById('sel-col-sku');
+        const invSel = document.getElementById('sel-col-inv');
+        skuSel.innerHTML = invSel.innerHTML = '';
+
+        state.rawData[state.mainHeaderRow].forEach((h, i) => {
+            const opt = new Option(`${i+1}: ${h}`, i);
+            skuSel.add(opt.cloneNode(true));
+            invSel.add(opt);
+        });
+
+        skuSel.value = state.mapping.sku;
+        invSel.value = state.mapping.inv;
+    }
+
+    /** CALCULATION */
+    function recalculate() {
+        if (!state.mapping.dateCols.length) return;
+
+        const skuIdx = parseInt(document.getElementById('sel-col-sku').value);
+        const invIdx = parseInt(document.getElementById('sel-col-inv').value);
+        const windowDays = document.getElementById('sel-window').value;
+        const algo = document.getElementById('sel-algo').value;
+        const targetDays = parseInt(document.getElementById('inp-target-days').value) || 60;
+
+        // Date Filter
+        let activeDateCols = state.mapping.dateCols;
+        let denomDays = activeDateCols.length; // Default to column count approx
+
+        if (windowDays !== 'all') {
+            const days = parseInt(windowDays);
+            const cutoff = new Date();
+            cutoff.setDate(cutoff.getDate() - days);
+            const cutoffStr = cutoff.toISOString().split('T')[0];
+            
+            activeDateCols = activeDateCols.filter(c => c.date >= cutoffStr);
+            denomDays = days; // For Simple Avg, divide by calendar days
+        } else {
+            // For 'All', estimate days between first and last column
+            const start = new Date(activeDateCols[0].date);
+            const end = new Date(activeDateCols[activeDateCols.length-1].date);
+            denomDays = Math.max(1, (end - start) / (1000 * 60 * 60 * 24));
+        }
+
+        const results = [];
+        // Data starts after the headers (max index + 1)
+        const startRow = Math.max(state.mainHeaderRow, state.dateHeaderRow) + 1;
+
+        for (let i = startRow; i < state.rawData.length; i++) {
+            const row = state.rawData[i];
+            if (!row[skuIdx]) continue; // Skip empty SKUs
+
+            // Parse Inv
+            let inv = parseFloat((row[invIdx]||'0').replace(/,/g,''));
+            if (isNaN(inv)) inv = 0;
+
+            // Sum Outflow
+            let totalOut = 0;
+            let activeDays = 0;
+            let dailyVals = [];
+
+            // Group by Date to handle multiple txns per day
+            let dayMap = {};
+
+            activeDateCols.forEach(col => {
+                let val = parseFloat((row[col.idx]||'0').replace(/,/g,''));
+                if (val < 0) {
+                    const qty = Math.abs(val);
+                    totalOut += qty;
+                    dayMap[col.date] = (dayMap[col.date] || 0) + qty;
+                }
+            });
+
+            dailyVals = Object.values(dayMap).sort((a,b) => a-b);
+            activeDays = dailyVals.length;
+
+            // Compute Run Rate
+            let dailyRate = 0;
+            if (algo === 'simple_avg') {
+                dailyRate = totalOut / denomDays;
+            } else if (algo === 'p70' && activeDays > 0) {
+                // P70 of active days
+                const idx = Math.floor(dailyVals.length * 0.7);
+                dailyRate = dailyVals[idx];
+            }
+
+            // Metrics
+            const dos = dailyRate > 0 ? inv / dailyRate : 9999;
+            const targetQty = dailyRate * targetDays;
+            const refill = Math.max(0, targetQty - inv);
+            const status = activeDays < 3 ? 'Low Conf' : (dos < targetDays ? 'Restock' : 'OK');
+
+            results.push({
+                sku: row[skuIdx],
+                name: state.mapping.name > -1 ? row[state.mapping.name] : '',
+                inv,
+                dailyRate,
+                dos,
+                refill,
+                status,
+                activeDays
+            });
+        }
+
+        state.processed = results;
+        render();
+    }
+
+    /** RENDER */
+    function render() {
+        const tbody = document.querySelector('#results-table tbody');
+        tbody.innerHTML = '';
+        const filter = document.getElementById('inp-search').value.toLowerCase();
+        
+        const list = state.processed.filter(r => 
+            r.sku.toLowerCase().includes(filter) || r.name.toLowerCase().includes(filter)
+        ).slice(0, 500); // Limit 500 for perf
+
+        list.forEach(r => {
+            const tr = document.createElement('tr');
+            
+            let dosClass = 'risk-ok';
+            if (r.dos < document.getElementById('inp-target-days').value) dosClass = 'risk-high';
+            
+            let statusHtml = `<span class="${dosClass}">${r.status}</span>`;
+            if (r.status === 'Low Conf') statusHtml = `<span class="conf-low">Low Data (${r.activeDays}d)</span>`;
+
+            tr.innerHTML = `
+                <td><b>${r.sku}</b></td>
+                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">${r.name}</td>
+                <td align="right">${r.inv.toLocaleString()}</td>
+                <td align="right">${r.dailyRate.toFixed(1)}</td>
+                <td align="right" class="${dosClass}">${r.dos > 999 ? '>999' : r.dos.toFixed(1)}</td>
+                <td align="right" class="${r.refill>0 ? 'refill-alert':''}">${r.refill>0 ? Math.ceil(r.refill).toLocaleString() : '-'}</td>
+                <td>${statusHtml}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function sortTable(col, numeric=false) {
+        // Basic sort implementation
+        const key = ['sku','name','inv','dailyRate','dos','refill','status'][col];
+        state.processed.sort((a,b) => {
+            let v1 = a[key], v2 = b[key];
+            if(numeric) return v2 - v1; // Descending for numbers
+            return v1.localeCompare(v2);
+        });
+        render();
+    }
+
+    function filterTable() { render(); }
+
+    function exportCSV() {
+        if (!state.processed.length) return;
+        let csv = "SKU,Name,Inventory,Daily_Rate,DOS,Refill_Qty\n";
+        state.processed.forEach(r => {
+            csv += `"${r.sku}","${r.name}",${r.inv},${r.dailyRate.toFixed(2)},${r.dos.toFixed(1)},${Math.ceil(r.refill)}\n`;
+        });
+        const url = URL.createObjectURL(new Blob([csv], {type: 'text/csv'}));
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'inventory_analysis.csv';
+        a.click();
+    }
+
+    // Load saved ID
+    const savedId = localStorage.getItem('g_client_id');
+    if (savedId) document.getElementById('inp-client-id').value = savedId;
+    document.getElementById('inp-client-id').onchange = (e) => localStorage.setItem('g_client_id', e.target.value);
+
+</script>
+</body>
+</html>
