@@ -55,7 +55,7 @@
             <!-- Controls -->
             <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-sm flex flex-wrap gap-6 items-end">
                 <div class="space-y-1">
-                    <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Previous Months Window</label>
+                    <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Previous Months</label>
                     <select id="sel-window" class="block w-44 text-sm border-stone-300 rounded-md shadow-sm focus:border-sky-500 focus:ring-sky-500 bg-stone-50 p-2">
                         <option value="1">Last 1 Month</option>
                         <option value="2">Last 2 Months</option>
@@ -207,18 +207,28 @@
             HEADER_ROW: '', COL_SKU: '', COL_NAME: '', COL_INV: ''
         };
 
+        // --- JSONP Callback Wrapper ---
+        // Handles data response from Google. Try/Catch ensures no silent crashes.
         window.googleSheetCallback = function(json) {
-            if (json.status === 'error') {
-                app.showError(true, "Google API Error: " + json.errors[0].detailed_message);
+            try {
+                if(app.jsonpTimeout) clearTimeout(app.jsonpTimeout);
+                
+                if (json.status === 'error') {
+                    app.showError(true, "Google API Error: " + json.errors[0].detailed_message);
+                    app.toggleLoader(false);
+                    return;
+                }
+                const rows = json.table.rows.map(r => 
+                    r.c.map(cell => (cell && cell.v !== null) ? String(cell.v) : "")
+                );
+                app.rawData = rows;
+                app.parseStructure();
+                document.getElementById('connection-status').classList.remove('hidden');
+            } catch(e) {
+                console.error(e);
+                app.showError(true, "Processing Error: " + e.message);
                 app.toggleLoader(false);
-                return;
             }
-            const rows = json.table.rows.map(r => 
-                r.c.map(cell => (cell && cell.v !== null) ? String(cell.v) : "")
-            );
-            app.rawData = rows;
-            app.parseStructure();
-            document.getElementById('connection-status').classList.remove('hidden');
         };
 
         const safeStorage = {
@@ -237,10 +247,10 @@
         }
 
         const app = {
-            config: {}, rawData: [], processedData: [], charts: {}, sortCol: 'refill', sortAsc: false, map: {},
+            config: {}, rawData: [], processedData: [], charts: {}, sortCol: 'refill', sortAsc: false, map: {}, jsonpTimeout: null,
 
             init() {
-                this.config = safeStorage.getItem('pm_inv_config_v8') ? JSON.parse(safeStorage.getItem('pm_inv_config_v8')) : DEFAULT_CONFIG;
+                this.config = safeStorage.getItem('pm_inv_config_v9') ? JSON.parse(safeStorage.getItem('pm_inv_config_v9')) : DEFAULT_CONFIG;
                 this.bindEvents();
                 this.fetchData();
             },
@@ -258,10 +268,19 @@
             fetchData: function() {
                 this.showError(false);
                 this.toggleLoader(true);
+                
+                // Set a timeout to catch silent JSONP failures (e.g. private sheet returning HTML)
+                if(this.jsonpTimeout) clearTimeout(this.jsonpTimeout);
+                this.jsonpTimeout = setTimeout(() => {
+                    this.toggleLoader(false);
+                    this.showError(true, "Connection Timeout. Sheet might be Private or Network is down.");
+                }, 10000);
+
                 const url = `https://docs.google.com/spreadsheets/d/${this.config.SHEET_ID}/gviz/tq?sheet=${this.config.TAB_NAME}&headers=0&tqx=responseHandler:googleSheetCallback`;
                 const script = document.createElement('script');
                 script.src = url;
                 script.onerror = () => {
+                    if(this.jsonpTimeout) clearTimeout(this.jsonpTimeout);
                     this.toggleLoader(false);
                     this.showError(true, "Network Error. Check internet connection.");
                 };
@@ -269,13 +288,11 @@
             },
 
             loadMockData: function() {
-                this.showError(false);
+                if(this.jsonpTimeout) clearTimeout(this.jsonpTimeout);
                 this.toggleLoader(true);
                 setTimeout(() => {
-                    const today = new Date();
                     const demoHeader = ['unique_key', 'product_name', '即時庫存數量'];
                     const dateCols = [];
-                    // Generate older data (4 months ago)
                     for(let i=120; i>=105; i--) {
                         const d = new Date(); d.setDate(d.getDate()-i);
                         const str = `${d.getFullYear().toString().substr(2)}.${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.1200`;
@@ -308,157 +325,152 @@
             },
 
             parseStructure: function() {
-                const rows = this.rawData;
-                let hRow = -1;
+                try {
+                    const rows = this.rawData;
+                    let hRow = -1;
 
-                if (this.config.ROW && !isNaN(this.config.ROW)) {
-                    hRow = parseInt(this.config.ROW) - 1;
-                } else {
-                    for(let i=0; i<Math.min(rows.length, 10); i++) {
-                        if(rows[i].join('|').toLowerCase().includes('unique_key')) { hRow = i; break; }
+                    if (this.config.ROW && !isNaN(this.config.ROW)) {
+                        hRow = parseInt(this.config.ROW) - 1;
+                    } else {
+                        for(let i=0; i<Math.min(rows.length, 10); i++) {
+                            if(rows[i].join('|').toLowerCase().includes('unique_key')) { hRow = i; break; }
+                        }
                     }
-                }
 
-                if (hRow === -1 || !rows[hRow]) {
-                    this.toggleLoader(false);
-                    this.showError(true, "Header not found. Please set Header Row in Settings.");
-                    return;
-                }
-
-                const header = rows[hRow].map(c => c.toLowerCase().trim());
-                const map = { sku: -1, name: -1, inv: -1, dates: [] };
-
-                map.sku = this.config.SKU ? letterToIndex(this.config.SKU) : header.indexOf('unique_key');
-                map.name = this.config.NAME ? letterToIndex(this.config.NAME) : header.findIndex(c => c.includes('product_name') || c.includes('品名'));
-                if(this.config.INV) map.inv = letterToIndex(this.config.INV);
-                else map.inv = header.findIndex(c => c.includes('庫存') || c.includes('stock') || c.includes('即時') || c === 'inventory');
-                if (map.inv === -1 && header.length > 9) map.inv = 9;
-
-                const dateRegex = /\d{2}\.\d{4}\.\d{4}/;
-                header.forEach((txt, idx) => {
-                    if (dateRegex.test(txt)) {
-                        const m = txt.match(/(\d{2})\.(\d{4})/);
-                        if (m) map.dates.push({ idx, date: `20${m[1]}-${m[2].substr(0,2)}-${m[2].substr(2,2)}` });
+                    if (hRow === -1 || !rows[hRow]) {
+                        this.toggleLoader(false);
+                        this.showError(true, "Header not found. Please set Header Row in Settings.");
+                        return;
                     }
-                });
-                map.dates.sort((a,b) => a.date.localeCompare(b.date));
 
-                if (map.sku === -1 || map.dates.length === 0) {
+                    const header = rows[hRow].map(c => c.toLowerCase().trim());
+                    const map = { sku: -1, name: -1, inv: -1, dates: [] };
+
+                    map.sku = this.config.SKU ? letterToIndex(this.config.SKU) : header.indexOf('unique_key');
+                    map.name = this.config.NAME ? letterToIndex(this.config.NAME) : header.findIndex(c => c.includes('product_name') || c.includes('品名'));
+                    if(this.config.INV) map.inv = letterToIndex(this.config.INV);
+                    else map.inv = header.findIndex(c => c.includes('庫存') || c.includes('stock') || c.includes('即時') || c === 'inventory');
+                    if (map.inv === -1 && header.length > 9) map.inv = 9;
+
+                    const dateRegex = /\d{2}\.\d{4}\.\d{4}/;
+                    header.forEach((txt, idx) => {
+                        if (dateRegex.test(txt)) {
+                            const m = txt.match(/(\d{2})\.(\d{4})/);
+                            if (m) map.dates.push({ idx, date: `20${m[1]}-${m[2].substr(0,2)}-${m[2].substr(2,2)}` });
+                        }
+                    });
+                    map.dates.sort((a,b) => a.date.localeCompare(b.date));
+
+                    if (map.sku === -1 || map.dates.length === 0) {
+                        this.toggleLoader(false);
+                        this.showError(true, `Mapping Failed. SKU:${map.sku}, Dates:${map.dates.length}`);
+                        return;
+                    }
+
+                    this.map = map;
+                    this.hRow = hRow;
+                    this.recalculate();
+                } catch(e) {
                     this.toggleLoader(false);
-                    this.showError(true, `Mapping Failed. SKU:${map.sku}, Dates:${map.dates.length}`);
-                    return;
+                    this.showError(true, "Structure Parse Error: " + e.message);
                 }
-
-                this.map = map;
-                this.hRow = hRow;
-                this.recalculate();
             },
 
             recalculate: function() {
-                const winValue = document.getElementById('sel-window').value; // '1', '3', '6', '12', 'all'
-                const algo = document.getElementById('sel-algo').value;
-                const targetMonths = parseFloat(document.getElementById('inp-target').value) || 2;
+                try {
+                    const winValue = document.getElementById('sel-window').value; 
+                    const algo = document.getElementById('sel-algo').value;
+                    const targetMonths = parseFloat(document.getElementById('inp-target').value) || 2;
 
-                // --- NEW DATE LOGIC: Strict Previous Months Only ---
-                
-                // 1. Establish Boundaries
-                const today = new Date();
-                const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1); 
-                // Any transaction >= currentMonthStart is IGNORED (strictly past data)
-                const exclusionDate = currentMonthStart.toISOString().split('T')[0];
+                    // --- DATE LOGIC: Exclude Current Month ---
+                    const today = new Date();
+                    const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1); 
+                    const exclusionDate = currentMonthStart.toISOString().split('T')[0];
 
-                let startDateISO = "1900-01-01"; // Default for 'all'
-                
-                if (winValue !== 'all') {
-                    const monthsBack = parseInt(winValue);
-                    // Start Date = 1st day of (Current Month - N)
-                    const d = new Date(currentMonthStart);
-                    d.setMonth(d.getMonth() - monthsBack);
-                    startDateISO = d.toISOString().split('T')[0];
-                }
-
-                // 2. Filter Active Columns
-                // Condition: Date must be >= StartDate AND < CurrentMonthStart
-                let activeDates = this.map.dates.filter(d => d.date >= startDateISO && d.date < exclusionDate);
-                
-                // 3. Determine Denominator (Calendar Months)
-                let denomMonths = 1;
-                
-                if (winValue !== 'all') {
-                    denomMonths = parseInt(winValue); // Exact selected window (e.g., 3 months)
-                } else {
-                    // For All History: Calculate actual months spread
-                    if(activeDates.length > 0) {
-                        const firstDate = new Date(activeDates[0].date);
-                        const lastDate = new Date(activeDates[activeDates.length-1].date); 
-                        // Difference in months
-                        denomMonths = (lastDate.getFullYear() - firstDate.getFullYear()) * 12 + (lastDate.getMonth() - firstDate.getMonth()) + 1;
-                        denomMonths = Math.max(1, denomMonths);
+                    let startDateISO = "1900-01-01"; 
+                    if (winValue !== 'all') {
+                        const monthsBack = parseInt(winValue);
+                        const d = new Date(currentMonthStart);
+                        d.setMonth(d.getMonth() - monthsBack);
+                        startDateISO = d.toISOString().split('T')[0];
                     }
-                }
 
-                // Display Logic
-                let displayStr = winValue === 'all' ? "All History (excluding this month)" : `Last ${winValue} Month(s) (excluding this month)`;
-                if(activeDates.length > 0) displayStr += ` [${activeDates[0].date} to ${activeDates[activeDates.length-1].date}]`;
-                document.getElementById('date-range-display').innerText = displayStr;
-
-                const result = [];
-                const startRow = this.hRow + 2; 
-
-                for(let i = startRow; i < this.rawData.length; i++) {
-                    const row = this.rawData[i];
-                    if(!row || !row[this.map.sku]) continue;
-
-                    const inv = parseFloat(String(row[this.map.inv]||'0').replace(/,/g,'')) || 0;
-                    let totalOut = 0;
-                    let dayVals = [];
-
-                    activeDates.forEach(d => {
-                        const val = parseFloat(String(row[d.idx]||'0').replace(/,/g,'')) || 0;
-                        if(val < 0) { 
-                            const qty = Math.abs(val);
-                            totalOut += qty;
-                            dayVals.push(qty);
-                        }
-                    });
-
-                    // Algorithm
-                    let monthlyRate = 0;
+                    let activeDates = this.map.dates.filter(d => d.date >= startDateISO && d.date < exclusionDate);
                     
-                    if(algo === 'simple_avg') {
-                        // Logic: Total Outflow / Number of Months
-                        monthlyRate = totalOut / denomMonths;
-                    } else if (algo === 'p70') {
-                        // P70 logic is tricky for months. We calculate Daily P70 then * 30
-                        if(dayVals.length > 0) {
-                            dayVals.sort((a,b)=>a-b);
-                            const dailyP70 = dayVals[Math.floor(dayVals.length * 0.7)];
-                            monthlyRate = dailyP70 * 30; // Extrapolate
+                    let denomMonths = 1;
+                    if (winValue !== 'all') {
+                        denomMonths = parseInt(winValue); 
+                    } else {
+                        if(activeDates.length > 0) {
+                            const firstDate = new Date(activeDates[0].date);
+                            const lastDate = new Date(activeDates[activeDates.length-1].date); 
+                            // Calendar months calculation
+                            denomMonths = (lastDate.getFullYear() - firstDate.getFullYear()) * 12 + (lastDate.getMonth() - firstDate.getMonth()) + 1;
+                            denomMonths = Math.max(1, denomMonths);
                         }
                     }
 
-                    // Strict Round Up
-                    monthlyRate = Math.ceil(monthlyRate);
+                    let displayStr = winValue === 'all' ? "All History (excluding current month)" : `Last ${winValue} Month(s) (excluding current month)`;
+                    if(activeDates.length > 0) displayStr += ` [${activeDates[0].date} to ${activeDates[activeDates.length-1].date}]`;
+                    document.getElementById('date-range-display').innerText = displayStr;
 
-                    const mos = monthlyRate > 0 ? inv / monthlyRate : 999;
-                    const refill = Math.max(0, (monthlyRate * targetMonths) - inv);
-                    
-                    let status = 'OK';
-                    if (dayVals.length < 1 && winValue !== 'all') status = 'Low Data'; 
-                    else if (mos < targetMonths) status = 'Risk';
+                    const result = [];
+                    const startRow = this.hRow + 2; 
 
-                    result.push({
-                        sku: row[this.map.sku],
-                        name: this.map.name > -1 ? row[this.map.name] : '',
-                        inv, monthlyRate, mos, refill, status
-                    });
+                    for(let i = startRow; i < this.rawData.length; i++) {
+                        const row = this.rawData[i];
+                        if(!row || !row[this.map.sku]) continue;
+
+                        const inv = parseFloat(String(row[this.map.inv]||'0').replace(/,/g,'')) || 0;
+                        let totalOut = 0;
+                        let dayVals = [];
+
+                        activeDates.forEach(d => {
+                            const val = parseFloat(String(row[d.idx]||'0').replace(/,/g,'')) || 0;
+                            if(val < 0) { 
+                                const qty = Math.abs(val);
+                                totalOut += qty;
+                                dayVals.push(qty);
+                            }
+                        });
+
+                        let monthlyRate = 0;
+                        if(algo === 'simple_avg') {
+                            monthlyRate = totalOut / denomMonths;
+                        } else if (algo === 'p70') {
+                            if(dayVals.length > 0) {
+                                dayVals.sort((a,b)=>a-b);
+                                const dailyP70 = dayVals[Math.floor(dayVals.length * 0.7)];
+                                monthlyRate = dailyP70 * 30; 
+                            }
+                        }
+
+                        // Round Up Monthly Rate
+                        monthlyRate = Math.ceil(monthlyRate);
+
+                        const mos = monthlyRate > 0 ? inv / monthlyRate : 999;
+                        const refill = Math.max(0, (monthlyRate * targetMonths) - inv);
+                        
+                        let status = 'OK';
+                        if (dayVals.length < 1 && winValue !== 'all') status = 'Low Data'; 
+                        else if (mos < targetMonths) status = 'Risk';
+
+                        result.push({
+                            sku: row[this.map.sku],
+                            name: this.map.name > -1 ? row[this.map.name] : '',
+                            inv, monthlyRate, mos, refill, status
+                        });
+                    }
+
+                    this.processedData = result;
+                    this.updateUI();
+                    this.toggleLoader(false);
+                    document.getElementById('dashboard-content').classList.remove('hidden');
+                    document.getElementById('connection-status').classList.remove('hidden');
+                } catch(e) {
+                    this.toggleLoader(false);
+                    this.showError(true, "Calculation Error: " + e.message);
                 }
-
-                this.processedData = result;
-                this.updateUI();
-                this.toggleLoader(false);
-                document.getElementById('dashboard-content').classList.remove('hidden');
-                document.getElementById('connection-status').classList.remove('hidden');
             },
 
             updateUI() {
@@ -519,7 +531,7 @@
                         <td class="px-6 py-4 font-medium text-stone-900">${row.sku}</td>
                         <td class="px-6 py-4 text-stone-500 truncate max-w-xs" title="${row.name}">${row.name}</td>
                         <td class="px-6 py-4 text-right font-mono text-stone-600">${Math.round(row.inv).toLocaleString()}</td>
-                        <td class="px-6 py-4 text-right font-mono text-stone-600">${row.monthlyRate.toLocaleString()}</td>
+                        <td class="px-6 py-4 text-right font-mono text-stone-600">${Math.round(row.monthlyRate).toLocaleString()}</td>
                         <td class="px-6 py-4 text-right font-mono ${row.status === 'Risk' ? 'text-rose-600 font-bold' : 'text-slate-600'}">${row.mos > 999 ? '>999' : row.mos.toFixed(1)}</td>
                         <td class="px-6 py-4 text-right font-mono ${row.refill > 0 ? 'text-blue-600 font-bold' : 'text-slate-400'}">${row.refill > 0 ? Math.ceil(row.refill).toLocaleString() : '-'}</td>
                         <td class="px-6 py-4 text-center"><span class="px-2.5 py-1 rounded-full text-xs font-bold ${statusClass}">${row.status}</span></td>
@@ -554,7 +566,7 @@
             this.config.INV = document.getElementById('conf-inv').value.trim();
             this.config.SKU = document.getElementById('conf-sku').value.trim();
             this.config.NAME = document.getElementById('conf-name').value.trim();
-            storage.set(this.config);
+            safeStorage.setItem('pm_inv_config_v9', JSON.stringify(this.config));
             this.toggleSettings(false);
             this.fetchData();
         };
