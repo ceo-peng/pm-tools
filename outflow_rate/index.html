@@ -3,18 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory Dashboard v21 (Debug Mode)</title>
+    <title>Inventory Intelligence Dashboard v22 (Fixed Logic)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #334155; }
-        .loader { border: 3px solid #e2e8f0; border-top: 3px solid #3b82f6; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #334155; }
+        .loader { border: 3px solid #e2e8f0; border-top: 3px solid #2563eb; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         /* Modal & Overlay */
         .modal { transition: opacity 0.2s ease-in-out; pointer-events: none; opacity: 0; }
         .modal.active { pointer-events: auto; opacity: 1; }
         th { cursor: pointer; user-select: none; }
-        th:hover { background-color: #f8fafc; }
+        th:hover { background-color: #f1f5f9; }
+        tr.cursor-pointer:hover td { background-color: #eff6ff; }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
@@ -22,11 +23,11 @@
     <!-- Header -->
     <header class="bg-white border-b border-slate-200 h-14 flex items-center px-6 justify-between flex-shrink-0 z-20">
         <div class="flex items-center gap-3">
-            <span class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">v21</span>
+            <span class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">v22</span>
             <h1 class="font-bold text-slate-800">Inventory Logic Debugger</h1>
         </div>
         <div class="flex items-center gap-4">
-            <div id="status" class="text-xs font-medium text-slate-500">Ready</div>
+            <div id="status" class="text-xs font-medium text-slate-500">Initializing...</div>
             <button onclick="app.toggleSettings(true)" class="p-2 text-slate-400 hover:text-slate-600">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
             </button>
@@ -40,6 +41,13 @@
             Reload Data
         </button>
         <div class="h-6 w-px bg-slate-200 mx-2"></div>
+        <select id="sel-window" class="border border-slate-300 rounded px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-48">
+            <option value="all">All History (Excl. Current Month)</option>
+            <option value="1">Last 1 Month</option>
+            <option value="3">Last 3 Months</option>
+            <option value="6">Last 6 Months</option>
+        </select>
+        <div class="h-6 w-px bg-slate-200 mx-2"></div>
         <input type="text" id="search" placeholder="Search SKU..." class="border border-slate-300 rounded px-3 py-1.5 text-sm w-64 focus:ring-2 focus:ring-blue-500 outline-none">
         <div class="flex-grow text-right text-xs text-slate-500 font-mono" id="debug-stats"></div>
     </div>
@@ -52,9 +60,9 @@
                     <th class="p-3 border-b border-slate-200 w-16" onclick="app.sort('itemNo')">#</th>
                     <th class="p-3 border-b border-slate-200" onclick="app.sort('sku')">SKU</th>
                     <th class="p-3 border-b border-slate-200 text-right text-blue-600" onclick="app.sort('rawOutflow')">Total Outflow (History)</th>
-                    <th class="p-3 border-b border-slate-200 text-right" onclick="app.sort('months')">Months Counted</th>
+                    <th class="p-3 border-b border-slate-200 text-right" onclick="app.sort('months')">Months Denom.</th>
                     <th class="p-3 border-b border-slate-200 text-right" onclick="app.sort('runRate')">Est. Mo. Rate</th>
-                    <th class="p-3 border-b border-slate-200 text-right" onclick="app.sort('inv')">Current Stock</th>
+                    <th class="p-3 border-b border-slate-200 text-right" onclick="app.sort('inv')">Current Stock (J)</th>
                 </tr>
             </thead>
             <tbody id="table-body" class="text-sm divide-y divide-slate-100 text-slate-700">
@@ -66,7 +74,7 @@
     <!-- Loading Overlay -->
     <div id="loader" class="fixed inset-0 bg-white/80 z-50 flex flex-col items-center justify-center">
         <div class="loader mb-3"></div>
-        <div class="text-sm font-medium text-slate-600">Connecting to Google...</div>
+        <div class="text-sm font-medium text-slate-600">Loading Sheet...</div>
     </div>
 
     <!-- Debug Modal -->
@@ -74,7 +82,7 @@
         <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick="app.closeModal()"></div>
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col relative z-10">
             <div class="p-5 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
-                <h3 class="font-bold text-slate-800">Calculation Details</h3>
+                <h3 class="font-bold text-slate-800">SKU Detail</h3>
                 <button onclick="app.closeModal()" class="text-slate-400 hover:text-slate-600">✕</button>
             </div>
             <div id="modal-content" class="p-6 overflow-y-auto font-mono text-xs space-y-4"></div>
@@ -91,10 +99,10 @@
                 <div><label class="text-xs font-bold text-slate-500">Tab Name</label><input id="conf-tab" class="w-full border p-2 rounded text-sm mt-1"></div>
                 
                 <div class="grid grid-cols-2 gap-3 pt-3 border-t">
-                    <div><label class="text-[10px] font-bold text-slate-400">Header Row (Index)</label><input id="conf-row" type="number" class="w-full border p-2 rounded text-xs"></div>
-                    <div><label class="text-[10px] font-bold text-slate-400">Inventory Col</label><input id="conf-inv" class="w-full border p-2 rounded text-xs uppercase"></div>
-                    <div><label class="text-[10px] font-bold text-slate-400">SKU Col</label><input id="conf-sku" class="w-full border p-2 rounded text-xs uppercase"></div>
-                    <div><label class="text-[10px] font-bold text-slate-400">Item No Col</label><input id="conf-no" class="w-full border p-2 rounded text-xs uppercase"></div>
+                    <div><label class="text-[10px] font-bold text-slate-400">Header Row (Index)</label><input id="conf-row" type="number" class="w-full border p-2 rounded text-xs" title="2 means Row 2"></div>
+                    <div><label class="text-[10px] font-bold text-slate-400">Inventory Col</label><input id="conf-inv" class="w-full border p-2 rounded text-xs uppercase" title="Default J"></div>
+                    <div><label class="text-[10px] font-bold text-slate-400">SKU Col</label><input id="conf-sku" class="w-full border p-2 rounded text-xs uppercase" title="Default D"></div>
+                    <div><label class="text-[10px] font-bold text-slate-400">Date Start Col</label><input id="conf-date" class="w-full border p-2 rounded text-xs uppercase" title="Default L"></div>
                 </div>
             </div>
             <div class="mt-6 flex justify-end">
@@ -104,42 +112,47 @@
     </div>
 
     <script>
-        // CONFIG V21
+        // CONFIG V22 - STRICT MAPPING
         const DEFAULT = {
             ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI',
             TAB: 'inventory_tracking',
-            ROW: 2, SKU: 'D', INV: 'J', NO: 'A'
+            ROW: 2, 
+            SKU: 'D', 
+            INV: 'J', 
+            NO: 'A',
+            DATE_START: 'L' // Force start scanning for dates here
         };
 
         // Storage Wrapper
         const db = {
-            get: () => { try { return JSON.parse(localStorage.getItem('conf_v21')) || DEFAULT; } catch { return DEFAULT; } },
-            set: (v) => localStorage.setItem('conf_v21', JSON.stringify(v))
+            get: () => { try { return JSON.parse(localStorage.getItem('conf_v22')) || DEFAULT; } catch { return DEFAULT; } },
+            set: (v) => localStorage.setItem('conf_v22', JSON.stringify(v))
         };
 
-        // Helper: Letter to Index
+        // Helper: Letter to Index (A=0, B=1)
         const l2i = (l) => l ? l.toUpperCase().split('').reduce((p,c) => p*26 + c.charCodeAt(0)-64, 0)-1 : -1;
 
         const app = {
-            config: {}, raw: [], data: [], sortCol: 'itemNo', sortAsc: true,
+            config: {}, raw: [], data: [], sortCol: 'itemNo', sortAsc: true, map: {},
 
             init() {
                 this.config = db.get();
-                // Force defaults into UI
+                // Force UI defaults
                 document.getElementById('conf-id').value = this.config.ID;
                 document.getElementById('conf-tab').value = this.config.TAB;
                 document.getElementById('conf-row').value = this.config.ROW;
                 document.getElementById('conf-inv').value = this.config.INV;
                 document.getElementById('conf-sku').value = this.config.SKU;
-                document.getElementById('conf-no').value = this.config.NO;
+                document.getElementById('conf-date').value = this.config.DATE_START;
                 
                 document.getElementById('search').addEventListener('keyup', (e) => this.render(e.target.value));
+                document.getElementById('sel-window').addEventListener('change', () => this.process());
                 this.fetchData();
             },
 
             fetchData() {
                 document.getElementById('loader').classList.remove('hidden');
-                // Force headers=0 to get raw rows
+                // Force headers=0 so we see RAW rows
                 const url = `https://docs.google.com/spreadsheets/d/${this.config.ID}/gviz/tq?sheet=${this.config.TAB}&tqx=out:csv&range=A1:ZZ`;
                 
                 fetch(url)
@@ -156,9 +169,7 @@
             },
 
             parseCSV(text) {
-                // Simple robust parser
                 return text.split('\n').map(r => {
-                    // Handle quoted CSV weirdness roughly
                     let row = [], cell = "", quote = false;
                     for(let c of r) {
                         if(c === '"') quote = !quote;
@@ -172,13 +183,14 @@
 
             process() {
                 const cfg = this.config;
-                const hRowIdx = parseInt(cfg.ROW) - 1; // Row 2 = Index 1
+                // Row 2 is Index 1
+                const hRowIdx = parseInt(cfg.ROW) - 1; 
                 
                 if (!this.raw[hRowIdx]) { alert("Header row not found"); return; }
                 
-                const headers = this.raw[hRowIdx].map(v => v.toLowerCase());
+                const headers = this.raw[hRowIdx];
                 
-                // Map Columns
+                // --- STRICT COLUMN MAPPING ---
                 const col = {
                     no: l2i(cfg.NO),
                     sku: l2i(cfg.SKU),
@@ -186,69 +198,102 @@
                     dates: []
                 };
 
-                // Find Date Columns (Column L = Index 11)
-                const startColL = 11; 
-                // Regex for YY.MMDD
-                const dateRegex = /\d{2}\.\d{4}\.\d{4}/;
-
-                headers.forEach((h, i) => {
-                    if(i >= startColL && dateRegex.test(h)) {
-                        col.dates.push({ idx: i, raw: h });
+                // FORCE start from Column L (Index 11)
+                const startIdx = l2i(cfg.DATE_START); 
+                
+                // Grab ALL columns from L onwards if they have a value
+                // We do NOT regex check anymore to be safe. We assume L -> End are dates.
+                // We parse the string "25.0907.2241" manually later.
+                for (let i = startIdx; i < headers.length; i++) {
+                    const txt = headers[i];
+                    if (txt && txt.length > 2) { 
+                        // Try to parse YYYY-MM-DD from "25.0907"
+                        const parts = txt.split('.');
+                        if(parts.length >= 2) {
+                             const year = "20" + parts[0];
+                             const month = parts[1].substring(0,2);
+                             const day = parts[1].substring(2,4);
+                             const iso = `${year}-${month}-${day}`;
+                             col.dates.push({ idx: i, raw: txt, iso: iso });
+                        }
                     }
-                });
+                }
+                
+                // Sort dates to ensure chronological order
+                col.dates.sort((a,b) => a.iso.localeCompare(b.iso));
+                this.map = col;
 
-                // --- CALCULATION LOGIC ---
-                // Denominator: Total Calendar Months in Date Range
-                let denomMonths = 1;
-                if(col.dates.length > 0) {
-                    // Extract Date Strings to Objects
-                    const parseD = (s) => {
-                        const m = s.match(/(\d{2})\.(\d{4})/);
-                        return new Date(`20${m[1]}-${m[2].substr(0,2)}-${m[2].substr(2,2)}`);
-                    };
-                    const first = parseD(col.dates[0].raw);
-                    const last = parseD(col.dates[col.dates.length-1].raw);
-                    
-                    // Month Diff + 1
-                    denomMonths = (last.getFullYear() - first.getFullYear()) * 12 + (last.getMonth() - first.getMonth()) + 1;
-                    denomMonths = Math.max(1, denomMonths);
+                // --- CALCULATION ---
+                
+                const winVal = document.getElementById('sel-window').value;
+                const today = new Date();
+                // Exclude current month: anything >= 1st of this month is ignored
+                const currentMonthISO = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+
+                // Filter Active Dates (Past Only)
+                let validDates = col.dates.filter(d => d.iso < currentMonthISO);
+                
+                // Apply Window Filter (Last N Months)
+                let activeDates = validHistoryCols = validDates;
+                
+                if (winVal !== 'all') {
+                    const months = parseInt(winVal);
+                    // Start date = Current Month Start - N Months
+                    const d = new Date(today.getFullYear(), today.getMonth() - months, 1);
+                    const startISO = d.toISOString().split('T')[0];
+                    activeDates = activeDates.filter(d => d.iso >= startISO);
+                }
+
+                // Calculate Denominator (Calendar Months)
+                let denom = 1;
+                if (winVal !== 'all') {
+                    denom = parseInt(winVal);
+                } else {
+                    if (activeDates.length > 0) {
+                        const first = new Date(activeDates[0].iso);
+                        const last = new Date(activeDates[activeDates.length-1].iso);
+                        denom = (last.getFullYear() - first.getFullYear()) * 12 + (last.getMonth() - first.getMonth()) + 1;
+                        denom = Math.max(1, denom);
+                    }
                 }
 
                 const results = [];
-                // CRITICAL FIX: Start loop immediately after header
-                // We will filter out "junk" rows inside the loop
+                // FORCE start Data Row: Header Row + 2 (Skip Header + Skip Row 3)
+                // Row 2 is HRow. Row 3 is Gap. Row 4 is Data.
+                // hRowIdx = 1. Start = 1 + 2 = 3.
                 
-                for(let i = hRowIdx + 1; i < this.raw.length; i++) {
+                for(let i = hRowIdx + 2; i < this.raw.length; i++) {
                     const row = this.raw[i];
-                    if(!row[col.sku]) continue;
+                    if(!row || !row[col.sku]) continue;
                     
-                    // Filter: Skip rows where SKU column is header-like or empty
                     const skuVal = row[col.sku];
-                    if(skuVal.includes('unique_key') || skuVal.includes('sort_')) continue;
+                    // Skip bad rows
+                    if(!skuVal || skuVal.toLowerCase().includes('unique_key') || skuVal.includes('sort_')) continue;
 
-                    // Calc
                     let sumOut = 0;
                     let logs = [];
                     
-                    col.dates.forEach(d => {
-                        const cellVal = parseFloat(row[d.idx].replace(/,/g, ''));
-                        if(!isNaN(cellVal) && cellVal < 0) {
-                            const abs = Math.abs(cellVal);
+                    // Sum Transaction Columns
+                    activeDates.forEach(d => {
+                        const valStr = row[d.idx] ? row[d.idx].replace(/,/g, '') : "0";
+                        const val = parseFloat(valStr);
+                        if(val < 0) {
+                            const abs = Math.abs(val);
                             sumOut += abs;
-                            logs.push(`${d.raw}: ${cellVal} -> +${abs}`);
+                            logs.push(`${d.iso}: ${val}`);
                         }
                     });
 
-                    // Monthly Run Rate (Rounded Up)
-                    const runRate = Math.ceil(sumOut / denomMonths);
+                    // Round Up
+                    const rate = Math.ceil(sumOut / denom);
 
                     results.push({
                         itemNo: parseInt(row[col.no]) || 9999,
                         sku: skuVal,
-                        inv: parseFloat(row[col.inv].replace(/,/g, '')) || 0,
-                        rawOutflow: sumOut, // RAW SUM REQUESTED
-                        months: denomMonths,
-                        runRate: runRate,
+                        inv: parseFloat(row[col.inv]?.replace(/,/g, '') || 0),
+                        rawOutflow: sumOut,
+                        months: denom,
+                        runRate: rate,
                         logs: logs
                     });
                 }
@@ -257,7 +302,7 @@
                 this.sort('itemNo');
                 document.getElementById('loader').classList.add('hidden');
                 document.getElementById('status').innerText = `Loaded ${results.length} valid SKUs`;
-                document.getElementById('debug-stats').innerText = `Date Columns Found: ${col.dates.length} (From ${col.dates[0]?.raw} to ${col.dates[col.dates.length-1]?.raw})`;
+                document.getElementById('debug-stats').innerText = `Active Date Columns: ${activeDates.length} (Denom: ${denom} Mo)`;
             },
 
             render(filter = '') {
@@ -337,6 +382,7 @@
                 this.config.INV = document.getElementById('conf-inv').value;
                 this.config.SKU = document.getElementById('conf-sku').value;
                 this.config.NO = document.getElementById('conf-no').value;
+                this.config.DATE_START = "L"; // Ensure this stays fixed
                 db.set(this.config);
                 this.toggleSettings(false);
                 this.fetchData();
