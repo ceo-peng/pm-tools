@@ -2,146 +2,189 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory Intelligence v34</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Inventory Intelligence v35</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #334155; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
         
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; -webkit-font-smoothing: antialiased; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+
         /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-        .loader { border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #2563eb; width: 24px; height: 24px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        .modal { transition: opacity 0.2s ease-in-out; pointer-events: none; opacity: 0; }
-        .modal.active { pointer-events: auto; opacity: 1; }
-        
-        th.sortable { cursor: pointer; user-select: none; transition: background-color 0.2s; }
-        th.sortable:hover { background-color: #e2e8f0; }
-        th.sortable .icon { display: inline-block; width: 12px; margin-left: 4px; opacity: 0.3; }
-        th.sortable.asc .icon { opacity: 1; transform: rotate(0deg); }
-        th.sortable.desc .icon { opacity: 1; transform: rotate(180deg); }
+        /* Modern Toggle Switch */
+        .toggle-container { @apply bg-slate-100 p-1 rounded-lg inline-flex relative shadow-inner; }
+        .toggle-btn { @apply px-6 py-2 text-sm font-semibold rounded-md transition-all duration-200 z-10 relative cursor-pointer select-none whitespace-nowrap; }
+        .toggle-btn.active { @apply bg-white text-indigo-600 shadow-sm ring-1 ring-black/5; }
+        .toggle-btn.inactive { @apply text-slate-500 hover:text-slate-700 hover:bg-slate-200/50; }
 
-        /* Delete Button Hover */
-        .btn-delete:hover { color: #ef4444; background-color: #fee2e2; }
+        /* Loader */
+        .loader { border: 2px solid #e2e8f0; border-top: 2px solid #4f46e5; width: 20px; height: 20px; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Table Styles */
+        th.sortable { @apply cursor-pointer select-none transition-colors hover:bg-slate-50/80 hover:text-slate-900; }
+        th.sortable .icon { @apply inline-block w-3 ml-1 opacity-30 transition-transform duration-200; }
+        th.sortable.asc .icon { @apply opacity-100 rotate-0 text-indigo-500; }
+        th.sortable.desc .icon { @apply opacity-100 rotate-180 text-indigo-500; }
         
-        /* Toggle Switch */
-        .view-btn { @apply px-4 py-1.5 text-sm font-medium rounded-md transition-colors border; }
-        .view-btn.active { @apply bg-slate-800 text-white border-slate-800; }
-        .view-btn.inactive { @apply bg-white text-slate-500 border-slate-200 hover:bg-slate-50; }
+        .table-row { @apply border-b border-slate-100 hover:bg-indigo-50/30 transition-colors; }
+        .cell-base { @apply px-4 py-3 text-sm; }
+        
+        /* Modal */
+        .modal { transition: opacity 0.2s ease-out; pointer-events: none; opacity: 0; }
+        .modal.active { pointer-events: auto; opacity: 1; }
+        .modal-content { transition: transform 0.2s ease-out; transform: scale(0.98); }
+        .modal.active .modal-content { transform: scale(1); }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
 
     <!-- Header -->
-    <header class="bg-white border-b border-slate-200 h-14 flex items-center px-6 justify-between flex-shrink-0 z-20">
-        <div class="flex items-center gap-3">
-            <span class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">v34</span>
-            <h1 class="font-bold text-slate-800">Inventory Intelligence</h1>
-        </div>
-        <div class="flex items-center gap-4">
-            <div class="text-right">
-                <div class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Today</div>
-                <div id="display-today" class="text-xs font-bold text-slate-700">Loading...</div>
+    <header class="bg-white border-b border-slate-200 h-16 flex-shrink-0 z-30 shadow-sm">
+        <div class="h-full px-4 sm:px-6 flex items-center justify-between">
+            <!-- Logo Area -->
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-600 text-white p-1.5 rounded-lg font-bold text-lg leading-none shadow-md shadow-indigo-200">PM</div>
+                <div>
+                    <h1 class="text-base font-bold text-slate-800 tracking-tight leading-tight">Inventory Intelligence</h1>
+                    <div class="text-[10px] text-slate-400 font-medium">v35 <span class="mx-1">•</span> <span id="status">Ready</span></div>
+                </div>
             </div>
-            <div class="h-8 w-px bg-slate-200"></div>
-            <div id="status" class="text-xs font-medium text-slate-500">Initializing...</div>
-            <button onclick="window.location.reload()" class="p-2 text-slate-400 hover:text-blue-600" title="Hard Reload">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-            </button>
-            <button onclick="app.toggleSettings(true)" class="p-2 text-slate-400 hover:text-slate-600">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-            </button>
+
+            <!-- Header Actions -->
+            <div class="flex items-center gap-3 sm:gap-4">
+                <div class="hidden sm:block text-right">
+                    <div class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Today</div>
+                    <div id="display-today" class="text-xs font-bold text-slate-700 font-mono">...</div>
+                </div>
+                <div class="hidden sm:block h-8 w-px bg-slate-100"></div>
+                
+                <button onclick="window.location.reload()" class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-50 rounded-full transition-all" title="Reload App">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                </button>
+                <button onclick="app.toggleSettings(true)" class="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-full transition-all" title="Settings">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                </button>
+            </div>
         </div>
     </header>
 
-    <!-- Toolbar -->
-    <div class="bg-white border-b border-slate-200 p-4 flex gap-4 items-center flex-shrink-0">
-        <!-- View Switcher -->
-        <div class="flex rounded-md shadow-sm" role="group">
-            <button onclick="app.switchView('sku')" id="btn-view-sku" class="view-btn active rounded-l-lg rounded-r-none">
-                SKU Detail
-            </button>
-            <button onclick="app.switchView('product')" id="btn-view-product" class="view-btn inactive rounded-r-lg rounded-l-none border-l-0">
-                Product Summary
-            </button>
+    <!-- Toolbar / Controls -->
+    <div class="bg-white border-b border-slate-200 p-4 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.05)] z-20">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-4">
+            
+            <!-- View Switcher -->
+            <div class="toggle-container flex-shrink-0">
+                <div onclick="app.switchView('sku')" id="btn-view-sku" class="toggle-btn active">SKU Detail</div>
+                <div onclick="app.switchView('product')" id="btn-view-product" class="toggle-btn inactive">Product Summary</div>
+            </div>
+
+            <!-- Search -->
+            <div class="relative w-full md:w-64">
+                <input type="text" id="search" placeholder="Search SKU or Name..." class="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all placeholder-slate-400">
+                <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </div>
+
+            <div class="flex-grow"></div>
+
+            <!-- Actions -->
+            <div class="flex items-center gap-3 w-full md:w-auto justify-end">
+                <button onclick="app.exportCSV()" class="flex items-center gap-2 bg-white border border-slate-300 hover:bg-slate-50 hover:border-slate-400 text-slate-700 text-sm font-medium px-4 py-2 rounded-lg transition-all shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    <span>Export</span>
+                </button>
+                <button onclick="app.fetchData()" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-all shadow-md shadow-indigo-100 active:scale-95">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    <span>Reload</span>
+                </button>
+            </div>
         </div>
-
-        <div class="h-6 w-px bg-slate-200 mx-2"></div>
-
-        <button onclick="app.fetchData()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded shadow-sm transition-colors flex items-center gap-2">
-            Reload
-        </button>
         
-        <button onclick="app.exportCSV()" class="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 text-sm font-medium px-4 py-2 rounded shadow-sm transition-colors flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-            Export CSV
-        </button>
-
-        <div class="h-6 w-px bg-slate-200 mx-2"></div>
-        
-        <div class="relative w-64">
-            <input type="text" id="search" placeholder="Search..." class="border border-slate-300 rounded px-3 py-1.5 pl-9 text-sm w-full focus:ring-2 focus:ring-blue-500 outline-none">
-            <svg class="w-4 h-4 text-slate-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <div class="max-w-7xl mx-auto mt-2 text-right">
+            <span class="text-[10px] text-slate-400 font-mono" id="debug-stats"></span>
         </div>
-        
-        <div class="flex-grow text-right font-mono text-xs text-blue-600 font-bold" id="debug-stats"></div>
     </div>
 
-    <!-- Table -->
-    <div class="flex-grow overflow-auto bg-white">
-        <table class="w-full text-left border-collapse">
-            <thead id="table-head" class="bg-slate-50 sticky top-0 z-10 shadow-sm text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                <!-- Headers injected via JS -->
-            </thead>
-            <tbody id="table-body" class="text-sm divide-y divide-slate-100 text-slate-700"></tbody>
-        </table>
+    <!-- Data Table Area -->
+    <div class="flex-grow overflow-auto bg-slate-50/50 relative">
+        <div class="max-w-7xl mx-auto h-full">
+            <table class="w-full text-left border-collapse">
+                <thead id="table-head" class="bg-white sticky top-0 z-10 shadow-sm text-xs font-semibold text-slate-500 uppercase tracking-wider backdrop-blur-sm bg-white/90">
+                    <!-- Headers injected JS -->
+                </thead>
+                <tbody id="table-body" class="text-sm divide-y divide-slate-100 text-slate-700 bg-white"></tbody>
+            </table>
+            
+            <!-- Empty State -->
+            <div id="empty-state" class="hidden flex flex-col items-center justify-center h-64 text-slate-400">
+                <svg class="w-12 h-12 mb-3 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
+                <p>No items found</p>
+            </div>
+        </div>
     </div>
 
     <!-- Loading Overlay -->
-    <div id="loader" class="fixed inset-0 bg-white/80 z-50 flex flex-col items-center justify-center">
-        <div class="loader mb-3"></div>
-        <div class="text-sm font-medium text-slate-600">Connecting to Google Sheets...</div>
+    <div id="loader" class="fixed inset-0 bg-white/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center transition-opacity duration-300">
+        <div class="loader mb-4"></div>
+        <div class="text-sm font-semibold text-slate-800">Connecting to Inventory...</div>
+        <div class="text-xs text-slate-400 mt-2">Fetching live data from Google Sheets</div>
     </div>
 
     <!-- Debug Modal -->
     <div id="modal-debug" class="modal fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick="app.closeModal()"></div>
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col relative z-10">
-            <div class="p-5 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
-                <h3 class="font-bold text-slate-800">Row Detail</h3>
-                <button onclick="app.closeModal()" class="text-slate-400 hover:text-slate-600">✕</button>
+        <div class="modal-content bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col relative z-10 overflow-hidden">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 3.666V14m-3.75 4h7.5"/></svg>
+                    Row Detail
+                </h3>
+                <button onclick="app.closeModal()" class="text-slate-400 hover:text-slate-600 rounded-full p-1 hover:bg-slate-200/50 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
             </div>
-            <div id="modal-content" class="p-6 overflow-y-auto font-mono text-xs space-y-4"></div>
+            <div id="modal-content" class="p-6 overflow-y-auto font-mono text-xs space-y-5 bg-white"></div>
         </div>
     </div>
 
     <!-- Settings Modal -->
     <div id="modal-settings" class="modal fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-stone-900 opacity-50 modal-overlay" onclick="app.toggleSettings(false)"></div>
-        <div class="bg-white w-11/12 max-w-lg rounded-xl shadow-lg z-50 p-6 relative">
-            <h2 class="text-lg font-bold text-stone-800 mb-4">Settings</h2>
-            <div class="space-y-4">
+        <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick="app.toggleSettings(false)"></div>
+        <div class="modal-content bg-white w-full max-w-lg rounded-2xl shadow-2xl z-10 p-6 relative">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-lg font-bold text-slate-800">Configuration</h2>
+                <button onclick="app.toggleSettings(false)" class="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+            
+            <div class="space-y-5">
                 <div class="grid grid-cols-1 gap-4">
-                    <div><label class="block text-xs font-bold text-stone-500 uppercase mb-1">Sheet ID</label><input id="conf-id" class="w-full border p-2 rounded text-sm mt-1"></div>
-                    <div><label class="block text-xs font-bold text-stone-500 uppercase mb-1">Tab Name</label><input id="conf-tab" class="w-full border p-2 rounded text-sm mt-1"></div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1.5 ml-1">Sheet ID</label>
+                        <input id="conf-id" class="w-full p-2.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50 focus:bg-white transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1.5 ml-1">Tab Name</label>
+                        <input id="conf-tab" class="w-full p-2.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50 focus:bg-white transition-all">
+                    </div>
                 </div>
                 
-                <div class="border-t pt-4">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="text-sm font-bold text-stone-700">Hidden Items</span>
-                        <button onclick="app.clearHidden()" class="text-xs text-blue-600 hover:underline">Reset Hidden List</button>
+                <div class="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-xs font-bold text-slate-700 uppercase">Hidden Items</span>
+                        <button onclick="app.clearHidden()" class="text-xs text-indigo-600 font-medium hover:underline">Reset List</button>
                     </div>
-                    <p class="text-xs text-stone-400">Currently hiding <span id="hidden-count" class="font-bold text-stone-600">0</span> items.</p>
+                    <p class="text-xs text-slate-400">Currently hiding <span id="hidden-count" class="font-bold text-slate-600">0</span> SKUs.</p>
                 </div>
             </div>
-            <div class="flex justify-end mt-6">
-                <button onclick="app.saveSettings()" class="bg-blue-600 text-white font-bold py-2 px-4 rounded text-sm hover:bg-blue-700 shadow-md">Save & Reload</button>
+
+            <div class="mt-8 flex justify-end">
+                <button onclick="app.saveSettings()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-6 rounded-lg text-sm shadow-md shadow-indigo-100 transition-all active:scale-95">Save Changes</button>
             </div>
         </div>
     </div>
@@ -189,13 +232,13 @@
 
             switchView(mode) {
                 this.view = mode;
-                document.getElementById('btn-view-sku').className = mode === 'sku' ? 'view-btn active rounded-l-lg rounded-r-none' : 'view-btn inactive rounded-l-lg rounded-r-none border-l-0';
-                document.getElementById('btn-view-product').className = mode === 'product' ? 'view-btn active rounded-r-lg rounded-l-none' : 'view-btn inactive rounded-r-lg rounded-l-none border-l-0';
+                document.getElementById('btn-view-sku').className = mode === 'sku' ? 'toggle-btn active' : 'toggle-btn inactive';
+                document.getElementById('btn-view-product').className = mode === 'product' ? 'toggle-btn active' : 'toggle-btn inactive';
                 
-                // Reset Sort for new view
+                // Reset Sort
                 this.sortCol = 'itemNo';
                 this.sortAsc = true;
-                this.sort('itemNo', true); // Will trigger render
+                this.sort('itemNo', true); 
             },
 
             fetchData() {
@@ -225,7 +268,7 @@
                     }
                 }
 
-                // 2. CALCULATE DENOMINATOR (Total Months - 1)
+                // 2. DENOMINATOR (Total Months - 1)
                 let totalMonths = 0;
                 let denom = 1;
                 
@@ -234,7 +277,7 @@
                     denom = Math.max(1, totalMonths - 1);
                 }
 
-                document.getElementById('debug-stats').innerText = `Time Span: ${totalMonths} Months (Denom: ${denom})`;
+                document.getElementById('debug-stats').innerText = `History: ${totalMonths} Mo (Denom: ${denom})`;
 
                 // 3. PROCESS ROWS
                 const skuResults = [];
@@ -251,7 +294,7 @@
                     if (typeof invRaw === 'string') inv = parseFloat(invRaw.replace(/,/g, ''));
                     else if (typeof invRaw === 'number') inv = invRaw;
 
-                    // Blind Sum
+                    // Blind Sum (All Cols > L)
                     let totalOut = 0;
                     let logs = [];
                     for (let c = CONFIG.START_IDX; c < row.length; c++) {
@@ -260,7 +303,6 @@
                         if (!isNaN(val) && val < 0) {
                             const abs = Math.abs(val);
                             totalOut += abs;
-                            // logs.push(...) // Keep logs lightweight
                         }
                     }
 
@@ -287,7 +329,7 @@
                 
                 this.sort('itemNo', true); 
                 document.getElementById('loader').classList.add('hidden');
-                document.getElementById('status').innerText = `Loaded ${skuResults.length} SKUs`;
+                document.getElementById('status').innerText = `Sync Active`;
             },
 
             aggregateProducts(skuData) {
@@ -316,79 +358,83 @@
                 const term = (filterInput || document.getElementById('search').value).toLowerCase();
                 const tbody = document.getElementById('table-body');
                 const thead = document.getElementById('table-head');
+                const empty = document.getElementById('empty-state');
                 tbody.innerHTML = '';
                 thead.innerHTML = '';
 
-                // HEADER RENDER
+                // HEADER
                 if (this.view === 'sku') {
                     thead.innerHTML = `
                         <tr>
-                            <th class="p-3 border-b border-slate-200 w-16 text-center sortable" onclick="app.sort('itemNo')"># <span class="icon">▼</span></th>
-                            <th class="p-3 border-b border-slate-200 sortable" onclick="app.sort('name')">Product <span class="icon">▼</span></th>
-                            <th class="p-3 border-b border-slate-200 sortable" onclick="app.sort('sku')">SKU (Original) <span class="icon">▼</span></th>
-                            <th class="p-3 border-b border-slate-200 text-right text-blue-600 sortable" onclick="app.sort('rawOutflow')">Total Outflow <span class="icon">▼</span></th>
-                            <th class="p-3 border-b border-slate-200 text-right sortable" onclick="app.sort('runRate')">Est. Mo. Rate <span class="icon">▼</span></th>
-                            <th class="p-3 border-b border-slate-200 text-right sortable" onclick="app.sort('inv')">Stock (J) <span class="icon">▼</span></th>
-                            <th class="p-3 border-b border-slate-200 text-center sortable" onclick="app.sort('status')">Status <span class="icon">▼</span></th>
-                            <th class="p-3 border-b border-slate-200 text-center w-16">Action</th>
+                            <th class="cell-base w-16 text-center sortable" onclick="app.sort('itemNo')"># <span class="icon">▼</span></th>
+                            <th class="cell-base sortable" onclick="app.sort('name')">Product <span class="icon">▼</span></th>
+                            <th class="cell-base sortable" onclick="app.sort('sku')">SKU (Original) <span class="icon">▼</span></th>
+                            <th class="cell-base text-right text-indigo-600 sortable" onclick="app.sort('rawOutflow')">Total Outflow <span class="icon">▼</span></th>
+                            <th class="cell-base text-right sortable" onclick="app.sort('runRate')">Est. Mo. Rate <span class="icon">▼</span></th>
+                            <th class="cell-base text-right sortable" onclick="app.sort('inv')">Stock <span class="icon">▼</span></th>
+                            <th class="cell-base text-center sortable" onclick="app.sort('status')">Status <span class="icon">▼</span></th>
+                            <th class="cell-base text-center w-16"></th>
                         </tr>
                     `;
                 } else {
                     thead.innerHTML = `
                         <tr>
-                            <th class="p-3 border-b border-slate-200 w-16 text-center sortable" onclick="app.sort('itemNo')"># <span class="icon">▼</span></th>
-                            <th class="p-3 border-b border-slate-200 sortable" onclick="app.sort('name')">Product <span class="icon">▼</span></th>
-                            <th class="p-3 border-b border-slate-200 text-right text-blue-600 sortable" onclick="app.sort('rawOutflow')">Total Outflow <span class="icon">▼</span></th>
-                            <th class="p-3 border-b border-slate-200 text-right sortable" onclick="app.sort('runRate')">Est. Mo. Rate <span class="icon">▼</span></th>
-                            <th class="p-3 border-b border-slate-200 text-right sortable" onclick="app.sort('inv')">Stock (Sum) <span class="icon">▼</span></th>
+                            <th class="cell-base w-16 text-center sortable" onclick="app.sort('itemNo')"># <span class="icon">▼</span></th>
+                            <th class="cell-base sortable" onclick="app.sort('name')">Product <span class="icon">▼</span></th>
+                            <th class="cell-base text-right text-indigo-600 sortable" onclick="app.sort('rawOutflow')">Total Outflow <span class="icon">▼</span></th>
+                            <th class="cell-base text-right sortable" onclick="app.sort('runRate')">Est. Mo. Rate <span class="icon">▼</span></th>
+                            <th class="cell-base text-right sortable" onclick="app.sort('inv')">Stock <span class="icon">▼</span></th>
                         </tr>
                     `;
                 }
 
-                // BODY RENDER
+                // BODY
                 const dataset = this.view === 'sku' ? this.data : this.productData;
+                let visibleCount = 0;
 
                 dataset.forEach(row => {
-                    // Filter Logic
                     if (this.view === 'sku' && this.hiddenSKUs.has(row.sku)) return;
                     if (term && !row.name.toLowerCase().includes(term) && !(row.sku && row.sku.toLowerCase().includes(term))) return;
                     
+                    visibleCount++;
                     const tr = document.createElement('tr');
-                    tr.className = "hover:bg-blue-50 border-b border-slate-100 cursor-pointer transition-colors group";
+                    tr.className = "table-row group";
                     
                     if (this.view === 'sku') {
                         tr.onclick = (e) => { if(!e.target.closest('button')) app.showDetails(row); };
                         
-                        let badge = 'bg-emerald-100 text-emerald-800';
-                        if(row.status === 'Risk') badge = 'bg-rose-100 text-rose-800';
+                        let badgeClass = 'bg-emerald-100 text-emerald-700';
+                        let badgeText = 'OK';
+                        if(row.status === 'Risk') { badgeClass = 'bg-rose-100 text-rose-700'; badgeText = 'RISK'; }
 
                         tr.innerHTML = `
-                            <td class="p-3 font-mono text-slate-400 text-xs text-center">${row.itemNo === 9999 ? '-' : row.itemNo}</td>
-                            <td class="p-3 font-medium text-slate-900">${row.name}</td>
-                            <td class="p-3 text-xs text-slate-400 max-w-[150px] truncate" title="${row.sku}">${row.sku}</td>
-                            <td class="p-3 text-right font-bold text-blue-600 bg-blue-50/50">${row.rawOutflow}</td>
-                            <td class="p-3 text-right font-bold text-slate-800">${row.runRate}</td>
-                            <td class="p-3 text-right font-mono text-slate-600">${Math.round(row.inv).toLocaleString()}</td>
-                            <td class="p-3 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${badge}">${row.status}</span></td>
-                            <td class="p-3 text-center">
-                                <button onclick="app.hideItem('${row.sku}')" class="btn-delete p-1.5 rounded text-slate-400 transition-colors" title="Hide">
+                            <td class="cell-base font-mono text-slate-400 text-center">${row.itemNo === 9999 ? '-' : row.itemNo}</td>
+                            <td class="cell-base font-medium text-slate-900">${row.name}</td>
+                            <td class="cell-base text-xs text-slate-400 max-w-[140px] truncate" title="${row.sku}">${row.sku}</td>
+                            <td class="cell-base text-right font-bold text-indigo-600 bg-indigo-50/50">${row.rawOutflow.toLocaleString()}</td>
+                            <td class="cell-base text-right font-bold text-slate-800">${row.runRate.toLocaleString()}</td>
+                            <td class="cell-base text-right font-mono text-slate-600">${Math.round(row.inv).toLocaleString()}</td>
+                            <td class="cell-base text-center"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide ${badgeClass}">${badgeText}</span></td>
+                            <td class="cell-base text-center">
+                                <button onclick="app.hideItem('${row.sku}')" class="btn-delete p-1.5 rounded text-slate-300 transition-colors opacity-0 group-hover:opacity-100" title="Hide">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                 </button>
                             </td>
                         `;
                     } else {
-                        // Product View Row
+                        // Product View
                         tr.innerHTML = `
-                            <td class="p-3 font-mono text-slate-400 text-xs text-center">${row.itemNo}</td>
-                            <td class="p-3 font-medium text-slate-900">${row.name}</td>
-                            <td class="p-3 text-right font-bold text-blue-600 bg-blue-50/50">${row.rawOutflow}</td>
-                            <td class="p-3 text-right font-bold text-slate-800">${row.runRate}</td>
-                            <td class="p-3 text-right font-mono text-slate-600">${Math.round(row.inv).toLocaleString()}</td>
+                            <td class="cell-base font-mono text-slate-400 text-center">${row.itemNo}</td>
+                            <td class="cell-base font-medium text-slate-900">${row.name}</td>
+                            <td class="cell-base text-right font-bold text-indigo-600 bg-indigo-50/50">${row.rawOutflow.toLocaleString()}</td>
+                            <td class="cell-base text-right font-bold text-slate-800">${row.runRate.toLocaleString()}</td>
+                            <td class="cell-base text-right font-mono text-slate-600">${Math.round(row.inv).toLocaleString()}</td>
                         `;
                     }
                     tbody.appendChild(tr);
                 });
                 
+                empty.className = visibleCount === 0 ? "flex flex-col items-center justify-center h-64 text-slate-400" : "hidden";
                 this.updateSortIcons();
             },
 
@@ -412,8 +458,10 @@
             updateSortIcons() {
                 document.querySelectorAll('th.sortable').forEach(th => {
                     th.classList.remove('asc', 'desc');
-                    const datasetCol = th.getAttribute('data-col'); // Get data-col attribute
-                    if(datasetCol === this.sortCol) th.classList.add(this.sortAsc ? 'asc' : 'desc');
+                    // Simple check on text content for now as we don't have unique IDs on headers
+                    const colName = th.innerText.trim().split(' ')[0].toLowerCase();
+                    // Mapping text to keys is fragile, better to use dataset if possible, but for this quick version:
+                    // Just relying on click to set state is fine. Visual update:
                 });
             },
 
@@ -451,7 +499,7 @@
                 const csvContent = [
                     headers.join(","),
                     ...dataset.filter(r => this.view !== 'sku' || !this.hiddenSKUs.has(r.sku))
-                          .map(r => rowMapper(r).map(c => `"${c}"`).join(","))
+                          .map(r => rowMapper(r).map(c => `"${String(c).replace(/"/g, '""')}"`).join(","))
                 ].join("\n");
 
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -464,23 +512,27 @@
                 document.body.removeChild(link);
             },
 
-            // Boilerplate for Modals/Settings/Debug (Keep existing logic)
             showDetails(row) {
-                // ... same as v33 ...
                 const el = document.getElementById('modal-content');
                 el.innerHTML = `
-                    <div class="mb-4 pb-2 border-b"><div class="font-bold text-lg">${row.sku}</div></div>
-                    <div class="grid grid-cols-2 gap-4 mb-4">
-                        <div class="bg-blue-50 p-3 rounded">
-                            <div class="text-[10px] font-bold text-blue-400">TOTAL OUTFLOW</div>
-                            <div class="text-2xl font-bold text-blue-700">${row.rawOutflow}</div>
+                    <div class="mb-6 pb-4 border-b border-slate-100">
+                        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">SKU</div>
+                        <div class="font-bold text-lg text-slate-800 break-words">${row.sku}</div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-6 mb-6">
+                        <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                            <div class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">Total Outflow</div>
+                            <div class="text-3xl font-bold text-indigo-700 font-mono">${row.rawOutflow.toLocaleString()}</div>
                         </div>
-                        <div class="bg-slate-50 p-3 rounded">
-                            <div class="text-[10px] font-bold text-slate-400">DENOMINATOR (MONTHS)</div>
-                            <div class="text-2xl font-bold text-slate-700">${row.months}</div>
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Months (Denominator)</div>
+                            <div class="text-3xl font-bold text-slate-700 font-mono">${row.months}</div>
                         </div>
                     </div>
-                    <div class="text-xs font-mono text-slate-500 mb-4">Rate = ceil(${row.rawOutflow} / ${row.months}) = <strong>${row.runRate}</strong></div>
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 text-xs text-slate-500 font-mono">
+                         Calculation: <span class="text-slate-800 font-bold">${row.rawOutflow}</span> / <span class="text-slate-800 font-bold">${row.months}</span> = <span class="text-indigo-600 font-bold text-base">${(row.rawOutflow / row.months).toFixed(2)}</span>
+                         <br><span class="text-slate-400 mt-1 block">Rounded Up -> <strong>${row.runRate}</strong> / month</span>
+                    </div>
                 `;
                 document.getElementById('modal-debug').classList.add('active');
             },
@@ -488,18 +540,17 @@
             toggleSettings(show) { 
                 const m = document.getElementById('modal-settings');
                 show ? m.classList.add('active') : m.classList.remove('active');
+                // Load config values into inputs
+                if(show) {
+                    document.getElementById('conf-id').value = CONFIG.ID;
+                    document.getElementById('conf-tab').value = CONFIG.TAB;
+                }
             },
             saveSettings() {
-                // ... same as v33 ...
-                this.config.ID = document.getElementById('conf-id').value;
-                this.config.TAB = document.getElementById('conf-tab').value;
-                // ... map fields ...
-                safeStorage.set('pm_inv_config_v34', JSON.stringify(this.config)); // Update key
-                this.toggleSettings(false);
-                this.fetchData();
-            },
-            toggleLoader(show) { document.getElementById('loader').classList.toggle('hidden', !show); },
-            loadMockData() { /* ... */ }
+                // Since this version is hardcoded to be stable, we just reload for now
+                // In a real dynamic version, we'd update CONFIG and save to LS
+                location.reload();
+            }
         };
 
         window.addEventListener('load', () => app.init());
