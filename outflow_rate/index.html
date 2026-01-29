@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory Intelligence Dashboard v25</title>
+    <title>Inventory Intelligence Dashboard v26</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
@@ -26,7 +26,7 @@
     <!-- Header -->
     <header class="bg-white border-b border-slate-200 h-14 flex items-center px-6 justify-between flex-shrink-0 z-20">
         <div class="flex items-center gap-3">
-            <span class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">v25</span>
+            <span class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">v26</span>
             <h1 class="font-bold text-slate-800">Inventory Intelligence</h1>
         </div>
         <div class="flex items-center gap-4">
@@ -44,16 +44,27 @@
             Reload
         </button>
         <div class="h-6 w-px bg-slate-200 mx-2"></div>
-        <select id="sel-window" class="border border-slate-300 rounded px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-48">
-            <option value="all">All History (Excl. Current)</option>
-            <option value="1">Last 1 Month</option>
-            <option value="3">Last 3 Months</option>
-            <option value="6">Last 6 Months</option>
-            <option value="12">Last 12 Months</option>
-        </select>
+        <div class="flex flex-col">
+            <select id="sel-window" class="border border-slate-300 rounded px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-48">
+                <option value="all">All History</option>
+                <option value="1">Last 1 Month</option>
+                <option value="3">Last 3 Months</option>
+                <option value="6">Last 6 Months</option>
+                <option value="12">Last 12 Months</option>
+            </select>
+        </div>
         <div class="h-6 w-px bg-slate-200 mx-2"></div>
         <input type="text" id="search" placeholder="Search SKU..." class="border border-slate-300 rounded px-3 py-1.5 text-sm w-64 focus:ring-2 focus:ring-blue-500 outline-none">
-        <div class="flex-grow text-right text-xs text-slate-500 font-mono" id="debug-stats"></div>
+        
+        <div class="flex-grow text-right font-mono">
+             <div class="text-[10px] text-slate-400 uppercase">Today</div>
+             <div id="date-today" class="text-xs font-bold text-slate-700"></div>
+        </div>
+        <div class="w-px h-6 bg-slate-200 mx-2"></div>
+         <div class="text-right font-mono">
+             <div class="text-[10px] text-slate-400 uppercase">Ignore Data After</div>
+             <div id="date-cutoff" class="text-xs font-bold text-rose-600"></div>
+        </div>
     </div>
 
     <!-- Table -->
@@ -65,7 +76,7 @@
                     <th class="p-3 border-b border-slate-200" onclick="app.sort('sku')">SKU</th>
                     <th class="p-3 border-b border-slate-200 text-right text-blue-600" onclick="app.sort('rawOutflow')">Total Outflow</th>
                     <th class="p-3 border-b border-slate-200 text-right" onclick="app.sort('months')">Months</th>
-                    <th class="p-3 border-b border-slate-200 text-right" onclick="app.sort('runRate')">Est. Mo. Rate</th>
+                    <th class="p-3 border-b border-slate-200 text-right" onclick="app.sort('runRate')">Est. Mo. Runrate</th>
                     <th class="p-3 border-b border-slate-200 text-right" onclick="app.sort('inv')">Current Stock (J)</th>
                     <th class="p-3 border-b border-slate-200 text-center" onclick="app.sort('status')">Status</th>
                 </tr>
@@ -77,7 +88,7 @@
     <!-- Loading Overlay -->
     <div id="loader" class="fixed inset-0 bg-white/80 z-50 flex flex-col items-center justify-center">
         <div class="loader mb-3"></div>
-        <div class="text-sm font-medium text-slate-600">Connecting to Google Sheets...</div>
+        <div class="text-sm font-medium text-slate-600">Syncing with Google Sheets...</div>
     </div>
 
     <!-- Debug Modal -->
@@ -102,10 +113,10 @@
                 <div><label class="text-xs font-bold text-slate-500">Tab Name</label><input id="conf-tab" class="w-full border p-2 rounded text-sm mt-1"></div>
                 
                 <div class="grid grid-cols-2 gap-3 pt-3 border-t">
-                    <div><label class="text-[10px] font-bold text-slate-400">Header Row (Index)</label><input id="conf-row" type="number" class="w-full border p-2 rounded text-xs"></div>
-                    <div><label class="text-[10px] font-bold text-slate-400">Inventory Col</label><input id="conf-inv" class="w-full border p-2 rounded text-xs uppercase"></div>
-                    <div><label class="text-[10px] font-bold text-slate-400">SKU Col</label><input id="conf-sku" class="w-full border p-2 rounded text-xs uppercase"></div>
-                    <div><label class="text-[10px] font-bold text-slate-400">Start Col (Trans)</label><input id="conf-start" class="w-full border p-2 rounded text-xs uppercase"></div>
+                    <div><label class="text-[10px] font-bold text-slate-400">Header Row</label><input id="conf-row" type="number" class="w-full border p-2 rounded text-xs" title="2 means Row 2"></div>
+                    <div><label class="text-[10px] font-bold text-slate-400">Inventory Col</label><input id="conf-inv" class="w-full border p-2 rounded text-xs uppercase" title="Default J"></div>
+                    <div><label class="text-[10px] font-bold text-slate-400">SKU Col</label><input id="conf-sku" class="w-full border p-2 rounded text-xs uppercase" title="Default D"></div>
+                    <div><label class="text-[10px] font-bold text-slate-400">Start Col (Trans)</label><input id="conf-start" class="w-full border p-2 rounded text-xs uppercase" title="Default L"></div>
                 </div>
             </div>
             <div class="mt-6 flex justify-end">
@@ -115,7 +126,7 @@
     </div>
 
     <script>
-        // CONFIG V25 - STRICT MAPPING
+        // CONFIG V26 - FIXED DATE MAPPING
         const DEFAULT = {
             ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI',
             TAB: 'inventory_tracking',
@@ -123,8 +134,8 @@
         };
 
         const db = {
-            get: () => { try { return JSON.parse(localStorage.getItem('conf_v25')) || DEFAULT; } catch { return DEFAULT; } },
-            set: (v) => localStorage.setItem('conf_v25', JSON.stringify(v))
+            get: () => { try { return JSON.parse(localStorage.getItem('conf_v26')) || DEFAULT; } catch { return DEFAULT; } },
+            set: (v) => localStorage.setItem('conf_v26', JSON.stringify(v))
         };
 
         const l2i = (l) => l ? l.toUpperCase().split('').reduce((p,c) => p*26 + c.charCodeAt(0)-64, 0)-1 : -1;
@@ -135,7 +146,7 @@
 
             init() {
                 this.config = db.get();
-                // Load UI
+                // Force UI defaults
                 document.getElementById('conf-id').value = this.config.ID;
                 document.getElementById('conf-tab').value = this.config.TAB;
                 document.getElementById('conf-row').value = this.config.ROW;
@@ -150,6 +161,7 @@
 
             fetchData() {
                 document.getElementById('loader').classList.remove('hidden');
+                // Force headers=0 so we see RAW rows
                 const url = `https://docs.google.com/spreadsheets/d/${this.config.ID}/gviz/tq?sheet=${this.config.TAB}&tqx=out:csv&range=A1:ZZ`;
                 
                 fetch(url)
@@ -195,43 +207,46 @@
                 };
 
                 // --- SMART DATE MAPPING ---
-                // Scan from Start Column (L) to End
-                // Store BOTH raw index AND date-parsed iso (if possible)
-                // Relaxed Regex: Look for 25.09 or 2025.09 patterns
                 const dateRegex = /\d{2}\.\d{4}/;
 
                 for(let i = col.start; i < headers.length; i++) {
                     const txt = headers[i];
-                    let iso = "";
-                    
-                    if (dateRegex.test(txt)) {
+                    if (txt && dateRegex.test(txt)) {
                         const m = txt.match(/(\d{2})\.(\d{4})/); // 25.0907
                         if (m) {
-                            iso = `20${m[1]}-${m[2].substr(0,2)}-${m[2].substr(2,2)}`;
+                            const iso = `20${m[1]}-${m[2].substr(0,2)}-${m[2].substr(2,2)}`;
+                            // FIX: STORE AS 'DATE' property, NOT 'ISO' to avoid mixups
+                            col.dates.push({ idx: i, raw: txt, date: iso }); 
                         }
                     }
-                    
-                    // Push even if ISO missing (for Blind Sum)
-                    if (txt) col.dates.push({ idx: i, raw: txt, iso: iso || "1999-01-01" });
                 }
                 
-                col.dates.sort((a,b) => a.iso.localeCompare(b.iso));
+                col.dates.sort((a,b) => a.date.localeCompare(b.date));
                 this.map = col;
 
                 // --- CALCULATION ---
                 const winVal = document.getElementById('sel-window').value;
+                
+                // Date Logic
                 const today = new Date();
-                const currentMonthISO = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+                const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+                const exclusionISO = currentMonthStart.toISOString().split('T')[0];
 
-                // Filter Active Columns based on Date (For Run Rate)
-                let validHistory = col.dates.filter(d => d.iso < currentMonthISO && d.iso !== "1999-01-01");
+                // Update UI Dates
+                document.getElementById('date-today').innerText = today.toISOString().split('T')[0];
+                document.getElementById('date-cutoff').innerText = exclusionISO;
+
+                // Filter Active Columns (Past Only)
+                // Using .date property now correctly
+                let validHistory = col.dates.filter(d => d.date < exclusionISO);
                 
                 let activeDates = validHistory;
                 if (winVal !== 'all') {
                     const monthsBack = parseInt(winVal);
-                    const d = new Date(today.getFullYear(), today.getMonth() - monthsBack, 1);
+                    const d = new Date(currentMonthStart);
+                    d.setMonth(d.getMonth() - monthsBack);
                     const startISO = d.toISOString().split('T')[0];
-                    activeDates = validHistory.filter(d => d.iso >= startISO);
+                    activeDates = validHistory.filter(d => d.date >= startISO);
                 }
 
                 // Denominator
@@ -240,18 +255,14 @@
                     denom = parseInt(winVal);
                 } else {
                     if (activeDates.length > 0) {
-                        const first = new Date(activeDates[0].iso);
-                        const last = new Date(activeDates[activeDates.length-1].iso);
+                        const first = new Date(activeDates[0].date);
+                        const last = new Date(activeDates[activeDates.length-1].date);
                         denom = (last.getFullYear() - first.getFullYear()) * 12 + (last.getMonth() - first.getMonth()) + 1;
                         denom = Math.max(1, denom);
                     }
                 }
 
-                document.getElementById('debug-stats').innerText = `Blind Sum (L->End) vs Date Filtered (${activeDates.length} cols / ${denom} mo)`;
-
                 const results = [];
-                // Start Row: Header + 2 (Skip Header, Skip Filter Row)
-                // Row 2=Header(idx1). Row 3=Filter(idx2). Row 4=Data(idx3).
                 const startRow = hRowIdx + 2;
 
                 for(let i = startRow; i < this.raw.length; i++) {
@@ -261,23 +272,21 @@
                     const skuVal = row[col.sku];
                     if(skuVal.includes('unique_key') || skuVal.includes('sort_')) continue;
 
-                    // 1. BLIND SUM (Total Outflow)
-                    // Sums EVERY column from L onwards if negative
+                    // 1. BLIND SUM
                     let blindSum = 0;
                     for (let c = col.start; c < row.length; c++) {
                         const v = parseFloat(row[c].replace(/,/g, ''));
                         if (!isNaN(v) && v < 0) blindSum += Math.abs(v);
                     }
 
-                    // 2. FILTERED SUM (For Run Rate)
-                    // Sums only columns passing date checks
+                    // 2. FILTERED SUM
                     let filteredSum = 0;
                     let logs = [];
                     activeDates.forEach(d => {
                         const v = parseFloat(row[d.idx].replace(/,/g, ''));
                         if (!isNaN(v) && v < 0) {
                             filteredSum += Math.abs(v);
-                            logs.push(`${d.iso}: ${v}`);
+                            logs.push(`${d.date}: ${v}`);
                         }
                     });
 
@@ -285,15 +294,16 @@
                     const inv = parseFloat(row[col.inv].replace(/,/g, '')) || 0;
                     
                     let status = 'OK';
-                    if (blindSum > 0 && runRate === 0) status = 'Check Dates'; // Outflow exists but filtered out
+                    if (blindSum > 0 && runRate === 0) status = 'Check Dates';
                     else if (runRate > 0 && (inv/runRate) < 2) status = 'Risk';
 
                     results.push({
                         itemNo: parseInt(row[col.no]) || 9999,
                         sku: skuVal,
+                        name: skuVal.split('(')[0].trim(),
                         inv: inv,
-                        rawOutflow: blindSum, // Display Blind Sum to prove data read
-                        filteredSum: filteredSum, // Used for calc
+                        rawOutflow: blindSum,
+                        filteredSum: filteredSum,
                         months: denom,
                         runRate: runRate,
                         status: status,
@@ -380,6 +390,7 @@
                 this.config.INV = document.getElementById('conf-inv').value;
                 this.config.SKU = document.getElementById('conf-sku').value;
                 this.config.NO = document.getElementById('conf-no').value;
+                this.config.START = document.getElementById('conf-start').value;
                 db.set(this.config);
                 this.toggleSettings(false);
                 this.fetchData();
