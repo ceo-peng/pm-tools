@@ -3,612 +3,344 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory Intelligence Dashboard v20</title>
+    <title>Inventory Dashboard v21 (Debug Mode)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #334155; }
-        
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-        .loader { border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #2563eb; width: 24px; height: 24px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #334155; }
+        .loader { border: 3px solid #e2e8f0; border-top: 3px solid #3b82f6; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        .modal { transition: opacity 0.2s ease-in-out; }
-        body.modal-active { overflow-x: hidden; overflow-y: visible !important; }
-        
-        th.sortable { cursor: pointer; user-select: none; transition: background-color 0.2s; }
-        th.sortable:hover { background-color: #e2e8f0; }
-        th.sortable .icon { display: inline-block; width: 12px; margin-left: 4px; opacity: 0.3; }
-        th.sortable.asc .icon { opacity: 1; transform: rotate(0deg); }
-        th.sortable.desc .icon { opacity: 1; transform: rotate(180deg); }
+        /* Modal & Overlay */
+        .modal { transition: opacity 0.2s ease-in-out; pointer-events: none; opacity: 0; }
+        .modal.active { pointer-events: auto; opacity: 1; }
+        th { cursor: pointer; user-select: none; }
+        th:hover { background-color: #f8fafc; }
     </style>
 </head>
-<body class="flex flex-col min-h-screen">
+<body class="flex flex-col h-screen overflow-hidden">
 
-    <!-- Navbar -->
-    <nav class="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="bg-blue-600 text-white p-1.5 rounded-lg font-bold text-lg leading-none">PM</div>
-                <h1 class="text-lg font-bold text-slate-800 tracking-tight">Inventory Intelligence <span class="text-xs text-slate-400 font-normal ml-2">v20</span></h1>
-            </div>
-            <div class="flex items-center gap-4">
-                <div id="status-indicator" class="hidden flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full border border-emerald-100">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Live Data
-                </div>
-                <button id="btn-settings-trigger" class="p-2 text-slate-400 hover:text-slate-600 rounded-full" title="Settings">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                </button>
-            </div>
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 h-14 flex items-center px-6 justify-between flex-shrink-0 z-20">
+        <div class="flex items-center gap-3">
+            <span class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">v21</span>
+            <h1 class="font-bold text-slate-800">Inventory Logic Debugger</h1>
         </div>
-    </nav>
-
-    <!-- Main -->
-    <main class="flex-grow p-6 max-w-7xl mx-auto w-full space-y-6">
-        
-        <div id="error-banner" class="hidden bg-rose-50 border border-rose-200 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div class="text-sm text-rose-800">
-                <strong class="font-bold">Connection Issue:</strong> <span id="error-message">Unable to fetch data.</span>
-            </div>
-            <button onclick="app.loadMockData()" class="px-4 py-2 bg-white border border-rose-200 text-rose-700 text-xs font-bold rounded shadow-sm hover:bg-rose-50 transition-colors">Load Demo Data</button>
+        <div class="flex items-center gap-4">
+            <div id="status" class="text-xs font-medium text-slate-500">Ready</div>
+            <button onclick="app.toggleSettings(true)" class="p-2 text-slate-400 hover:text-slate-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            </button>
         </div>
+    </header>
 
-        <div id="dashboard-content" class="hidden space-y-6 fade-in">
-            
-            <!-- Controls -->
-            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-wrap gap-6 items-end">
-                <div class="space-y-1.5">
-                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Analysis Interval</label>
-                    <select id="sel-window" class="block w-48 text-sm border-slate-300 rounded-lg bg-slate-50 p-2.5 focus:ring-blue-500">
-                        <option value="all" selected>All History</option>
-                        <option value="1">Last 1 Month</option>
-                        <option value="2">Last 2 Months</option>
-                        <option value="3">Last 3 Months</option>
-                        <option value="6">Last 6 Months</option>
-                        <option value="12">Last 12 Months</option>
-                    </select>
-                </div>
-                <div class="space-y-1.5">
-                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Algorithm</label>
-                    <select id="sel-algo" class="block w-48 text-sm border-slate-300 rounded-lg bg-slate-50 p-2.5 focus:ring-blue-500">
-                        <option value="simple_avg" selected>Average Velocity</option>
-                        <option value="p70">P70 Safety (Conservative)</option>
-                    </select>
-                </div>
-                
-                <div class="flex-grow text-right">
-                    <p id="date-range-display" class="text-xs text-stone-400 italic mt-2"></p>
-                </div>
-                <button id="btn-refresh" class="text-stone-500 hover:text-sky-600 text-sm font-bold flex items-center gap-2 px-3 py-2 transition-colors">
-                    <span>&#8635;</span> Refresh
-                </button>
-            </div>
+    <!-- Toolbar -->
+    <div class="bg-white border-b border-slate-200 p-4 flex gap-4 items-center flex-shrink-0">
+        <button onclick="app.fetchData()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded shadow-sm transition-colors flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Reload Data
+        </button>
+        <div class="h-6 w-px bg-slate-200 mx-2"></div>
+        <input type="text" id="search" placeholder="Search SKU..." class="border border-slate-300 rounded px-3 py-1.5 text-sm w-64 focus:ring-2 focus:ring-blue-500 outline-none">
+        <div class="flex-grow text-right text-xs text-slate-500 font-mono" id="debug-stats"></div>
+    </div>
 
-            <!-- KPIs (Reduced) -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div class="bg-white p-5 rounded-xl border border-stone-200 shadow-sm md:col-span-1">
-                    <div class="text-xs font-medium text-stone-400 uppercase">Total SKUs</div>
-                    <div id="kpi-total-skus" class="text-2xl font-bold text-stone-800 mt-1">-</div>
-                    <div class="text-xs text-stone-400 mt-1">Valid items found</div>
-                </div>
-            </div>
+    <!-- Table -->
+    <div class="flex-grow overflow-auto bg-white">
+        <table class="w-full text-left border-collapse">
+            <thead class="bg-slate-50 sticky top-0 z-10 shadow-sm text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <tr>
+                    <th class="p-3 border-b border-slate-200 w-16" onclick="app.sort('itemNo')">#</th>
+                    <th class="p-3 border-b border-slate-200" onclick="app.sort('sku')">SKU</th>
+                    <th class="p-3 border-b border-slate-200 text-right text-blue-600" onclick="app.sort('rawOutflow')">Total Outflow (History)</th>
+                    <th class="p-3 border-b border-slate-200 text-right" onclick="app.sort('months')">Months Counted</th>
+                    <th class="p-3 border-b border-slate-200 text-right" onclick="app.sort('runRate')">Est. Mo. Rate</th>
+                    <th class="p-3 border-b border-slate-200 text-right" onclick="app.sort('inv')">Current Stock</th>
+                </tr>
+            </thead>
+            <tbody id="table-body" class="text-sm divide-y divide-slate-100 text-slate-700">
+                <!-- Data Rows -->
+            </tbody>
+        </table>
+    </div>
 
-            <!-- Table -->
-            <div class="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden flex flex-col h-[700px]">
-                <div class="p-4 border-b border-stone-200 bg-stone-50 flex justify-between items-center gap-4 shrink-0">
-                    <div class="flex items-center gap-3">
-                        <h3 class="text-sm font-bold text-stone-800">Detail View</h3>
-                        <p id="row-stats" class="text-xs text-stone-400 font-mono"></p>
-                    </div>
-                    <input type="text" id="inp-search" placeholder="Search SKU..." class="pl-4 pr-4 py-2 text-sm border border-stone-300 rounded-lg w-64 focus:ring-blue-500 outline-none">
-                </div>
-                <div class="overflow-auto flex-grow">
-                    <table class="min-w-full divide-y divide-stone-200 relative">
-                        <thead class="bg-stone-100 sticky top-0 z-10 shadow-sm">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-stone-500 uppercase sortable" data-col="itemNo" onclick="app.sort('itemNo')">
-                                    # <span class="icon">▼</span>
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-stone-500 uppercase sortable" data-col="sku" onclick="app.sort('sku')">
-                                    SKU <span class="icon">▼</span>
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-stone-500 uppercase sortable" data-col="name" onclick="app.sort('name')">
-                                    Product <span class="icon">▼</span>
-                                </th>
-                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase sortable" data-col="inv" onclick="app.sort('inv')">
-                                    Stock (J) <span class="icon">▼</span>
-                                </th>
-                                <th class="px-6 py-3 text-right text-xs font-bold text-stone-500 uppercase sortable" data-col="monthlyRate" onclick="app.sort('monthlyRate')">
-                                    Est. Monthly Runrate <span class="icon">▼</span>
-                                </th>
-                                <th class="px-6 py-3 text-center text-xs font-bold text-stone-500 uppercase sortable" data-col="status" onclick="app.sort('status')">
-                                    Status <span class="icon">▼</span>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody id="table-body" class="bg-white divide-y divide-stone-200 text-sm text-stone-600"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </main>
+    <!-- Loading Overlay -->
+    <div id="loader" class="fixed inset-0 bg-white/80 z-50 flex flex-col items-center justify-center">
+        <div class="loader mb-3"></div>
+        <div class="text-sm font-medium text-slate-600">Connecting to Google...</div>
+    </div>
 
     <!-- Debug Modal -->
-    <div id="debug-modal" class="modal opacity-0 pointer-events-none fixed inset-0 flex items-center justify-center z-50">
-        <div class="absolute inset-0 bg-stone-900 opacity-50 modal-overlay" onclick="app.toggleDebug(false)"></div>
-        <div class="bg-white w-full max-w-2xl rounded-xl shadow-2xl z-10 mx-4 flex flex-col max-h-[90vh]">
-            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-xl">
-                <h2 class="text-lg font-bold text-slate-800">Calculation Verifier</h2>
-                <button onclick="app.toggleDebug(false)" class="text-slate-400 hover:text-slate-600">✕</button>
+    <div id="modal-debug" class="modal fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick="app.closeModal()"></div>
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col relative z-10">
+            <div class="p-5 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
+                <h3 class="font-bold text-slate-800">Calculation Details</h3>
+                <button onclick="app.closeModal()" class="text-slate-400 hover:text-slate-600">✕</button>
             </div>
-            <div class="p-6 space-y-4 overflow-y-auto font-mono text-sm" id="debug-content"></div>
+            <div id="modal-content" class="p-6 overflow-y-auto font-mono text-xs space-y-4"></div>
         </div>
     </div>
 
     <!-- Settings Modal -->
-    <div id="settings-modal" class="modal opacity-0 pointer-events-none fixed inset-0 flex items-center justify-center z-50">
-        <div class="absolute inset-0 bg-stone-900 opacity-50 modal-overlay"></div>
-        <div class="bg-white w-11/12 max-w-lg rounded-xl shadow-lg z-50 p-6">
-            <h2 class="text-lg font-bold text-stone-800 mb-4">Settings</h2>
-            <div class="space-y-4">
-                <div class="grid grid-cols-1 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-stone-500 uppercase mb-1">Sheet ID</label>
-                        <input id="conf-sheet-id" class="w-full p-2 text-sm border rounded focus:ring-blue-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-stone-500 uppercase mb-1">Tab Name</label>
-                        <input id="conf-tab-name" class="w-full p-2 text-sm border rounded focus:ring-blue-500 outline-none">
-                    </div>
-                </div>
-                <div class="pt-4 border-t border-stone-100">
-                    <p class="text-sm font-bold text-stone-700 mb-2">Column Mapping</p>
-                    <div class="grid grid-cols-2 gap-3">
-                         <div>
-                            <label class="block text-[10px] font-bold text-stone-400 uppercase mb-1">Item No. Col</label>
-                            <input id="conf-col-no" placeholder="Auto (A)" class="w-full p-2 text-xs border rounded uppercase">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-stone-400 uppercase mb-1">SKU Col</label>
-                            <input id="conf-col-sku" placeholder="Auto (D)" class="w-full p-2 text-xs border rounded uppercase">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-stone-400 uppercase mb-1">Inventory Col</label>
-                            <input id="conf-col-inv" placeholder="Auto (J)" class="w-full p-2 text-xs border rounded uppercase">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-stone-400 uppercase mb-1">Header Row</label>
-                            <input id="conf-row-header" type="number" placeholder="Auto (2)" class="w-full p-2 text-xs border rounded">
-                        </div>
-                    </div>
+    <div id="modal-settings" class="modal fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-slate-900/40" onclick="app.toggleSettings(false)"></div>
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 relative z-10">
+            <h2 class="font-bold text-lg mb-4">Settings</h2>
+            <div class="space-y-3">
+                <div><label class="text-xs font-bold text-slate-500">Sheet ID</label><input id="conf-id" class="w-full border p-2 rounded text-sm mt-1"></div>
+                <div><label class="text-xs font-bold text-slate-500">Tab Name</label><input id="conf-tab" class="w-full border p-2 rounded text-sm mt-1"></div>
+                
+                <div class="grid grid-cols-2 gap-3 pt-3 border-t">
+                    <div><label class="text-[10px] font-bold text-slate-400">Header Row (Index)</label><input id="conf-row" type="number" class="w-full border p-2 rounded text-xs"></div>
+                    <div><label class="text-[10px] font-bold text-slate-400">Inventory Col</label><input id="conf-inv" class="w-full border p-2 rounded text-xs uppercase"></div>
+                    <div><label class="text-[10px] font-bold text-slate-400">SKU Col</label><input id="conf-sku" class="w-full border p-2 rounded text-xs uppercase"></div>
+                    <div><label class="text-[10px] font-bold text-slate-400">Item No Col</label><input id="conf-no" class="w-full border p-2 rounded text-xs uppercase"></div>
                 </div>
             </div>
-            <div class="flex justify-end mt-6">
-                <button onclick="app.saveSettings()" class="bg-blue-600 text-white font-bold py-2 px-4 rounded text-sm hover:bg-blue-700 shadow-md">Save & Reload</button>
+            <div class="mt-6 flex justify-end">
+                <button onclick="app.saveSettings()" class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold shadow hover:bg-blue-700">Save</button>
             </div>
         </div>
     </div>
 
-    <!-- Loading Overlay -->
-    <div id="loader" class="fixed inset-0 bg-white/90 z-50 flex flex-col items-center justify-center backdrop-blur-sm">
-        <div class="loader"></div>
-        <p class="mt-4 text-stone-600 font-medium">Connecting...</p>
-    </div>
-
     <script>
-        const DEFAULT_CONFIG = {
+        // CONFIG V21
+        const DEFAULT = {
             ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI',
-            TAB: 'inventory_tracking', // Fixed: was using 'TAB' in object, correct key
-            ROW: '2', 
-            ITEM_NO: 'A',
-            INV: 'J', 
-            SKU: 'D',
-            NAME: 'D',
-            DATE_START_COL: 'L'
+            TAB: 'inventory_tracking',
+            ROW: 2, SKU: 'D', INV: 'J', NO: 'A'
         };
 
-        // JSONP Callback
-        window.googleSheetCallback = function(json) {
-            if (json.status === 'error') {
-                console.error("Google API Error: " + json.errors[0].detailed_message);
-                app.toggleLoader(false);
-                return;
-            }
-            const rows = json.table.rows.map(r => 
-                r.c.map(cell => (cell && cell.v !== null) ? String(cell.v) : "")
-            );
-            app.rawData = rows;
-            app.parseStructure();
-            document.getElementById('connection-status').classList.remove('hidden');
+        // Storage Wrapper
+        const db = {
+            get: () => { try { return JSON.parse(localStorage.getItem('conf_v21')) || DEFAULT; } catch { return DEFAULT; } },
+            set: (v) => localStorage.setItem('conf_v21', JSON.stringify(v))
         };
 
-        const safeStorage = {
-            getItem: (k) => { try { return localStorage.getItem(k); } catch(e){ return null; } },
-            setItem: (k, v) => { try { localStorage.setItem(k, v); } catch(e){} }
-        };
-
-        function letterToIndex(letter) {
-            if (!letter) return -1;
-            let column = letter.toUpperCase();
-            let sum = 0;
-            for (let i = 0; i < column.length; i++) {
-                sum *= 26; sum += (column.charCodeAt(i) - 'A'.charCodeAt(0) + 1);
-            }
-            return sum - 1;
-        }
+        // Helper: Letter to Index
+        const l2i = (l) => l ? l.toUpperCase().split('').reduce((p,c) => p*26 + c.charCodeAt(0)-64, 0)-1 : -1;
 
         const app = {
-            config: DEFAULT_CONFIG, rawData: [], processedData: [], sortCol: 'itemNo', sortAsc: true, map: {}, mainRowIdx: -1,
+            config: {}, raw: [], data: [], sortCol: 'itemNo', sortAsc: true,
 
             init() {
-                // v20 key forces update
-                this.config = safeStorage.getItem('pm_inv_config_v20') ? JSON.parse(safeStorage.getItem('pm_inv_config_v20')) : DEFAULT_CONFIG;
-                this.bindEvents();
+                this.config = db.get();
+                // Force defaults into UI
+                document.getElementById('conf-id').value = this.config.ID;
+                document.getElementById('conf-tab').value = this.config.TAB;
+                document.getElementById('conf-row').value = this.config.ROW;
+                document.getElementById('conf-inv').value = this.config.INV;
+                document.getElementById('conf-sku').value = this.config.SKU;
+                document.getElementById('conf-no').value = this.config.NO;
+                
+                document.getElementById('search').addEventListener('keyup', (e) => this.render(e.target.value));
                 this.fetchData();
             },
 
-            bindEvents() {
-                document.getElementById('btn-refresh').addEventListener('click', () => this.fetchData());
-                document.getElementById('btn-settings-trigger').addEventListener('click', () => this.toggleSettings(true));
-                document.querySelector('.modal-overlay').addEventListener('click', () => this.toggleSettings(false));
-                document.getElementById('inp-search').addEventListener('keyup', e => this.renderTable(e.target.value));
-                ['sel-window', 'sel-algo'].forEach(id => {
-                    if(document.getElementById(id)) document.getElementById(id).addEventListener('change', () => this.recalculate());
-                });
-            },
-
             fetchData() {
-                this.toggleLoader(true);
+                document.getElementById('loader').classList.remove('hidden');
+                // Force headers=0 to get raw rows
                 const url = `https://docs.google.com/spreadsheets/d/${this.config.ID}/gviz/tq?sheet=${this.config.TAB}&tqx=out:csv&range=A1:ZZ`;
                 
                 fetch(url)
-                    .then(response => {
-                        if (!response.ok) throw new Error("Network response was not ok");
-                        return response.text();
+                    .then(r => r.text())
+                    .then(csv => {
+                        if(csv.includes("<!DOCTYPE")) throw new Error("Private Sheet");
+                        this.raw = this.parseCSV(csv);
+                        this.process();
                     })
-                    .then(csvText => {
-                        if (csvText.includes("<!DOCTYPE html>")) throw new Error("Sheet is Private.");
-                        this.rawData = parseCSV(csvText);
-                        this.parseStructure();
-                    })
-                    .catch(error => {
-                        console.error(error);
-                        this.toggleLoader(false);
+                    .catch(e => {
+                        alert("Error: " + e.message);
+                        document.getElementById('loader').classList.add('hidden');
                     });
             },
 
-            parseStructure() {
-                // Determine Header Row Index
-                let hRow = 1; // Default to index 1 (Row 2)
-                if (this.config.ROW && !isNaN(this.config.ROW)) {
-                    hRow = parseInt(this.config.ROW) - 1;
-                }
-
-                if (!this.rawData[hRow]) {
-                    console.error("Header row not found."); return;
-                }
-
-                const header = this.rawData[hRow].map(c => c.toLowerCase().trim());
-                
-                const dateStartIndex = letterToIndex(this.config.DATE_START_COL);
-                
-                const dateCols = [];
-                for (let i = dateStartIndex; i < header.length; i++) {
-                    const txt = header[i];
-                    if (/\d{2}\.\d{4}\.\d{4}/.test(txt)) {
-                        const m = txt.match(/(\d{2})\.(\d{4})/);
-                        if (m) dateCols.push({ idx: i, date: `20${m[1]}-${m[2].substr(0,2)}-${m[2].substr(2,2)}`, raw: txt });
+            parseCSV(text) {
+                // Simple robust parser
+                return text.split('\n').map(r => {
+                    // Handle quoted CSV weirdness roughly
+                    let row = [], cell = "", quote = false;
+                    for(let c of r) {
+                        if(c === '"') quote = !quote;
+                        else if(c === ',' && !quote) { row.push(cell); cell = ""; }
+                        else cell += c;
                     }
-                }
-                dateCols.sort((a,b) => a.date.localeCompare(b.date));
+                    row.push(cell);
+                    return row.map(v => v.trim().replace(/^"|"$/g, ''));
+                });
+            },
 
-                this.map = {
-                    itemNo: letterToIndex(this.config.ITEM_NO), // A
-                    sku: letterToIndex(this.config.SKU), // D
-                    name: letterToIndex(this.config.NAME), // D
-                    inv: letterToIndex(this.config.INV), // J
-                    dates: dateCols
+            process() {
+                const cfg = this.config;
+                const hRowIdx = parseInt(cfg.ROW) - 1; // Row 2 = Index 1
+                
+                if (!this.raw[hRowIdx]) { alert("Header row not found"); return; }
+                
+                const headers = this.raw[hRowIdx].map(v => v.toLowerCase());
+                
+                // Map Columns
+                const col = {
+                    no: l2i(cfg.NO),
+                    sku: l2i(cfg.SKU),
+                    inv: l2i(cfg.INV),
+                    dates: []
                 };
-                
-                this.mainRowIdx = hRow;
-                this.recalculate();
-            },
 
-            deriveName(sku) {
-                if(!sku) return "";
-                return sku.replace(/\s*\(?\d{4}-\d{2}-\d{2}\)?.*$/, "").replace(/\s*-\s*$/, "").trim();
-            },
+                // Find Date Columns (Column L = Index 11)
+                const startColL = 11; 
+                // Regex for YY.MMDD
+                const dateRegex = /\d{2}\.\d{4}\.\d{4}/;
 
-            recalculate() {
-                const winValue = document.getElementById('sel-window').value; 
-                const algo = document.getElementById('sel-algo').value;
-
-                const today = new Date();
-                const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1); 
-                const exclusionISO = currentMonthStart.toISOString().split('T')[0]; 
-
-                let startISO = "1900-01-01";
-                let windowDesc = "All History";
-
-                let validHistoryCols = this.map.dates.filter(d => d.date < exclusionISO);
-
-                if (winValue !== 'all') {
-                    const monthsBack = parseInt(winValue);
-                    const d = new Date(currentMonthStart);
-                    d.setMonth(d.getMonth() - monthsBack);
-                    startISO = d.toISOString().split('T')[0];
-                    windowDesc = `Last ${monthsBack} Months`;
-                }
-
-                const activeCols = validHistoryCols.filter(d => d.date >= startISO);
-
-                let denomMonths = 0;
-                if (winValue !== 'all') {
-                    denomMonths = parseInt(winValue);
-                } else {
-                    if (activeCols.length > 0) {
-                        const firstDate = new Date(activeCols[0].date);
-                        const lastDate = new Date(activeCols[activeCols.length-1].date);
-                        const months = (lastDate.getFullYear() - firstDate.getFullYear()) * 12 + (lastDate.getMonth() - firstDate.getMonth()) + 1;
-                        denomMonths = Math.max(1, months);
-                    } else {
-                        denomMonths = 1;
+                headers.forEach((h, i) => {
+                    if(i >= startColL && dateRegex.test(h)) {
+                        col.dates.push({ idx: i, raw: h });
                     }
-                }
+                });
 
-                document.getElementById('date-range-display').innerText = 
-                    `${windowDesc} (Excl. Current Month). Denom: ${denomMonths} Mo.`;
+                // --- CALCULATION LOGIC ---
+                // Denominator: Total Calendar Months in Date Range
+                let denomMonths = 1;
+                if(col.dates.length > 0) {
+                    // Extract Date Strings to Objects
+                    const parseD = (s) => {
+                        const m = s.match(/(\d{2})\.(\d{4})/);
+                        return new Date(`20${m[1]}-${m[2].substr(0,2)}-${m[2].substr(2,2)}`);
+                    };
+                    const first = parseD(col.dates[0].raw);
+                    const last = parseD(col.dates[col.dates.length-1].raw);
+                    
+                    // Month Diff + 1
+                    denomMonths = (last.getFullYear() - first.getFullYear()) * 12 + (last.getMonth() - first.getMonth()) + 1;
+                    denomMonths = Math.max(1, denomMonths);
+                }
 
                 const results = [];
+                // CRITICAL FIX: Start loop immediately after header
+                // We will filter out "junk" rows inside the loop
                 
-                // Dynamic Start: Header Row + 2 (Skip Header and Gap)
-                const startLoop = this.mainRowIdx + 2;
-
-                for(let i = startLoop; i < this.rawData.length; i++) {
-                    const row = this.rawData[i];
+                for(let i = hRowIdx + 1; i < this.raw.length; i++) {
+                    const row = this.raw[i];
+                    if(!row[col.sku]) continue;
                     
-                    if(!row || !row[this.map.sku]) continue;
+                    // Filter: Skip rows where SKU column is header-like or empty
+                    const skuVal = row[col.sku];
+                    if(skuVal.includes('unique_key') || skuVal.includes('sort_')) continue;
+
+                    // Calc
+                    let sumOut = 0;
+                    let logs = [];
                     
-                    const rawSku = row[this.map.sku].trim();
-                    if(rawSku === "" || rawSku.toLowerCase().includes("unique_key")) continue;
-
-                    const itemNoStr = String(row[this.map.itemNo] || '').trim();
-                    const itemNo = parseInt(itemNoStr);
-
-                    const invStr = String(row[this.map.inv]||'0').replace(/,/g,'').trim();
-                    const inv = parseFloat(invStr) || 0;
-                    
-                    let totalOut = 0;
-                    let transactions = [];
-                    let dayVals = []; 
-
-                    activeCols.forEach(col => {
-                        const valStr = String(row[col.idx]||'0').replace(/,/g,'');
-                        const val = parseFloat(valStr);
-                        if(val < 0) {
-                            const qty = Math.abs(val);
-                            totalOut += qty;
-                            dayVals.push(qty);
-                            transactions.push({ date: col.date, qty: qty, raw: col.raw });
+                    col.dates.forEach(d => {
+                        const cellVal = parseFloat(row[d.idx].replace(/,/g, ''));
+                        if(!isNaN(cellVal) && cellVal < 0) {
+                            const abs = Math.abs(cellVal);
+                            sumOut += abs;
+                            logs.push(`${d.raw}: ${cellVal} -> +${abs}`);
                         }
                     });
 
-                    let monthlyRate = 0;
-                    if(algo === 'simple_avg') {
-                        monthlyRate = totalOut / denomMonths;
-                    } else if (algo === 'p70') {
-                        if(dayVals.length > 0) {
-                            dayVals.sort((a,b)=>a-b);
-                            const p70Daily = dayVals[Math.floor(dayVals.length * 0.7)];
-                            monthlyRate = p70Daily * 30; 
-                        }
-                    }
-
-                    monthlyRate = Math.ceil(monthlyRate);
-                    
-                    let status = 'OK';
-                    if (transactions.length === 0 && winValue !== 'all') status = 'Low Data';
-                    // Risk logic: if (Stock / RunRate) < 2 months
-                    if (monthlyRate > 0 && (inv / monthlyRate) < 2) status = 'Risk';
+                    // Monthly Run Rate (Rounded Up)
+                    const runRate = Math.ceil(sumOut / denomMonths);
 
                     results.push({
-                        itemNo: isNaN(itemNo) ? 9999 : itemNo,
-                        itemNoDisplay: itemNoStr,
-                        sku: rawSku,
-                        name: this.deriveName(rawSku),
-                        inv, monthlyRate, status,
-                        debug: { totalOut, denomMonths, windowDesc, transactions }
+                        itemNo: parseInt(row[col.no]) || 9999,
+                        sku: skuVal,
+                        inv: parseFloat(row[col.inv].replace(/,/g, '')) || 0,
+                        rawOutflow: sumOut, // RAW SUM REQUESTED
+                        months: denomMonths,
+                        runRate: runRate,
+                        logs: logs
                     });
                 }
 
-                this.processedData = results;
-                this.updateUI();
-                this.toggleLoader(false);
-                document.getElementById('dashboard-content').classList.remove('hidden');
-                document.getElementById('connection-status').classList.remove('hidden');
+                this.data = results;
+                this.sort('itemNo');
+                document.getElementById('loader').classList.add('hidden');
+                document.getElementById('status').innerText = `Loaded ${results.length} valid SKUs`;
+                document.getElementById('debug-stats').innerText = `Date Columns Found: ${col.dates.length} (From ${col.dates[0]?.raw} to ${col.dates[col.dates.length-1]?.raw})`;
             },
 
-            updateUI() {
-                const total = this.processedData.length;
-                document.getElementById('kpi-total-skus').innerText = total;
-                document.getElementById('row-stats').innerText = `Fetched: ${this.rawData.length} rows | Valid SKUs: ${total}`;
-                // Default Sort: Item No (Ascending)
-                this.sort('itemNo', true);
-            },
-
-            sort(col, keepDir) {
-                // If keepDir is true, we force Ascending (used for default sort)
-                if (!keepDir) { 
-                    this.sortAsc = this.sortCol === col ? !this.sortAsc : true; 
-                    this.sortCol = col; 
-                } else {
-                    this.sortAsc = true;
-                    this.sortCol = col;
-                }
-                
-                const m = this.sortAsc ? 1 : -1;
-                
-                document.querySelectorAll('th.sortable').forEach(th => {
-                    th.classList.remove('asc', 'desc');
-                    if(th.dataset.col === col) th.classList.add(this.sortAsc ? 'asc' : 'desc');
-                });
-
-                this.processedData.sort((a, b) => {
-                    let v1 = a[col], v2 = b[col];
-                    if (typeof v1 === 'string') return v1.localeCompare(v2) * m;
-                    return (v1 - v2) * m;
-                });
-                this.renderTable();
-            },
-
-            renderTable(filter = '') {
+            render(filter = '') {
                 const tbody = document.getElementById('table-body');
                 tbody.innerHTML = '';
                 const term = filter.toLowerCase();
                 
-                for (const row of this.processedData) {
-                    if (term && !row.sku.toLowerCase().includes(term) && !row.name.toLowerCase().includes(term)) continue;
+                this.data.forEach(row => {
+                    if(term && !row.sku.toLowerCase().includes(term)) return;
                     
                     const tr = document.createElement('tr');
-                    tr.className = "hover:bg-blue-50 border-b border-stone-100 transition-colors cursor-pointer group";
-                    tr.onclick = () => this.showDebug(row);
-                    
-                    let statusClass = row.status === 'Risk' ? 'bg-rose-100 text-rose-800' : (row.status === 'Low Data' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800');
+                    tr.className = "hover:bg-blue-50 border-b border-slate-100 cursor-pointer transition-colors";
+                    tr.onclick = () => this.showDetails(row);
 
                     tr.innerHTML = `
-                        <td class="px-6 py-4 font-mono text-slate-500">${row.itemNoDisplay}</td>
-                        <td class="px-6 py-4 font-medium text-stone-900 group-hover:text-blue-700">${row.sku}</td>
-                        <td class="px-6 py-4 text-stone-500 truncate max-w-xs" title="${row.name}">${row.name}</td>
-                        <td class="px-6 py-4 text-right font-mono">${Math.round(row.inv).toLocaleString()}</td>
-                        <td class="px-6 py-4 text-right font-mono font-bold">${Math.round(row.monthlyRate).toLocaleString()}</td>
-                        <td class="px-6 py-4 text-center"><span class="px-2.5 py-1 rounded-full text-xs font-bold ${statusClass}">${row.status}</span></td>
+                        <td class="p-3 font-mono text-slate-400 text-xs">${row.itemNo}</td>
+                        <td class="p-3 font-medium text-slate-700">${row.sku}</td>
+                        <td class="p-3 text-right font-bold text-blue-600 bg-blue-50/50">${row.rawOutflow}</td>
+                        <td class="p-3 text-right text-slate-500 text-xs">${row.months}</td>
+                        <td class="p-3 text-right font-bold text-slate-800">${row.runRate}</td>
+                        <td class="p-3 text-right font-mono text-slate-600">${row.inv}</td>
                     `;
                     tbody.appendChild(tr);
-                }
-            }
-        };
+                });
+            },
 
-        // CSV Parser
-        const parseCSV = (text) => {
-            const rows = [];
-            let row = [];
-            let cell = "";
-            let inQuote = false;
-            for (let i = 0; i < text.length; i++) {
-                const char = text[i];
-                if (char === '"') { inQuote = !inQuote; }
-                else if (char === ',' && !inQuote) { row.push(cell.trim()); cell = ""; }
-                else if ((char === '\r' || char === '\n') && !inQuote) {
-                    if (cell || row.length) row.push(cell.trim());
-                    if (row.length) rows.push(row);
-                    row = []; cell = "";
-                } else { cell += char; }
-            }
-            if (cell || row.length) { row.push(cell.trim()); rows.push(row); }
-            return rows;
-        };
+            sort(key) {
+                this.sortAsc = (this.sortCol === key) ? !this.sortAsc : true;
+                this.sortCol = key;
+                const m = this.sortAsc ? 1 : -1;
+                this.data.sort((a,b) => {
+                    const v1 = a[key], v2 = b[key];
+                    return (v1 > v2 ? 1 : -1) * m;
+                });
+                this.render();
+            },
 
-        // Debug Modal Logic
-        app.showDebug = function(row) {
-            const el = document.getElementById('debug-content');
-            const d = row.debug;
-            let transList = d.transactions.map(t => `<div class="flex justify-between text-xs border-b border-slate-100 py-1"><span>${t.date}</span><span class="font-bold text-rose-600">-${t.qty}</span></div>`).join('');
-            el.innerHTML = `
-                <div class="mb-4 pb-4 border-b border-slate-200">
-                    <h3 class="font-bold text-lg text-slate-800">${row.sku}</h3>
-                    <p class="text-slate-500">${row.name}</p>
-                </div>
-                <div class="grid grid-cols-2 gap-4 mb-6">
-                    <div class="bg-slate-50 p-3 rounded">
-                        <div class="text-xs text-slate-500 uppercase">Total Outflow</div>
-                        <div class="text-xl font-bold text-slate-800">${d.totalOut}</div>
+            showDetails(row) {
+                const el = document.getElementById('modal-content');
+                el.innerHTML = `
+                    <div class="mb-4 pb-2 border-b">
+                        <div class="text-xs text-slate-400">SKU</div>
+                        <div class="font-bold text-lg">${row.sku}</div>
                     </div>
-                    <div class="bg-slate-50 p-3 rounded">
-                        <div class="text-xs text-slate-500 uppercase">Months</div>
-                        <div class="text-xl font-bold text-slate-800">${d.denomMonths}</div>
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div class="bg-blue-50 p-3 rounded">
+                            <div class="text-[10px] font-bold text-blue-400">TOTAL OUTFLOW</div>
+                            <div class="text-2xl font-bold text-blue-700">${row.rawOutflow}</div>
+                        </div>
+                        <div class="bg-slate-50 p-3 rounded">
+                            <div class="text-[10px] font-bold text-slate-400">CALENDAR MONTHS</div>
+                            <div class="text-2xl font-bold text-slate-700">${row.months}</div>
+                        </div>
                     </div>
-                </div>
-                <div class="bg-blue-50 p-3 rounded mb-6 border border-blue-100">
-                    <div class="text-xs text-blue-600 font-bold uppercase mb-1">Calculation</div>
-                    <div class="font-mono text-sm text-blue-900">${d.totalOut} / ${d.denomMonths} = ${(d.totalOut/d.denomMonths).toFixed(2)} → <span class="text-lg font-bold">${row.monthlyRate}</span></div>
-                </div>
-                <div>
-                    <div class="text-xs font-bold text-slate-500 uppercase mb-2">Transactions</div>
-                    <div class="max-h-40 overflow-y-auto bg-slate-50 p-2 rounded border border-slate-200">${transList || '<div class="text-slate-400 text-center py-2">None</div>'}</div>
-                </div>
-            `;
-            const modal = document.getElementById('debug-modal');
-            modal.classList.remove('opacity-0', 'pointer-events-none');
-            document.body.classList.add('modal-active');
-        };
+                    <div class="text-xs font-mono text-slate-500">
+                        Formula: ceil(${row.rawOutflow} / ${row.months}) = <strong>${row.runRate}</strong> / month
+                    </div>
+                    <div class="mt-4">
+                        <div class="text-xs font-bold text-slate-400 mb-2">TRANSACTION LOG (Negative Values Only)</div>
+                        <div class="bg-slate-900 text-green-400 p-3 rounded font-mono text-xs max-h-48 overflow-y-auto">
+                            ${row.logs.length ? row.logs.join('<br>') : '// No Outflow Data Found'}
+                        </div>
+                    </div>
+                `;
+                document.getElementById('modal-debug').classList.add('active');
+            },
 
-        app.toggleDebug = function(show) {
-            const modal = document.getElementById('debug-modal');
-            if(!show) { modal.classList.add('opacity-0', 'pointer-events-none'); document.body.classList.remove('modal-active'); }
-        };
-
-        app.toggleSettings = function(show) {
-            const el = document.getElementById('settings-modal');
-            if(show) {
-                document.getElementById('conf-sheet-id').value = this.config.ID;
-                document.getElementById('conf-tab-name').value = this.config.TAB; // Corrected ID usage
-                document.getElementById('conf-row-header').value = this.config.ROW;
-                document.getElementById('conf-col-inv').value = this.config.INV;
-                document.getElementById('conf-col-sku').value = this.config.SKU;
-                document.getElementById('conf-col-no').value = this.config.ITEM_NO;
-                el.classList.remove('opacity-0', 'pointer-events-none');
-                document.body.classList.add('modal-active');
-            } else {
-                el.classList.add('opacity-0', 'pointer-events-none');
-                document.body.classList.remove('modal-active');
+            closeModal() { document.getElementById('modal-debug').classList.remove('active'); },
+            toggleSettings(show) { 
+                const m = document.getElementById('modal-settings');
+                show ? m.classList.add('active') : m.classList.remove('active');
+            },
+            saveSettings() {
+                this.config.ID = document.getElementById('conf-id').value;
+                this.config.TAB = document.getElementById('conf-tab').value;
+                this.config.ROW = document.getElementById('conf-row').value;
+                this.config.INV = document.getElementById('conf-inv').value;
+                this.config.SKU = document.getElementById('conf-sku').value;
+                this.config.NO = document.getElementById('conf-no').value;
+                db.set(this.config);
+                this.toggleSettings(false);
+                this.fetchData();
             }
-        };
-
-        app.saveSettings = function() {
-            this.config.ID = document.getElementById('conf-sheet-id').value.trim();
-            this.config.TAB = document.getElementById('conf-tab-name').value.trim();
-            this.config.ROW = document.getElementById('conf-row-header').value.trim();
-            this.config.INV = document.getElementById('conf-col-inv').value.trim();
-            this.config.SKU = document.getElementById('conf-col-sku').value.trim();
-            this.config.ITEM_NO = document.getElementById('conf-col-no').value.trim();
-            safeStorage.setItem('pm_inv_config_v20', JSON.stringify(this.config));
-            this.toggleSettings(false);
-            this.fetchData();
-        };
-
-        app.toggleLoader = function(show) {
-            const el = document.getElementById('loader');
-            if(show) el.classList.remove('hidden'); else el.classList.add('hidden');
-        };
-
-        app.loadMockData = function() {
-            this.toggleLoader(true);
-            setTimeout(() => {
-                const head = ['unique_key', 'product_name', '即時庫存數量'];
-                const dates = [];
-                for(let i=120; i>=105; i--) {
-                    const d = new Date(); d.setDate(d.getDate()-i);
-                    const str = `${d.getFullYear().toString().substr(2)}.${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.1200`;
-                    head.push(str); dates.push(str);
-                }
-                this.rawData = [['junk'], head]; 
-                for(let i=1; i<=20; i++) {
-                    const inv = Math.floor(Math.random()*200);
-                    const row = [`DEMO-${i}`, `Product ${i}`, String(inv)];
-                    for(let j=0; j<15; j++) row.push(Math.random()>0.7 ? String(-Math.floor(Math.random()*10)) : "0");
-                    this.rawData.push(row);
-                }
-                const backup = {...this.config};
-                this.config.ROW = ''; 
-                this.parseStructure();
-                this.config = backup; 
-                document.getElementById('connection-status').innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span> Demo';
-                document.getElementById('connection-status').classList.remove('hidden');
-            }, 600);
         };
 
         window.addEventListener('load', () => app.init());
