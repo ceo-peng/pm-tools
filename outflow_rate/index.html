@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory Intelligence Dashboard v27</title>
+    <title>Inventory Intelligence Dashboard v28</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
@@ -24,7 +24,7 @@
     <!-- Header -->
     <header class="bg-white border-b border-slate-200 h-14 flex items-center px-6 justify-between flex-shrink-0 z-20">
         <div class="flex items-center gap-3">
-            <span class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">v27</span>
+            <span class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">v28</span>
             <h1 class="font-bold text-slate-800">Inventory Intelligence</h1>
         </div>
         <div class="flex items-center gap-4">
@@ -75,13 +75,14 @@
     <!-- Loading -->
     <div id="loader" class="fixed inset-0 bg-white/80 z-50 flex flex-col items-center justify-center">
         <div class="loader mb-3"></div>
-        <div class="text-sm font-medium text-slate-600">Syncing with Google Sheets...</div>
+        <div class="text-sm font-medium text-slate-600">Connecting...</div>
+        <div class="text-xs text-rose-500 mt-2 hidden cursor-pointer hover:underline" id="loader-timeout" onclick="app.forceStopLoader()">Takes too long? Click to Cancel.</div>
     </div>
 
     <!-- Debug Modal -->
     <div id="modal-debug" class="modal fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick="app.closeModal()"></div>
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col relative z-10">
+        <div class="bg-white w-full max-w-2xl rounded-xl shadow-2xl z-10 mx-4 flex flex-col max-h-[80vh]">
             <div class="p-5 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
                 <h3 class="font-bold text-slate-800">Calculation Verifier</h3>
                 <button onclick="app.closeModal()" class="text-slate-400 hover:text-slate-600">✕</button>
@@ -92,17 +93,22 @@
 
     <!-- Settings Modal -->
     <div id="modal-settings" class="modal fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-slate-900/40" onclick="app.toggleSettings(false)"></div>
-        <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 relative z-10">
-            <h2 class="font-bold text-lg mb-4">Settings</h2>
-            <div class="space-y-3">
-                <div><label class="text-xs font-bold text-slate-500">Sheet ID</label><input id="conf-id" class="w-full border p-2 rounded text-sm mt-1"></div>
-                <div><label class="text-xs font-bold text-slate-500">Tab Name</label><input id="conf-tab" class="w-full border p-2 rounded text-sm mt-1"></div>
-                <div class="grid grid-cols-2 gap-3 pt-3 border-t">
-                    <div><label class="text-[10px] font-bold text-slate-400">Header Row</label><input id="conf-row" type="number" class="w-full border p-2 rounded text-xs"></div>
-                    <div><label class="text-[10px] font-bold text-slate-400">Inventory Col</label><input id="conf-inv" class="w-full border p-2 rounded text-xs uppercase"></div>
-                    <div><label class="text-[10px] font-bold text-slate-400">SKU Col</label><input id="conf-sku" class="w-full border p-2 rounded text-xs uppercase"></div>
-                    <div><label class="text-[10px] font-bold text-slate-400">Start Col (L)</label><input id="conf-start" class="w-full border p-2 rounded text-xs uppercase"></div>
+        <div class="absolute inset-0 bg-stone-900 opacity-50 modal-overlay"></div>
+        <div class="bg-white w-11/12 max-w-lg rounded-xl shadow-lg z-50 p-6">
+            <h2 class="text-lg font-bold text-stone-800 mb-4">Settings</h2>
+            <div class="space-y-4">
+                <div class="grid grid-cols-1 gap-4">
+                    <div><label class="block text-xs font-bold text-stone-500 uppercase mb-1">Sheet ID</label><input id="conf-id" class="w-full border p-2 rounded text-sm mt-1"></div>
+                    <div><label class="block text-xs font-bold text-stone-500 uppercase mb-1">Tab Name</label><input id="conf-tab" class="w-full border p-2 rounded text-sm mt-1"></div>
+                </div>
+                <div class="pt-4 border-t border-stone-100">
+                    <p class="text-sm font-bold text-stone-700 mb-2">Column Mapping</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="block text-[10px] font-bold text-stone-400 uppercase mb-1">Header Row</label><input id="conf-row" type="number" class="w-full border p-2 rounded text-xs"></div>
+                        <div><label class="block text-[10px] font-bold text-stone-400 uppercase mb-1">Inventory Col</label><input id="conf-inv" class="w-full border p-2 rounded text-xs uppercase"></div>
+                        <div><label class="block text-[10px] font-bold text-stone-400 uppercase mb-1">SKU Col</label><input id="conf-sku" class="w-full border p-2 rounded text-xs uppercase"></div>
+                        <div><label class="block text-[10px] font-bold text-stone-400 uppercase mb-1">Start Col (L)</label><input id="conf-start" class="w-full border p-2 rounded text-xs uppercase"></div>
+                    </div>
                 </div>
             </div>
             <div class="mt-6 flex justify-end">
@@ -113,129 +119,175 @@
 
     <script>
         const DEFAULT = { ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI', TAB: 'inventory_tracking', ROW: 2, SKU: 'D', INV: 'J', NO: 'A', START: 'L' };
-        const db = { get: () => JSON.parse(localStorage.getItem('conf_v27')) || DEFAULT, set: (v) => localStorage.setItem('conf_v27', JSON.stringify(v)) };
+        const db = { get: () => JSON.parse(localStorage.getItem('conf_v28')) || DEFAULT, set: (v) => localStorage.setItem('conf_v28', JSON.stringify(v)) };
         const l2i = (l) => !l ? -1 : l.toUpperCase().split('').reduce((p,c) => p*26 + c.charCodeAt(0)-64, 0)-1;
         const idxToLetter = (i) => { let l=''; while(i>=0){ l=String.fromCharCode((i%26)+65)+l; i=Math.floor(i/26)-1; } return l; };
 
-        // Global JSONP
+        // Global JSONP Wrapper
         window.handleJSONP = (json) => {
-            if (json.status === 'error') { alert("API Error: "+json.errors[0].detailed_message); app.toggleLoader(false); return; }
+            if (json.status === 'error') { 
+                alert("API Error: "+json.errors[0].detailed_message); 
+                app.toggleLoader(false); 
+                return; 
+            }
             app.rawData = json.table.rows.map(r => r.c.map(cell => (cell && cell.v !== null) ? String(cell.v) : ""));
             app.process();
         };
 
         const app = {
-            config: {}, rawData: [], data: [], sortCol: 'itemNo', sortAsc: true, map: {},
+            config: DEFAULT, rawData: [], data: [], sortCol: 'itemNo', sortAsc: true, map: {}, timeout: null,
 
             init() {
+                // v28 key ensures fresh settings
                 this.config = db.get();
-                // Load UI
                 ['id','tab','row','inv','sku','start'].forEach(k => document.getElementById('conf-'+k).value = this.config[k.toUpperCase()] || this.config[k]);
+                
                 document.getElementById('search').addEventListener('keyup', (e) => this.render(e.target.value));
                 document.getElementById('sel-window').addEventListener('change', () => this.process());
+                
                 this.fetchData();
             },
 
             fetchData() {
-                document.getElementById('loader').classList.remove('hidden');
+                this.toggleLoader(true);
+                
+                // Safety Timeout (10s)
+                if(this.timeout) clearTimeout(this.timeout);
+                this.timeout = setTimeout(() => {
+                    document.getElementById('loader-timeout').classList.remove('hidden');
+                }, 5000); // Show cancel button after 5s
+
                 const url = `https://docs.google.com/spreadsheets/d/${this.config.ID}/gviz/tq?sheet=${this.config.TAB}&tqx=out:csv&range=A1:ZZ&headers=0&tqx=responseHandler:handleJSONP`;
-                const s = document.createElement('script'); s.src = url; document.body.appendChild(s);
+                const s = document.createElement('script'); s.src = url; 
+                s.onerror = () => { alert("Connection Error. Check Internet."); app.toggleLoader(false); };
+                document.body.appendChild(s);
             },
 
             process() {
-                const cfg = this.config;
-                const hRowIdx = parseInt(cfg.ROW) - 1;
-                if (!this.rawData[hRowIdx]) { alert("Header row not found"); return; }
-
-                const headers = this.rawData[hRowIdx].map(v => v.toLowerCase());
-                const col = { no: l2i(cfg.NO), sku: l2i(cfg.SKU), inv: l2i(cfg.INV), start: l2i(cfg.START), dates: [] };
-
-                // DATE PARSING (Relaxed Regex)
-                const dateRegex = /\d{2}\.\d{4}/; 
-                for(let i = col.start; i < headers.length; i++) {
-                    const txt = headers[i];
-                    if (txt && dateRegex.test(txt)) {
-                        const m = txt.match(/(\d{2})\.(\d{4})/);
-                        if (m) col.dates.push({ idx: i, raw: txt, iso: `20${m[1]}-${m[2].substr(0,2)}-${m[2].substr(2,2)}` });
-                    }
-                }
-                col.dates.sort((a,b) => a.iso.localeCompare(b.iso));
-                this.map = col;
-
-                // CALCULATION
-                const winVal = document.getElementById('sel-window').value;
-                const today = new Date();
-                const currentMonthISO = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-                
-                // 1. Filter: Exclude Current Month
-                let validHistory = col.dates.filter(d => d.iso < currentMonthISO);
-                
-                // 2. Filter: Window
-                let activeDates = validHistory;
-                if (winVal !== 'all') {
-                    const monthsBack = parseInt(winVal);
-                    const d = new Date(today.getFullYear(), today.getMonth() - monthsBack, 1);
-                    const startISO = d.toISOString().split('T')[0];
-                    activeDates = validHistory.filter(d => d.iso >= startISO);
-                }
-
-                // 3. Denominator
-                let denom = 1;
-                if (winVal !== 'all') denom = parseInt(winVal);
-                else if (activeDates.length > 0) {
-                    const first = new Date(activeDates[0].iso);
-                    const last = new Date(activeDates[activeDates.length-1].iso);
-                    denom = Math.max(1, (last.getFullYear() - first.getFullYear()) * 12 + (last.getMonth() - first.getMonth()) + 1);
-                }
-
-                document.getElementById('debug-stats').innerText = `Date Cols Used: ${activeDates.length} | Denom: ${denom} Mo | Valid Range: ${activeDates[0]?.iso || '?'} to ${activeDates[activeDates.length-1]?.iso || '?'}`;
-
-                const results = [];
-                // CRITICAL: Start Row = Header Row + 1 (Check EVERY row after header)
-                for(let i = hRowIdx + 1; i < this.rawData.length; i++) {
-                    const row = this.rawData[i];
-                    if(!row || !row[col.sku]) continue;
-
-                    const sku = row[col.sku].trim();
-                    // FILTER: Skip header repeats or sort rows
-                    if(!sku || sku === 'unique_key' || sku.includes('sort_')) continue;
-
-                    // Blind Sum (All History, All Cols > L)
-                    let blindSum = 0;
-                    for (let c = col.start; c < row.length; c++) {
-                        const v = parseFloat(row[c].replace(/,/g, ''));
-                        if (!isNaN(v) && v < 0) blindSum += Math.abs(v);
+                try {
+                    const cfg = this.config;
+                    const hRowIdx = parseInt(cfg.ROW) - 1;
+                    if (!this.rawData[hRowIdx]) { 
+                        alert("Header row not found. Check settings."); 
+                        this.toggleLoader(false); 
+                        return; 
                     }
 
-                    // Filtered Sum (Date Range)
-                    let filteredSum = 0, logs = [];
-                    activeDates.forEach(d => {
-                        const v = parseFloat(row[d.idx].replace(/,/g, ''));
-                        if (!isNaN(v) && v < 0) { filteredSum += Math.abs(v); logs.push(`${d.iso}: ${v}`); }
-                    });
+                    const headers = this.rawData[hRowIdx].map(v => v.toLowerCase().trim());
+                    const col = { no: l2i(cfg.NO), sku: l2i(cfg.SKU), inv: l2i(cfg.INV), start: l2i(cfg.START), dates: [] };
 
-                    const runRate = Math.ceil(filteredSum / denom);
-                    const inv = parseFloat(row[col.inv].replace(/,/g, '')) || 0;
-                    const itemNo = parseInt(row[col.no]) || 9999;
+                    // 1. DATE MAPPING
+                    const dateRegex = /\d{2}\.\d{4}/; 
+                    for(let i = col.start; i < headers.length; i++) {
+                        const txt = headers[i];
+                        // Scan logic: regex OR just assume columns > L are dates if they contain numbers
+                        // We strictly look for regex match 25.0907
+                        if (txt && dateRegex.test(txt)) {
+                            const m = txt.match(/(\d{2})\.(\d{4})/);
+                            if (m) col.dates.push({ idx: i, raw: txt, iso: `20${m[1]}-${m[2].substr(0,2)}-${m[2].substr(2,2)}` });
+                        }
+                    }
+                    col.dates.sort((a,b) => a.iso.localeCompare(b.iso));
+                    this.map = col;
 
-                    results.push({ itemNo, sku, name: sku.split('(')[0].trim(), inv, rawOutflow: blindSum, filteredSum, months: denom, runRate, logs, status: 'OK' });
+                    // 2. CALCULATION
+                    const winVal = document.getElementById('sel-window').value;
+                    const today = new Date();
+                    const currentMonthISO = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+                    
+                    let validHistory = col.dates.filter(d => d.iso < currentMonthISO);
+                    let activeDates = validHistory;
+                    
+                    if (winVal !== 'all') {
+                        const monthsBack = parseInt(winVal);
+                        const d = new Date(today.getFullYear(), today.getMonth() - monthsBack, 1);
+                        const startISO = d.toISOString().split('T')[0];
+                        activeDates = validHistory.filter(d => d.iso >= startISO);
+                    }
+
+                    let denom = 1;
+                    if (winVal !== 'all') denom = parseInt(winVal);
+                    else if (activeDates.length > 0) {
+                        const first = new Date(activeDates[0].iso);
+                        const last = new Date(activeDates[activeDates.length-1].iso);
+                        denom = Math.max(1, (last.getFullYear() - first.getFullYear()) * 12 + (last.getMonth() - first.getMonth()) + 1);
+                    }
+
+                    document.getElementById('debug-stats').innerText = `Date Cols: ${activeDates.length} | Denom: ${denom} Mo | Range: ${activeDates[0]?.iso || 'N/A'} - ${activeDates[activeDates.length-1]?.iso || 'N/A'}`;
+
+                    const results = [];
+                    // Start scanning Row 4 (Index 3). Skip header area.
+                    // Also check for Row 3 "sort_" logic to be safe.
+                    const startRow = hRowIdx + 1; 
+
+                    for(let i = startRow; i < this.rawData.length; i++) {
+                        const row = this.rawData[i];
+                        // Safety: Check if row exists and SKU column exists
+                        if(!row || !row[col.sku]) continue;
+
+                        const sku = row[col.sku].trim();
+                        // Filter invalid rows: Empty, "unique_key", or "sort_"
+                        if(!sku || sku === 'unique_key' || sku.includes('sort_')) continue;
+
+                        // Blind Sum (Total Outflow) - Independent of Date Regex
+                        let blindSum = 0;
+                        for (let c = col.start; c < row.length; c++) {
+                            const v = parseFloat(row[c].replace(/,/g, ''));
+                            if (!isNaN(v) && v < 0) blindSum += Math.abs(v);
+                        }
+
+                        // Filtered Sum (Run Rate) - Dependent on Date Regex
+                        let filteredSum = 0, logs = [];
+                        activeDates.forEach(d => {
+                            const v = parseFloat(row[d.idx].replace(/,/g, ''));
+                            if (!isNaN(v) && v < 0) { filteredSum += Math.abs(v); logs.push(`${d.iso}: ${v}`); }
+                        });
+
+                        const runRate = Math.ceil(filteredSum / denom);
+                        const inv = parseFloat(row[col.inv].replace(/,/g, '')) || 0;
+                        
+                        let status = 'OK';
+                        if (runRate > 0 && (inv/runRate) < 2) status = 'Risk';
+                        // Fallback: If Blind Sum > 0 but RunRate = 0, warn user about date mismatch
+                        if (blindSum > 0 && runRate === 0 && winVal === 'all') status = 'Check Dates';
+
+                        results.push({
+                            itemNo: parseInt(row[col.no]) || 9999,
+                            sku: sku,
+                            name: sku.split('(')[0].trim(),
+                            inv: inv,
+                            rawOutflow: blindSum, // Display blind sum for debug trust
+                            filteredSum, months: denom, runRate, status, logs
+                        });
+                    }
+
+                    this.data = results;
+                    this.sort('itemNo');
+                    this.toggleLoader(false);
+                    document.getElementById('status').innerText = `Loaded ${results.length} Valid SKUs`;
+
+                } catch(e) {
+                    alert("Processing Error: " + e.message);
+                    this.toggleLoader(false);
                 }
-
-                this.data = results;
-                this.sort('itemNo');
-                document.getElementById('loader').classList.add('hidden');
-                document.getElementById('status').innerText = `Loaded ${results.length} valid SKUs`;
             },
 
             render(filter = '') {
                 const tbody = document.getElementById('table-body');
                 tbody.innerHTML = '';
                 const term = filter.toLowerCase();
+                
                 this.data.forEach(row => {
                     if(term && !row.sku.toLowerCase().includes(term)) return;
+                    
                     const tr = document.createElement('tr');
-                    tr.className = "hover:bg-blue-50 border-b border-slate-100 cursor-pointer transition-colors";
+                    tr.className = "hover:bg-blue-50 border-b border-slate-100 cursor-pointer transition-colors group";
                     tr.onclick = () => this.showDetails(row);
+                    
+                    let badge = 'bg-emerald-100 text-emerald-800';
+                    if(row.status === 'Risk') badge = 'bg-rose-100 text-rose-800';
+                    if(row.status === 'Check Dates') badge = 'bg-amber-100 text-amber-800';
+
                     tr.innerHTML = `
                         <td class="p-3 font-mono text-slate-400 text-xs">${row.itemNo === 9999 ? '-' : row.itemNo}</td>
                         <td class="p-3 font-medium text-slate-700">${row.sku}</td>
@@ -243,7 +295,7 @@
                         <td class="p-3 text-right text-slate-500 text-xs">${row.months}</td>
                         <td class="p-3 text-right font-bold text-slate-800">${row.runRate}</td>
                         <td class="p-3 text-right font-mono text-slate-600">${row.inv}</td>
-                        <td class="p-3 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">OK</span></td>
+                        <td class="p-3 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${badge}">${row.status}</span></td>
                     `;
                     tbody.appendChild(tr);
                 });
@@ -263,30 +315,37 @@
                     <div class="mb-4 pb-2 border-b"><div class="font-bold text-lg">${row.sku}</div></div>
                     <div class="grid grid-cols-2 gap-4 mb-4">
                         <div class="bg-blue-50 p-3 rounded">
-                            <div class="text-[10px] font-bold text-blue-400">RAW SUM (ALL COLS)</div>
+                            <div class="text-[10px] font-bold text-blue-400">RAW SUM (ALL COLS > L)</div>
                             <div class="text-2xl font-bold text-blue-700">${row.rawOutflow}</div>
                         </div>
                         <div class="bg-slate-50 p-3 rounded">
-                            <div class="text-[10px] font-bold text-slate-400">ACTIVE DATE COLS</div>
-                            <div class="text-xl font-bold text-slate-700">${app.map.dates.length}</div>
+                            <div class="text-[10px] font-bold text-slate-400">FILTERED SUM (DATE RANGE)</div>
+                            <div class="text-2xl font-bold text-slate-700">${row.filteredSum}</div>
                         </div>
                     </div>
-                    <div class="text-xs font-mono text-slate-500 mb-4">Rate = ceil(${row.filteredSum} / ${row.months}) = <strong>${row.runRate}</strong></div>
-                    <div class="bg-slate-900 text-green-400 p-3 rounded font-mono text-xs max-h-48 overflow-y-auto">${row.logs.length ? row.logs.join('<br>') : '// No Data in Window'}</div>
+                    <div class="text-xs font-mono text-slate-500 mb-4">
+                        Rate = ceil(${row.filteredSum} / ${row.months}) = <strong>${row.runRate}</strong>
+                    </div>
+                    <div class="bg-slate-900 text-green-400 p-3 rounded font-mono text-xs max-h-48 overflow-y-auto">${row.logs.length ? row.logs.join('<br>') : '// No Data in Range'}</div>
                 `;
                 document.getElementById('modal-debug').classList.add('active');
             },
 
             closeModal() { document.getElementById('modal-debug').classList.remove('active'); },
             toggleSettings(show) { const m = document.getElementById('modal-settings'); show ? m.classList.add('active') : m.classList.remove('active'); },
-            toggleLoader(show) { const el = document.getElementById('loader'); show ? el.classList.remove('hidden') : el.classList.add('hidden'); },
-            
+            toggleLoader(show) { 
+                const el = document.getElementById('loader'); 
+                if(show) { el.classList.remove('hidden'); }
+                else { el.classList.add('hidden'); if(this.timeout) clearTimeout(this.timeout); }
+            },
+            forceStopLoader() { this.toggleLoader(false); },
+
             saveSettings() {
                 ['id','tab','row','inv','sku','start'].forEach(k => this.config[k.toUpperCase()] = document.getElementById('conf-'+k).value);
                 db.set(this.config); this.toggleSettings(false); this.fetchData();
             },
             
-            loadMockData() { /* Removed for clean code */ }
+            loadMockData() { /* Removed */ }
         };
 
         window.addEventListener('load', () => app.init());
