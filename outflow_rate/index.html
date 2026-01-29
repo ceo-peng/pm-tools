@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Inventory Intelligence v36</title>
+    <title>Inventory Intelligence v37</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -12,9 +12,9 @@
         .font-mono { font-family: 'JetBrains Mono', monospace; }
 
         /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
         /* Modern Button Styles */
@@ -30,14 +30,16 @@
         .loader { border: 2px solid #e2e8f0; border-top: 2px solid #4f46e5; width: 20px; height: 20px; border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Table Styles */
-        th.sortable { @apply cursor-pointer select-none transition-colors hover:bg-slate-100 hover:text-indigo-600 whitespace-nowrap px-3 py-3; }
-        th.sortable .icon { @apply inline-block w-3 ml-1 opacity-30 transition-transform duration-200; }
-        th.sortable.asc .icon { @apply opacity-100 rotate-0 text-indigo-500; }
-        th.sortable.desc .icon { @apply opacity-100 rotate-180 text-indigo-500; }
+        /* Table Styles - V37 Compact & Clean */
+        th.sortable { 
+            @apply cursor-pointer select-none transition-colors hover:bg-slate-100 hover:text-indigo-600 whitespace-nowrap px-2 py-3 text-center align-middle font-bold text-slate-600; 
+        }
+        th.sortable .icon { @apply inline-block w-2.5 ml-0.5 opacity-30 transition-transform duration-200; }
+        th.sortable.asc .icon { @apply opacity-100 rotate-0 text-indigo-600; }
+        th.sortable.desc .icon { @apply opacity-100 rotate-180 text-indigo-600; }
         
-        .table-row { @apply border-b border-slate-100 hover:bg-indigo-50/40 transition-colors; }
-        .cell-base { @apply px-3 py-2.5 text-sm whitespace-nowrap; }
+        .table-row { @apply border-b border-slate-200 hover:bg-indigo-50/40 transition-colors h-10; } /* Fixed Height Row */
+        .cell-base { @apply px-2 text-xs font-medium whitespace-nowrap overflow-hidden text-ellipsis align-middle text-black; } /* Compact Cell */
         
         /* Modal */
         .modal { transition: opacity 0.2s ease-out; pointer-events: none; opacity: 0; }
@@ -49,219 +51,148 @@
 <body class="flex flex-col h-screen overflow-hidden">
 
     <!-- Header -->
-    <header class="bg-white border-b border-slate-200 h-16 flex-shrink-0 z-30 shadow-sm relative">
-        <div class="h-full px-4 sm:px-6 flex items-center justify-between">
-            <!-- Logo Area -->
+    <header class="bg-white border-b border-slate-200 h-14 flex-shrink-0 z-30 shadow-sm relative">
+        <div class="h-full px-3 sm:px-6 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="bg-indigo-600 text-white p-1.5 rounded-lg font-bold text-lg leading-none shadow-md shadow-indigo-200">PM</div>
+                <div class="bg-indigo-600 text-white p-1 rounded-md font-bold text-base leading-none shadow-md shadow-indigo-200">PM</div>
                 <div class="hidden sm:block">
-                    <h1 class="text-base font-bold text-slate-800 tracking-tight leading-tight">Inventory Intelligence</h1>
-                    <div class="text-[10px] text-slate-400 font-medium">v36 <span class="mx-1">•</span> <span id="status">Ready</span></div>
+                    <h1 class="text-sm font-bold text-slate-800 tracking-tight leading-tight">Inventory Intelligence</h1>
+                    <div class="text-[10px] text-slate-400 font-medium">v37 <span class="mx-1">•</span> <span id="status">Ready</span></div>
                 </div>
             </div>
 
-            <!-- View Switcher (Center on Desktop, hidden on very small) -->
-            <div class="flex items-center gap-2 absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                <button onclick="app.switchView('sku')" id="btn-view-sku" class="btn-toggle active">
-                    <span>📦</span> 品項總覽
+            <!-- View Switcher -->
+            <div class="flex items-center gap-1 absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                <button onclick="app.switchView('sku')" id="btn-view-sku" class="btn-toggle active !px-4 !py-1.5 !text-xs">
+                    品項總覽
                 </button>
-                <button onclick="app.switchView('product')" id="btn-view-product" class="btn-toggle inactive">
-                    <span>📊</span> 產品總覽
+                <button onclick="app.switchView('product')" id="btn-view-product" class="btn-toggle inactive !px-4 !py-1.5 !text-xs">
+                    產品總覽
                 </button>
             </div>
 
-            <!-- Header Actions -->
+            <!-- Actions -->
             <div class="flex items-center gap-2">
-                 <!-- Mobile Search Toggle (Optional, using simple layout for now) -->
-                <button onclick="window.location.reload()" class="btn-action btn-secondary text-slate-400" title="Reload">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                <button onclick="window.location.reload()" class="btn-action btn-secondary text-slate-400 !p-1.5" title="Reload">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                 </button>
-                <button onclick="app.toggleSettings(true)" class="btn-action btn-secondary text-slate-400" title="Settings">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                <button onclick="app.toggleSettings(true)" class="btn-action btn-secondary text-slate-400 !p-1.5" title="Settings">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                 </button>
             </div>
         </div>
     </header>
 
     <!-- Toolbar -->
-    <div class="bg-white border-b border-slate-200 px-4 py-3 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.05)] z-20">
-        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center gap-3">
-            
+    <div class="bg-white border-b border-slate-200 px-3 py-2 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.05)] z-20">
+        <div class="max-w-7xl mx-auto flex items-center gap-2">
             <!-- Search -->
-            <div class="relative w-full sm:w-72 group">
-                <input type="text" id="search" placeholder="搜尋品名或 SKU..." class="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all placeholder-slate-400 group-hover:border-slate-300">
-                <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <div class="relative flex-grow">
+                <input type="text" id="search" placeholder="Search..." class="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-md focus:bg-white focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all placeholder-slate-400 text-black">
+                <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
             </div>
-
-            <div class="flex-grow hidden sm:block"></div>
-
-            <!-- Stats & Actions -->
-            <div class="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-                <div class="text-[10px] text-right mr-2 hidden md:block">
-                    <div class="text-slate-400 uppercase font-bold tracking-wider">Today</div>
-                    <div id="display-today" class="font-mono font-bold text-slate-700">...</div>
-                </div>
-
-                <button onclick="app.exportCSV()" class="btn-action btn-secondary flex items-center gap-2 px-3 py-2 text-xs font-bold uppercase tracking-wide">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                    <span>CSV</span>
-                </button>
-                <button onclick="app.fetchData()" class="btn-action btn-primary flex items-center gap-2 px-3 py-2 text-xs font-bold uppercase tracking-wide shadow-indigo-100">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                    <span>Reload</span>
-                </button>
-            </div>
+            
+            <button onclick="app.exportCSV()" class="btn-action btn-secondary flex items-center gap-1 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                CSV
+            </button>
         </div>
-        
-        <div class="max-w-7xl mx-auto mt-2 text-right sm:text-right text-center">
+        <div class="max-w-7xl mx-auto mt-1 text-right">
             <span class="text-[10px] text-slate-400 font-mono" id="debug-stats"></span>
         </div>
     </div>
 
-    <!-- Data Table Area -->
-    <div class="flex-grow overflow-auto bg-slate-50/50 relative">
+    <!-- Data Table -->
+    <div class="flex-grow overflow-auto bg-white relative">
         <div class="max-w-7xl mx-auto h-full">
-            <table class="w-full text-left border-collapse">
-                <thead id="table-head" class="bg-white sticky top-0 z-10 shadow-sm text-xs font-bold text-slate-500 uppercase tracking-tight backdrop-blur-sm bg-white/95">
-                    <!-- Headers injected JS -->
-                </thead>
-                <tbody id="table-body" class="text-sm divide-y divide-slate-100 text-slate-700 bg-white"></tbody>
+            <table class="w-full text-left border-collapse table-fixed">
+                <!-- Header (Inject JS) -->
+                <thead id="table-head" class="bg-white sticky top-0 z-10 shadow-sm text-[11px] font-bold text-slate-500 uppercase tracking-tight backdrop-blur-md bg-white/95 border-b border-slate-200"></thead>
+                <tbody id="table-body" class="divide-y divide-slate-100 bg-white"></tbody>
             </table>
             
-            <!-- Empty State -->
             <div id="empty-state" class="hidden flex flex-col items-center justify-center h-64 text-slate-400">
-                <svg class="w-12 h-12 mb-3 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
                 <p class="text-sm">No items found</p>
             </div>
         </div>
     </div>
 
-    <!-- Loading Overlay -->
+    <!-- Loading -->
     <div id="loader" class="fixed inset-0 bg-white/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center transition-opacity duration-300">
         <div class="loader mb-4"></div>
         <div class="text-sm font-semibold text-slate-800">Connecting...</div>
-        <div class="text-xs text-slate-400 mt-2">Loading data from Google Sheets</div>
     </div>
 
     <!-- Debug Modal -->
     <div id="modal-debug" class="modal fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick="app.closeModal()"></div>
-        <div class="modal-content bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col relative z-10 overflow-hidden">
-            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                <h3 class="font-bold text-slate-800 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 3.666V14m-3.75 4h7.5"/></svg>
-                    Calculation Logic
-                </h3>
-                <button onclick="app.closeModal()" class="text-slate-400 hover:text-slate-600 rounded-full p-1 hover:bg-slate-200/50 transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
+        <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col relative z-10 overflow-hidden">
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <h3 class="font-bold text-slate-800 text-sm">Calculation Details</h3>
+                <button onclick="app.closeModal()" class="text-slate-400 hover:text-slate-600">✕</button>
             </div>
-            <div id="modal-content" class="p-6 overflow-y-auto font-mono text-xs space-y-5 bg-white"></div>
+            <div id="modal-content" class="p-5 overflow-y-auto font-mono text-xs space-y-4 bg-white"></div>
         </div>
     </div>
 
     <!-- Settings Modal -->
     <div id="modal-settings" class="modal fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick="app.toggleSettings(false)"></div>
-        <div class="modal-content bg-white w-full max-w-lg rounded-2xl shadow-2xl z-10 p-6 relative">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-lg font-bold text-slate-800">Configuration</h2>
+        <div class="modal-content bg-white w-full max-w-md rounded-xl shadow-2xl z-10 p-5 relative">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-base font-bold text-slate-800">Configuration</h2>
                 <button onclick="app.toggleSettings(false)" class="text-slate-400 hover:text-slate-600">✕</button>
             </div>
-            
-            <div class="space-y-5">
-                <div class="grid grid-cols-1 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1.5 ml-1">Sheet ID</label>
-                        <input id="conf-id" class="w-full p-2.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50 focus:bg-white transition-all">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1.5 ml-1">Tab Name</label>
-                        <input id="conf-tab" class="w-full p-2.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50 focus:bg-white transition-all">
-                    </div>
+            <div class="space-y-4">
+                <div class="grid grid-cols-1 gap-3">
+                    <div><label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Sheet ID</label><input id="conf-id" class="w-full p-2 text-xs border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tab Name</label><input id="conf-tab" class="w-full p-2 text-xs border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500"></div>
                 </div>
-                
-                <div class="bg-slate-50 rounded-xl p-4 border border-slate-100">
-                    <div class="flex justify-between items-center mb-3">
-                        <span class="text-xs font-bold text-slate-700 uppercase">Hidden Items</span>
-                        <button onclick="app.clearHidden()" class="text-xs text-indigo-600 font-medium hover:underline">Reset List</button>
-                    </div>
-                    <p class="text-xs text-slate-400">Currently hiding <span id="hidden-count" class="font-bold text-slate-600">0</span> SKUs.</p>
+                <div class="bg-slate-50 rounded-lg p-3 border border-slate-100 flex justify-between items-center">
+                    <span class="text-xs font-bold text-slate-700">Hidden Items</span>
+                    <div class="text-xs"><span id="hidden-count" class="font-bold text-slate-600">0</span> hidden <button onclick="app.clearHidden()" class="text-indigo-600 hover:underline ml-2">Reset</button></div>
                 </div>
             </div>
-
-            <div class="mt-8 flex justify-end">
-                <button onclick="app.saveSettings()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-6 rounded-lg text-sm shadow-md shadow-indigo-100 transition-all active:scale-95">Save Changes</button>
-            </div>
+            <div class="mt-6 flex justify-end"><button onclick="app.saveSettings()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded text-xs shadow-md">Save</button></div>
         </div>
     </div>
 
     <script>
-        // CONFIG
-        const CONFIG = {
-            ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI',
-            TAB: 'inventory_tracking',
-            H_ROW: 1, D_ROW: 3, SKU_IDX: 3, INV_IDX: 9, START_IDX: 11
-        };
-
-        // JSONP Callback
+        const CONFIG = { ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI', TAB: 'inventory_tracking', H_ROW: 1, D_ROW: 3, SKU_IDX: 3, INV_IDX: 9, START_IDX: 11 };
         window.googleSheetCallback = function(json) {
-            if (json.status === 'error') {
-                alert("API Error: " + json.errors[0].detailed_message);
-                app.toggleLoader(false);
-                return;
-            }
+            if (json.status === 'error') { alert("API Error: " + json.errors[0].detailed_message); app.toggleLoader(false); return; }
             const rows = json.table.rows.map(r => r.c.map(cell => (cell && cell.v !== null) ? String(cell.v) : ""));
             app.process(rows);
         };
-
-        const safeStorage = {
-            get: (k) => { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } },
-            set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
-        };
+        const safeStorage = { get: (k) => { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
 
         const app = {
-            data: [], productData: [], sortCol: 'itemNo', sortAsc: true, hiddenSKUs: new Set(),
-            view: 'sku', // 'sku' or 'product'
+            data: [], productData: [], sortCol: 'itemNo', sortAsc: true, hiddenSKUs: new Set(), view: 'sku',
 
             init() {
-                const today = new Date().toISOString().split('T')[0];
-                document.getElementById('display-today').innerText = today;
                 this.hiddenSKUs = new Set(safeStorage.get('pm_hidden_skus'));
                 document.getElementById('hidden-count').innerText = this.hiddenSKUs.size;
                 this.bindEvents();
                 this.fetchData();
             },
 
-            bindEvents() {
-                document.getElementById('search').addEventListener('keyup', (e) => this.render(e.target.value));
-            },
-
+            bindEvents() { document.getElementById('search').addEventListener('keyup', (e) => this.render(e.target.value)); },
             switchView(mode) {
                 this.view = mode;
-                document.getElementById('btn-view-sku').className = mode === 'sku' ? 'btn-toggle active' : 'btn-toggle inactive';
-                document.getElementById('btn-view-product').className = mode === 'product' ? 'btn-toggle active' : 'btn-toggle inactive';
-                
-                // Reset Sort
-                this.sortCol = 'itemNo';
-                this.sortAsc = true;
+                document.getElementById('btn-view-sku').className = mode === 'sku' ? 'btn-toggle active !px-4 !py-1.5 !text-xs' : 'btn-toggle inactive !px-4 !py-1.5 !text-xs';
+                document.getElementById('btn-view-product').className = mode === 'product' ? 'btn-toggle active !px-4 !py-1.5 !text-xs' : 'btn-toggle inactive !px-4 !py-1.5 !text-xs';
                 this.sort('itemNo', true); 
             },
-
             fetchData() {
                 document.getElementById('loader').classList.remove('hidden');
-                const url = `https://docs.google.com/spreadsheets/d/${CONFIG.ID}/gviz/tq?sheet=${CONFIG.TAB}&headers=0&tqx=responseHandler:googleSheetCallback`;
-                const s = document.createElement('script'); s.src = url; 
+                const s = document.createElement('script'); s.src = `https://docs.google.com/spreadsheets/d/${CONFIG.ID}/gviz/tq?sheet=${CONFIG.TAB}&headers=0&tqx=responseHandler:googleSheetCallback`;
                 s.onerror = () => { alert("Network Error"); document.getElementById('loader').classList.add('hidden'); };
                 document.body.appendChild(s);
             },
 
             process(rows) {
-                // 1. ANALYZE DATES
                 const header = rows[CONFIG.H_ROW];
-                let dateCols = [];
-                let firstDate = null, lastDate = null;
-
+                let dateCols = [], firstDate = null, lastDate = null;
                 for(let i = CONFIG.START_IDX; i < header.length; i++) {
                     const txt = String(header[i]);
                     if (/\d{2}\.\d{4}/.test(txt)) {
@@ -269,94 +200,54 @@
                         if (m) {
                             const iso = `20${m[1]}-${m[2].substr(0,2)}-${m[2].substr(2,2)}`;
                             dateCols.push({ idx: i, iso: iso, raw: txt });
-                            if(!firstDate) firstDate = new Date(iso);
-                            lastDate = new Date(iso);
+                            if(!firstDate) firstDate = new Date(iso); lastDate = new Date(iso);
                         }
                     }
                 }
-
-                // 2. DENOMINATOR (Total Months - 1)
-                let totalMonths = 0;
                 let denom = 1;
-                
                 if(firstDate && lastDate) {
-                    totalMonths = (lastDate.getFullYear() - firstDate.getFullYear()) * 12 + (lastDate.getMonth() - firstDate.getMonth()) + 1;
-                    denom = Math.max(1, totalMonths - 1);
+                    denom = Math.max(1, ((lastDate.getFullYear() - firstDate.getFullYear()) * 12 + (lastDate.getMonth() - firstDate.getMonth()) + 1) - 1);
                 }
+                document.getElementById('debug-stats').innerText = `Time: ${denom} Mo`;
 
-                document.getElementById('debug-stats').innerText = `Time Span: ${totalMonths} Months (Denom: ${denom})`;
-
-                // 3. PROCESS ROWS
                 const skuResults = [];
                 for(let i = CONFIG.D_ROW; i < rows.length; i++) {
                     const row = rows[i];
                     if (!row[CONFIG.SKU_IDX]) continue;
-                    
                     const sku = String(row[CONFIG.SKU_IDX]).trim();
                     if (sku.toLowerCase().includes('unique_key') || sku.includes('sort_')) continue;
-
                     const itemNo = parseInt(row[0]) || 9999;
                     const invRaw = row[CONFIG.INV_IDX];
-                    let inv = 0;
-                    if (typeof invRaw === 'string') inv = parseFloat(invRaw.replace(/,/g, ''));
-                    else if (typeof invRaw === 'number') inv = invRaw;
-
-                    // Blind Sum (All Cols > L)
+                    let inv = typeof invRaw === 'string' ? parseFloat(invRaw.replace(/,/g, '')) : (typeof invRaw === 'number' ? invRaw : 0);
                     let totalOut = 0;
                     for (let c = CONFIG.START_IDX; c < row.length; c++) {
                         let val = row[c];
                         if (typeof val === 'string') val = parseFloat(val.replace(/,/g, ''));
-                        if (!isNaN(val) && val < 0) {
-                            const abs = Math.abs(val);
-                            totalOut += abs;
-                        }
+                        if (!isNaN(val) && val < 0) totalOut += Math.abs(val);
                     }
-
                     const monthlyRate = Math.ceil(totalOut / denom);
                     const product = sku.replace(/\s*\(?\d{4}-\d{2}-\d{2}\)?.*$/, "").replace(/\s*-\s*$/, "").trim();
-
                     let status = 'OK';
                     if (monthlyRate > 0 && (inv / monthlyRate) < 2) status = 'Risk';
-
-                    skuResults.push({
-                        itemNo,
-                        sku,
-                        name: product,
-                        inv: inv || 0,
-                        rawOutflow: totalOut,
-                        months: denom,
-                        runRate: monthlyRate,
-                        status
-                    });
+                    skuResults.push({ itemNo, sku, name: product, inv: inv || 0, rawOutflow: totalOut, months: denom, runRate: monthlyRate, status });
                 }
-
                 this.data = skuResults;
                 this.aggregateProducts(skuResults);
-                
                 this.sort('itemNo', true); 
                 document.getElementById('loader').classList.add('hidden');
-                document.getElementById('status').innerText = `Loaded ${skuResults.length} SKUs`;
             },
 
             aggregateProducts(skuData) {
                 const map = new Map();
                 skuData.forEach(item => {
-                    const key = item.name; 
-                    if(!map.has(key)) {
-                        map.set(key, { name: key, rawOutflow: 0, inv: 0, months: item.months });
-                    }
-                    const prod = map.get(key);
-                    prod.rawOutflow += item.rawOutflow;
-                    prod.inv += item.inv;
+                    if(!map.has(item.name)) map.set(item.name, { name: item.name, rawOutflow: 0, inv: 0, months: item.months });
+                    const p = map.get(item.name);
+                    p.rawOutflow += item.rawOutflow;
+                    p.inv += item.inv;
                 });
-
                 this.productData = Array.from(map.values()).map((p, i) => ({
-                    itemNo: i + 1,
-                    name: p.name,
-                    rawOutflow: p.rawOutflow,
-                    inv: p.inv,
-                    runRate: Math.ceil(p.rawOutflow / p.months),
-                    months: p.months
+                    itemNo: i + 1, name: p.name, rawOutflow: p.rawOutflow, inv: p.inv,
+                    runRate: Math.ceil(p.rawOutflow / p.months), months: p.months
                 }));
             },
 
@@ -366,35 +257,33 @@
                 const thead = document.getElementById('table-head');
                 const empty = document.getElementById('empty-state');
                 tbody.innerHTML = '';
-                thead.innerHTML = '';
 
-                // COMPACT HEADERS
+                // COMPACT HEADERS v37
                 if (this.view === 'sku') {
                     thead.innerHTML = `
                         <tr>
-                            <th class="cell-base w-12 text-center sortable" onclick="app.sort('itemNo')">項次 <span class="icon">▼</span></th>
-                            <th class="cell-base sortable" onclick="app.sort('name')">品項 <span class="icon">▼</span></th>
-                            <th class="cell-base text-right text-indigo-600 sortable" onclick="app.sort('rawOutflow')">總出貨 <span class="icon">▼</span></th>
-                            <th class="cell-base text-right sortable" onclick="app.sort('runRate')">月需求 <span class="icon">▼</span></th>
-                            <th class="cell-base text-right sortable" onclick="app.sort('inv')">北倉 <span class="icon">▼</span></th>
-                            <th class="cell-base text-center sortable" onclick="app.sort('status')">風險 <span class="icon">▼</span></th>
-                            <th class="cell-base text-center w-12"></th>
+                            <th class="sortable w-12" onclick="app.sort('itemNo')">項次 <span class="icon">▼</span></th>
+                            <th class="sortable text-left" onclick="app.sort('name')">品項 <span class="icon">▼</span></th>
+                            <th class="sortable text-right" onclick="app.sort('rawOutflow')">總出 <span class="icon">▼</span></th>
+                            <th class="sortable text-right" onclick="app.sort('runRate')">月需 <span class="icon">▼</span></th>
+                            <th class="sortable text-right" onclick="app.sort('inv')">北倉 <span class="icon">▼</span></th>
+                            <th class="sortable text-center w-14" onclick="app.sort('status')">風險 <span class="icon">▼</span></th>
+                            <th class="w-10"></th>
                         </tr>
                     `;
                 } else {
                     thead.innerHTML = `
                         <tr>
-                            <th class="cell-base w-12 text-center sortable" onclick="app.sort('itemNo')">項次 <span class="icon">▼</span></th>
-                            <th class="cell-base sortable" onclick="app.sort('name')">產品 <span class="icon">▼</span></th>
-                            <th class="cell-base text-right text-indigo-600 sortable" onclick="app.sort('rawOutflow')">總出貨 <span class="icon">▼</span></th>
-                            <th class="cell-base text-right sortable" onclick="app.sort('runRate')">月需求 <span class="icon">▼</span></th>
-                            <th class="cell-base text-right sortable" onclick="app.sort('inv')">北倉 <span class="icon">▼</span></th>
-                            <th class="cell-base text-center sortable" onclick="app.sort('status')">風險 <span class="icon">▼</span></th>
+                            <th class="sortable w-12" onclick="app.sort('itemNo')">項次 <span class="icon">▼</span></th>
+                            <th class="sortable text-left" onclick="app.sort('name')">產品 <span class="icon">▼</span></th>
+                            <th class="sortable text-right" onclick="app.sort('rawOutflow')">總出 <span class="icon">▼</span></th>
+                            <th class="sortable text-right" onclick="app.sort('runRate')">月需 <span class="icon">▼</span></th>
+                            <th class="sortable text-right" onclick="app.sort('inv')">北倉 <span class="icon">▼</span></th>
+                            <th class="sortable text-center w-14" onclick="app.sort('status')">風險 <span class="icon">▼</span></th>
                         </tr>
                     `;
                 }
 
-                // BODY
                 const dataset = this.view === 'sku' ? this.data : this.productData;
                 let visibleCount = 0;
 
@@ -405,43 +294,34 @@
                     visibleCount++;
                     const tr = document.createElement('tr');
                     tr.className = "table-row group";
-                    
-                    // Risk Status Logic (re-calculated for product view agg)
                     let status = 'OK';
                     if (row.runRate > 0 && (row.inv / row.runRate) < 2) status = 'Risk';
-                    
-                    let badgeClass = 'bg-emerald-100 text-emerald-700';
-                    let badgeText = 'OK';
-                    if(status === 'Risk') { badgeClass = 'bg-rose-100 text-rose-700'; badgeText = 'RISK'; }
+                    let badgeClass = status === 'Risk' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700';
 
                     if (this.view === 'sku') {
                         tr.onclick = (e) => { if(!e.target.closest('button')) app.showDetails(row); };
-                        
                         tr.innerHTML = `
-                            <td class="cell-base font-mono text-slate-400 text-center">${row.itemNo === 9999 ? '-' : row.itemNo}</td>
-                            <td class="cell-base font-medium text-slate-900">
+                            <td class="cell-base text-center text-slate-400 font-mono">${row.itemNo === 9999 ? '-' : row.itemNo}</td>
+                            <td class="cell-base text-black font-bold">
                                 ${row.name}
-                                <div class="text-[10px] text-slate-400 font-normal mt-0.5">${row.sku}</div>
+                                <div class="text-[10px] text-slate-400 font-normal leading-tight">${row.sku}</div>
                             </td>
-                            <td class="cell-base text-right font-bold text-indigo-600 bg-indigo-50/30">${row.rawOutflow.toLocaleString()}</td>
-                            <td class="cell-base text-right font-bold text-slate-800">${row.runRate.toLocaleString()}</td>
-                            <td class="cell-base text-right font-mono text-slate-600">${Math.round(row.inv).toLocaleString()}</td>
-                            <td class="cell-base text-center"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide ${badgeClass}">${badgeText}</span></td>
+                            <td class="cell-base text-right font-mono font-bold text-black">${row.rawOutflow.toLocaleString()}</td>
+                            <td class="cell-base text-right font-mono font-bold text-black">${row.runRate.toLocaleString()}</td>
+                            <td class="cell-base text-right font-mono text-black">${Math.round(row.inv).toLocaleString()}</td>
+                            <td class="cell-base text-center"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${badgeClass}">${status==='Risk'?'!':'OK'}</span></td>
                             <td class="cell-base text-center">
-                                <button onclick="app.hideItem('${row.sku}')" class="btn-action hover:bg-rose-100 text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100" title="Hide">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                </button>
+                                <button onclick="app.hideItem('${row.sku}')" class="text-slate-300 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100 px-2">✕</button>
                             </td>
                         `;
                     } else {
-                        // Product View
                         tr.innerHTML = `
-                            <td class="cell-base font-mono text-slate-400 text-center">${row.itemNo}</td>
-                            <td class="cell-base font-medium text-slate-900">${row.name}</td>
-                            <td class="cell-base text-right font-bold text-indigo-600 bg-indigo-50/30">${row.rawOutflow.toLocaleString()}</td>
-                            <td class="cell-base text-right font-bold text-slate-800">${row.runRate.toLocaleString()}</td>
-                            <td class="cell-base text-right font-mono text-slate-600">${Math.round(row.inv).toLocaleString()}</td>
-                            <td class="cell-base text-center"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide ${badgeClass}">${badgeText}</span></td>
+                            <td class="cell-base text-center text-slate-400 font-mono">${row.itemNo}</td>
+                            <td class="cell-base text-black font-bold">${row.name}</td>
+                            <td class="cell-base text-right font-mono font-bold text-black">${row.rawOutflow.toLocaleString()}</td>
+                            <td class="cell-base text-right font-mono font-bold text-black">${row.runRate.toLocaleString()}</td>
+                            <td class="cell-base text-right font-mono text-black">${Math.round(row.inv).toLocaleString()}</td>
+                            <td class="cell-base text-center"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${badgeClass}">${status==='Risk'?'!':'OK'}</span></td>
                         `;
                     }
                     tbody.appendChild(tr);
@@ -453,13 +333,9 @@
 
             sort(key, forceAsc) {
                 if(forceAsc) { this.sortAsc = true; this.sortCol = key; }
-                else {
-                    this.sortAsc = (this.sortCol === key) ? !this.sortAsc : true;
-                    this.sortCol = key;
-                }
+                else { this.sortAsc = (this.sortCol === key) ? !this.sortAsc : true; this.sortCol = key; }
                 const m = this.sortAsc ? 1 : -1;
                 const set = this.view === 'sku' ? this.data : this.productData;
-
                 set.sort((a, b) => {
                     let v1 = a[key], v2 = b[key];
                     if (typeof v1 === 'string') return v1.localeCompare(v2) * m;
@@ -471,108 +347,44 @@
             updateSortIcons() {
                 document.querySelectorAll('th.sortable').forEach(th => {
                     th.classList.remove('asc', 'desc');
-                    // Simple logic: assume we clicked the one that matches sortCol. 
-                    // To do this perfectly we'd need data-attributes on THs, but we re-render THEAD every time anyway.
-                    // Since I re-render THEAD based on this.sortCol, I can just rely on the onclick setting the class in render()
-                    // Actually, I need to add the class in render() HTML based on state. 
-                    // Let's refine render() HTML construction above to include classes.
-                    // Wait, I didn't add dynamic class logic in render string. 
-                    // Let's add a small helper in render loop or just leave arrows static for now? 
-                    // User asked for "click to sort", I implemented the logic. 
-                    // I will add dynamic class assignment in the next step or let CSS handle active state.
-                    // For now, I'll update the icons manually via DOM after render.
-                    
-                    // Actually, re-rendering header is expensive/clunky. 
-                    // Let's just fix the indicators:
-                    const headerText = th.innerText.trim().split(' ')[0];
-                    // Mapping is tricky with Chinese. Let's just skip visual arrow update for this specific micro-optimization to keep code stable.
-                    // The sort logic WORKS.
+                    if(th.innerText.includes(this.getColName(this.sortCol))) th.classList.add(this.sortAsc ? 'asc' : 'desc');
                 });
             },
-
-            hideItem(sku) {
-                if(confirm('Hide this SKU?')) {
-                    this.hiddenSKUs.add(sku);
-                    safeStorage.set('pm_hidden_skus', Array.from(this.hiddenSKUs));
-                    document.getElementById('hidden-count').innerText = this.hiddenSKUs.size;
-                    this.render(document.getElementById('search').value);
-                }
+            getColName(key) {
+                const map = {'itemNo':'項次', 'name':this.view==='sku'?'品項':'產品', 'sku':'SKU', 'rawOutflow':'總出', 'runRate':'月需', 'inv':'北倉', 'status':'風險'};
+                return map[key] || '';
             },
 
-            clearHidden() {
-                if(confirm('Unhide all?')) {
-                    this.hiddenSKUs.clear();
-                    safeStorage.set('pm_hidden_skus', []);
-                    document.getElementById('hidden-count').innerText = 0;
-                    this.render(document.getElementById('search').value);
-                }
-            },
+            hideItem(sku) { if(confirm('Hide?')) { this.hiddenSKUs.add(sku); safeStorage.set('pm_hidden_skus', Array.from(this.hiddenSKUs)); document.getElementById('hidden-count').innerText = this.hiddenSKUs.size; this.render(document.getElementById('search').value); } },
+            clearHidden() { if(confirm('Reset?')) { this.hiddenSKUs.clear(); safeStorage.set('pm_hidden_skus', []); document.getElementById('hidden-count').innerText = 0; this.render(document.getElementById('search').value); } },
             
             exportCSV() {
                 const dataset = this.view === 'sku' ? this.data : this.productData;
-                if(!dataset.length) { alert("No data to export"); return; }
-                
-                let headers, rowMapper;
-                if (this.view === 'sku') {
-                    headers = ["項次", "品項", "SKU", "總出貨", "月需求", "北倉", "風險"];
-                    rowMapper = r => [r.itemNo, r.name, r.sku, r.rawOutflow, r.runRate, r.inv, r.status];
-                } else {
-                    headers = ["項次", "產品", "總出貨", "月需求", "北倉", "風險"];
-                    rowMapper = r => [r.itemNo, r.name, r.rawOutflow, r.runRate, r.inv, r.status];
-                }
-
-                const csvContent = "\ufeff" + [
-                    headers.join(","),
-                    ...dataset.filter(r => this.view !== 'sku' || !this.hiddenSKUs.has(r.sku))
-                          .map(r => rowMapper(r).map(c => `"${String(c).replace(/"/g, '""')}"`).join(","))
-                ].join("\n");
-
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement("a");
-                link.setAttribute("href", url);
-                link.setAttribute("download", `Inventory_${this.view}_${new Date().toISOString().split('T')[0]}.csv`);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+                if(!dataset.length) { alert("No data"); return; }
+                let headers = this.view === 'sku' ? ["項次","品項","SKU","總出","月需","北倉","風險"] : ["項次","產品","總出","月需","北倉","風險"];
+                let mapper = this.view === 'sku' ? r => [r.itemNo, r.name, r.sku, r.rawOutflow, r.runRate, r.inv, r.status] : r => [r.itemNo, r.name, r.rawOutflow, r.runRate, r.inv, r.status];
+                const csv = "\ufeff" + [headers.join(","), ...dataset.filter(r => this.view!=='sku' || !this.hiddenSKUs.has(r.sku)).map(r => mapper(r).map(c => `"${String(c).replace(/"/g, '""')}"`).join(","))].join("\n");
+                const url = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+                const a = document.createElement("a"); a.href = url; a.download = `Inv_${this.view}_${new Date().toISOString().split('T')[0]}.csv`; a.click();
             },
 
             showDetails(row) {
-                const el = document.getElementById('modal-content');
-                el.innerHTML = `
-                    <div class="mb-6 pb-4 border-b border-slate-100">
-                        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">SKU</div>
-                        <div class="font-bold text-lg text-slate-800 break-words">${row.sku}</div>
+                document.getElementById('modal-content').innerHTML = `
+                    <div class="mb-4 pb-2 border-b"><div class="font-bold text-base text-black">${row.sku}</div></div>
+                    <div class="grid grid-cols-2 gap-4 mb-4 font-mono text-sm">
+                        <div class="bg-slate-50 p-2 rounded"><div class="text-[10px] text-slate-400">Total Outflow</div><div class="font-bold text-indigo-600">${row.rawOutflow}</div></div>
+                        <div class="bg-slate-50 p-2 rounded"><div class="text-[10px] text-slate-400">Months</div><div class="font-bold text-slate-700">${row.months}</div></div>
                     </div>
-                    <div class="grid grid-cols-2 gap-6 mb-6">
-                        <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
-                            <div class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">Total Outflow</div>
-                            <div class="text-3xl font-bold text-indigo-700 font-mono">${row.rawOutflow.toLocaleString()}</div>
-                        </div>
-                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Months (Denominator)</div>
-                            <div class="text-3xl font-bold text-slate-700 font-mono">${row.months}</div>
-                        </div>
-                    </div>
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 text-xs text-slate-500 font-mono">
-                         Calculation: <span class="text-slate-800 font-bold">${row.rawOutflow}</span> / <span class="text-slate-800 font-bold">${row.months}</span> = <span class="text-indigo-600 font-bold text-base">${(row.rawOutflow / row.months).toFixed(2)}</span>
-                         <br><span class="text-slate-400 mt-1 block">Rounded Up -> <strong>${row.runRate}</strong> / month</span>
-                    </div>
+                    <div class="text-xs text-slate-500">Rate: ${row.rawOutflow}/${row.months} = <strong>${row.runRate}</strong></div>
                 `;
                 document.getElementById('modal-debug').classList.add('active');
             },
             closeModal() { document.getElementById('modal-debug').classList.remove('active'); },
             toggleSettings(show) { 
-                const m = document.getElementById('modal-settings');
-                show ? m.classList.add('active') : m.classList.remove('active');
-                if(show) {
-                    document.getElementById('conf-id').value = CONFIG.ID;
-                    document.getElementById('conf-tab').value = CONFIG.TAB;
-                }
+                const m = document.getElementById('modal-settings'); show ? m.classList.add('active') : m.classList.remove('active');
+                if(show) { document.getElementById('conf-id').value = CONFIG.ID; document.getElementById('conf-tab').value = CONFIG.TAB; }
             },
-            saveSettings() {
-                location.reload();
-            },
+            saveSettings() { location.reload(); },
             toggleLoader(show) { document.getElementById('loader').classList.toggle('hidden', !show); },
             loadMockData() { /* ... */ }
         };
