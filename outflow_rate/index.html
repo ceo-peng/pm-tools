@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory Intelligence Dashboard v30</title>
+    <title>Inventory Intelligence Dashboard v31</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #334155; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -15,8 +15,7 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .modal { transition: opacity 0.2s ease-in-out; pointer-events: none; opacity: 0; }
         .modal.active { pointer-events: auto; opacity: 1; }
-        th { cursor: pointer; user-select: none; }
-        th:hover { background-color: #f1f5f9; }
+        th.sortable:hover { background-color: #f1f5f9; cursor: pointer; }
         tr.cursor-pointer:hover td { background-color: #eff6ff; }
     </style>
 </head>
@@ -25,11 +24,11 @@
     <!-- Header -->
     <header class="bg-white border-b border-slate-200 h-14 flex items-center px-6 justify-between flex-shrink-0 z-20">
         <div class="flex items-center gap-3">
-            <span class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">v30</span>
+            <span class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">v31</span>
             <h1 class="font-bold text-slate-800">Inventory Intelligence</h1>
         </div>
         <div class="flex items-center gap-4">
-            <div id="status" class="text-xs font-medium text-slate-500">Initializing...</div>
+            <div id="status" class="text-xs font-medium text-slate-500">Ready</div>
             <button onclick="app.toggleSettings(true)" class="p-2 text-slate-400 hover:text-slate-600">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
             </button>
@@ -52,16 +51,7 @@
         </select>
         <div class="h-6 w-px bg-slate-200 mx-2"></div>
         <input type="text" id="search" placeholder="Search SKU..." class="border border-slate-300 rounded px-3 py-1.5 text-sm w-64 focus:ring-2 focus:ring-blue-500 outline-none">
-        
-        <div class="flex-grow text-right font-mono">
-             <div class="text-[10px] text-slate-400 uppercase">Today</div>
-             <div id="date-today" class="text-xs font-bold text-slate-700"></div>
-        </div>
-        <div class="w-px h-6 bg-slate-200 mx-2"></div>
-         <div class="text-right font-mono">
-             <div class="text-[10px] text-slate-400 uppercase">Ignore Data After</div>
-             <div id="date-cutoff" class="text-xs font-bold text-rose-600"></div>
-        </div>
+        <div class="flex-grow text-right text-xs text-slate-500 font-mono" id="debug-stats"></div>
     </div>
 
     <!-- Table -->
@@ -69,23 +59,23 @@
         <table class="w-full text-left border-collapse">
             <thead class="bg-slate-50 sticky top-0 z-10 shadow-sm text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 <tr>
-                    <th class="p-3 border-b border-slate-200 w-16" onclick="app.sort('itemNo')">#</th>
-                    <th class="p-3 border-b border-slate-200" onclick="app.sort('sku')">SKU</th>
-                    <th class="p-3 border-b border-slate-200 text-right text-blue-600" onclick="app.sort('rawOutflow')">Total Outflow</th>
-                    <th class="p-3 border-b border-slate-200 text-right" onclick="app.sort('months')">Months</th>
-                    <th class="p-3 border-b border-slate-200 text-right" onclick="app.sort('runRate')">Est. Mo. Rate</th>
-                    <th class="p-3 border-b border-slate-200 text-right" onclick="app.sort('inv')">Current Stock (J)</th>
-                    <th class="p-3 border-b border-slate-200 text-center" onclick="app.sort('status')">Status</th>
+                    <th class="p-3 border-b border-slate-200 w-16 sortable" onclick="app.sort('itemNo')">#</th>
+                    <th class="p-3 border-b border-slate-200 sortable" onclick="app.sort('sku')">SKU</th>
+                    <th class="p-3 border-b border-slate-200 text-right text-blue-600 sortable" onclick="app.sort('rawOutflow')">Total Outflow</th>
+                    <th class="p-3 border-b border-slate-200 text-right sortable" onclick="app.sort('months')">Months</th>
+                    <th class="p-3 border-b border-slate-200 text-right sortable" onclick="app.sort('runRate')">Est. Mo. Rate</th>
+                    <th class="p-3 border-b border-slate-200 text-right sortable" onclick="app.sort('inv')">Current Stock (J)</th>
+                    <th class="p-3 border-b border-slate-200 text-center sortable" onclick="app.sort('status')">Status</th>
                 </tr>
             </thead>
             <tbody id="table-body" class="text-sm divide-y divide-slate-100 text-slate-700"></tbody>
         </table>
     </div>
 
-    <!-- Loading Overlay -->
-    <div id="loader" class="fixed inset-0 bg-white/80 z-50 flex flex-col items-center justify-center">
+    <!-- Loading -->
+    <div id="loader" class="fixed inset-0 bg-white/80 z-50 flex flex-col items-center justify-center hidden">
         <div class="loader mb-3"></div>
-        <div class="text-sm font-medium text-slate-600">Connecting to Google Sheets...</div>
+        <div class="text-sm font-medium text-slate-600">Syncing with Google Sheets...</div>
     </div>
 
     <!-- Debug Modal -->
@@ -127,34 +117,16 @@
     </div>
 
     <script>
-        // CONFIG V30 - BASED ON V26
-        const DEFAULT = {
-            ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI',
-            TAB: 'inventory_tracking',
-            ROW: 2, SKU: 'D', INV: 'J', NO: 'A', START: 'L'
-        };
-
-        const db = {
-            get: () => { try { return JSON.parse(localStorage.getItem('conf_v30')) || DEFAULT; } catch { return DEFAULT; } },
-            set: (v) => localStorage.setItem('conf_v30', JSON.stringify(v))
-        };
-
-        const l2i = (l) => l ? l.toUpperCase().split('').reduce((p,c) => p*26 + c.charCodeAt(0)-64, 0)-1 : -1;
+        const DEFAULT = { ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI', TAB: 'inventory_tracking', ROW: 2, SKU: 'D', INV: 'J', NO: 'A', START: 'L' };
+        const db = { get: () => JSON.parse(localStorage.getItem('conf_v31')) || DEFAULT, set: (v) => localStorage.setItem('conf_v31', JSON.stringify(v)) };
+        const l2i = (l) => !l ? -1 : l.toUpperCase().split('').reduce((p,c) => p*26 + c.charCodeAt(0)-64, 0)-1;
         const idxToLetter = (i) => { let l=''; while(i>=0){ l=String.fromCharCode((i%26)+65)+l; i=Math.floor(i/26)-1; } return l; };
 
-        // Global JSONP Wrapper
-        window.googleSheetCallback = (json) => {
-            if (json.status === 'error') { 
-                alert("API Error: "+json.errors[0].detailed_message); 
-                app.toggleLoader(false); 
-                return; 
-            }
-            app.rawData = json.table.rows.map(r => r.c.map(cell => (cell && cell.v !== null) ? String(cell.v) : ""));
-            app.process();
-        };
+        // Global Request Storage
+        window._pendingRequests = {};
 
         const app = {
-            config: DEFAULT, rawData: [], data: [], sortCol: 'itemNo', sortAsc: true, map: {},
+            config: DEFAULT, rawData: [], data: [], sortCol: 'itemNo', sortAsc: true, map: {}, timer: null,
 
             init() {
                 this.config = db.get();
@@ -167,32 +139,52 @@
             },
 
             fetchData() {
-                document.getElementById('loader').classList.remove('hidden');
-                // Use Standard googleSheetCallback for stability
-                const url = `https://docs.google.com/spreadsheets/d/${this.config.ID}/gviz/tq?sheet=${this.config.TAB}&tqx=out:csv&range=A1:ZZ&headers=0&tqx=responseHandler:googleSheetCallback`;
-                const s = document.createElement('script'); s.src = url; 
-                s.onerror = () => { alert("Connection Error. Check Internet."); app.toggleLoader(false); };
+                this.toggleLoader(true);
+                
+                // 1. Create Unique Callback Name
+                const callbackName = `inv_cb_${Date.now()}`;
+                
+                // 2. Define Callback
+                window[callbackName] = (json) => {
+                    if (app.timer) clearTimeout(app.timer);
+                    delete window[callbackName]; // Cleanup
+                    
+                    if (json.status === 'error') { 
+                        alert("API Error: "+json.errors[0].detailed_message); 
+                        app.toggleLoader(false); 
+                        return; 
+                    }
+                    app.rawData = json.table.rows.map(r => r.c.map(cell => (cell && cell.v !== null) ? String(cell.v) : ""));
+                    app.process();
+                };
+
+                // 3. Safety Timeout (15s)
+                if(this.timer) clearTimeout(this.timer);
+                this.timer = setTimeout(() => {
+                    app.toggleLoader(false);
+                    if(confirm("Connection timed out. Retry?")) app.fetchData();
+                }, 15000);
+
+                // 4. Inject Script
+                const url = `https://docs.google.com/spreadsheets/d/${this.config.ID}/gviz/tq?sheet=${this.config.TAB}&tqx=out:csv&range=A1:ZZ&headers=0&tqx=responseHandler:${callbackName}`;
+                const s = document.createElement('script'); 
+                s.src = url; 
+                s.onerror = () => { 
+                    alert("Connection Failed. Check Internet."); 
+                    app.toggleLoader(false); 
+                };
                 document.body.appendChild(s);
             },
 
             process() {
                 const cfg = this.config;
-                const hRowIdx = parseInt(cfg.ROW) - 1; // Row 2 = Index 1
-                
-                if (!this.rawData[hRowIdx]) { alert("Header row not found"); return; }
-                
-                const headers = this.rawData[hRowIdx].map(v => v.toLowerCase());
-                
-                // Map Columns
-                const col = {
-                    no: l2i(cfg.NO),
-                    sku: l2i(cfg.SKU),
-                    inv: l2i(cfg.INV),
-                    start: l2i(cfg.START),
-                    dates: []
-                };
+                const hRowIdx = parseInt(cfg.ROW) - 1;
+                if (!this.rawData[hRowIdx]) { alert("Header row not found"); app.toggleLoader(false); return; }
 
-                // DATE MAPPING (Regex 25.0907)
+                const headers = this.rawData[hRowIdx].map(v => v.toLowerCase());
+                const col = { no: l2i(cfg.NO), sku: l2i(cfg.SKU), inv: l2i(cfg.INV), start: l2i(cfg.START), dates: [] };
+
+                // DATE MAPPING
                 const dateRegex = /\d{2}\.\d{4}/; 
                 for(let i = col.start; i < headers.length; i++) {
                     const txt = headers[i];
@@ -209,22 +201,15 @@
                 const today = new Date();
                 const currentMonthISO = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
                 
-                // Update UI
-                document.getElementById('date-today').innerText = today.toISOString().split('T')[0];
-                document.getElementById('date-cutoff').innerText = currentMonthISO;
-
-                // Filter Active Columns (Past Only)
-                let validHistory = col.dates.filter(d => d.iso < currentMonthISO);
-                let activeDates = validHistory;
+                let activeDates = col.dates.filter(d => d.iso < currentMonthISO);
 
                 if (winVal !== 'all') {
                     const monthsBack = parseInt(winVal);
                     const d = new Date(today.getFullYear(), today.getMonth() - monthsBack, 1);
                     const startISO = d.toISOString().split('T')[0];
-                    activeDates = validHistory.filter(d => d.iso >= startISO);
+                    activeDates = activeDates.filter(d => d.iso >= startISO);
                 }
 
-                // Denominator
                 let denom = 1;
                 if (winVal !== 'all') denom = parseInt(winVal);
                 else if (activeDates.length > 0) {
@@ -233,8 +218,10 @@
                     denom = Math.max(1, (last.getFullYear() - first.getFullYear()) * 12 + (last.getMonth() - first.getMonth()) + 1);
                 }
 
+                document.getElementById('debug-stats').innerText = `Data: ${activeDates.length} Cols (${denom} Mo)`;
+
                 const results = [];
-                // CRITICAL FIX: Loop from Header + 1
+                // CRITICAL: Start loop at Header + 1
                 const startRow = hRowIdx + 1;
 
                 for(let i = startRow; i < this.rawData.length; i++) {
@@ -242,17 +229,14 @@
                     if(!row || !row[col.sku]) continue;
 
                     const sku = row[col.sku].trim();
-                    // FILTER: Skip header repeats OR sort row (Row 3)
                     if(!sku || sku === 'unique_key' || sku.includes('sort_')) continue;
 
-                    // Blind Sum
                     let blindSum = 0;
                     for (let c = col.start; c < row.length; c++) {
                         const v = parseFloat(row[c].replace(/,/g, ''));
                         if (!isNaN(v) && v < 0) blindSum += Math.abs(v);
                     }
 
-                    // Filtered Sum
                     let filteredSum = 0, logs = [];
                     activeDates.forEach(d => {
                         const v = parseFloat(row[d.idx].replace(/,/g, ''));
@@ -271,15 +255,15 @@
                         sku: sku,
                         name: sku.split('(')[0].trim(),
                         inv: inv,
-                        rawOutflow: blindSum,
+                        rawOutflow: blindSum, 
                         filteredSum, months: denom, runRate, status, logs
                     });
                 }
 
                 this.data = results;
-                this.sort('itemNo'); // Ensure Sorted by Item #
-                document.getElementById('loader').classList.add('hidden');
-                document.getElementById('status').innerText = `Loaded ${results.length} valid SKUs`;
+                this.sort('itemNo');
+                this.toggleLoader(false);
+                document.getElementById('status').innerText = `Loaded ${results.length} items`;
             },
 
             render(filter = '') {
@@ -291,7 +275,7 @@
                     if(term && !row.sku.toLowerCase().includes(term)) return;
                     
                     const tr = document.createElement('tr');
-                    tr.className = "hover:bg-blue-50 border-b border-slate-100 cursor-pointer transition-colors";
+                    tr.className = "hover:bg-blue-50 border-b border-slate-100 cursor-pointer transition-colors group";
                     tr.onclick = () => this.showDetails(row);
                     
                     let badge = 'bg-emerald-100 text-emerald-800';
@@ -325,11 +309,11 @@
                     <div class="mb-4 pb-2 border-b"><div class="font-bold text-lg">${row.sku}</div></div>
                     <div class="grid grid-cols-2 gap-4 mb-4">
                         <div class="bg-blue-50 p-3 rounded">
-                            <div class="text-[10px] font-bold text-blue-400">RAW SUM (ALL COLS > L)</div>
+                            <div class="text-[10px] font-bold text-blue-400">RAW SUM (ALL COLS)</div>
                             <div class="text-2xl font-bold text-blue-700">${row.rawOutflow}</div>
                         </div>
                         <div class="bg-slate-50 p-3 rounded">
-                            <div class="text-[10px] font-bold text-slate-400">FILTERED SUM (DATE RANGE)</div>
+                            <div class="text-[10px] font-bold text-slate-400">FILTERED SUM</div>
                             <div class="text-2xl font-bold text-slate-700">${row.filteredSum}</div>
                         </div>
                     </div>
