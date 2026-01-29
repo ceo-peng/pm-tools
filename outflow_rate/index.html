@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Inventory Intelligence v43</title>
+    <title>Inventory Intelligence v44</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -30,44 +30,52 @@
         th.sortable { 
             @apply cursor-pointer select-none transition-colors 
             hover:bg-slate-100 hover:text-indigo-600 
-            px-1 py-3 md:px-2 md:py-4 
+            px-0.5 py-2 md:px-2 md:py-4 
             align-middle border-b border-slate-200 bg-white sticky top-0 z-10;
         }
         
+        /* Header Content - Mobile 7px */
         .th-content {
-            @apply flex flex-col items-center justify-center gap-0.5 text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-tight w-full h-full;
+            @apply flex flex-col items-center justify-center gap-0.5 text-[7px] md:text-xs font-bold text-slate-500 uppercase tracking-tight w-full h-full;
         }
         
-        /* FIXED ICON SIZE - Strict Control */
+        /* FIXED ICON SIZE */
         th.sortable .icon { 
             @apply flex-none opacity-20 transition-transform duration-200 text-slate-400; 
-            width: 10px; height: 10px; /* CSS Force Size */
-            min-width: 10px; min-height: 10px;
+            width: 8px; height: 8px; /* Slightly smaller icon for 7px font */
+            min-width: 8px; min-height: 8px;
         }
         th.sortable.asc .icon { @apply opacity-100 rotate-0 text-indigo-600; }
         th.sortable.desc .icon { @apply opacity-100 rotate-180 text-indigo-600; }
         
         /* Rows */
-        .table-row { @apply border-b border-slate-100 hover:bg-indigo-50/40 transition-colors h-auto min-h-[40px]; } 
+        .table-row { @apply border-b border-slate-100 hover:bg-indigo-50/40 transition-colors h-auto min-h-[36px] md:min-h-[40px]; } 
         
-        /* Cells */
+        /* Cells - Mobile 7px */
         .cell-base { 
-            @apply px-1 md:px-3 py-2 text-[11px] md:text-sm align-middle; 
+            @apply px-0.5 md:px-3 py-1.5 text-[7px] md:text-sm align-middle; 
         }
         
-        /* SKU Name - Tighter & Smaller for Mobile */
+        /* SKU Name - Mobile 7px, 3 Lines */
         .name-cell {
-            @apply text-[9px] md:text-xs font-bold leading-3 text-slate-900 break-words whitespace-normal;
-            /* Force clamp to 2 lines, but try to fit as much as possible with small font */
+            @apply text-[7px] md:text-xs font-bold leading-tight text-slate-900 break-words whitespace-normal;
+            /* Allow wrapping up to 3 lines */
             display: -webkit-box;
-            -webkit-line-clamp: 2;
+            -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
             overflow: hidden;
-            max-width: 140px; /* Mobile width constraint to force wrap */
+            max-width: 140px; /* Mobile width constraint */
         }
         @media (min-width: 768px) { 
-            .name-cell { max-width: none; font-size: 0.875rem; line-height: 1.25; } 
+            .name-cell { max-width: none; font-size: 0.875rem; line-height: 1.25; -webkit-line-clamp: 2; } 
         }
+
+        /* Status Badge - Scale down for mobile */
+        .status-badge {
+            @apply px-1 py-0.5 rounded-full font-bold tracking-wide;
+            font-size: 7px; /* Mobile */
+        }
+        @media (min-width: 768px) { .status-badge { font-size: 10px; padding: 2px 6px; } }
 
         /* Loader */
         .loader { border: 2px solid #e2e8f0; border-top: 2px solid #4f46e5; width: 20px; height: 20px; border-radius: 50%; animation: spin 0.8s linear infinite; }
@@ -89,7 +97,7 @@
                 <div class="bg-indigo-600 text-white p-1.5 rounded-lg font-bold text-lg leading-none shadow-md shadow-indigo-200">PM</div>
                 <div class="hidden md:block">
                     <h1 class="text-base font-bold text-slate-800 tracking-tight leading-tight">Inventory Intelligence</h1>
-                    <div class="text-[10px] text-slate-400 font-medium">v43 <span class="mx-1">•</span> <span id="status">Ready</span></div>
+                    <div class="text-[10px] text-slate-400 font-medium">v44 <span class="mx-1">•</span> <span id="status">Ready</span></div>
                 </div>
             </div>
 
@@ -205,7 +213,6 @@
             data: [], productData: [], sortCol: 'itemNo', sortAsc: true, hiddenSKUs: new Set(), view: 'sku',
 
             init() {
-                // RESTORED: Load config
                 const storedConfig = safeStorage.get('pm_inv_config_v42');
                 if(storedConfig && storedConfig.ID) {
                     CONFIG.ID = storedConfig.ID;
@@ -213,6 +220,7 @@
                 }
                 
                 const today = new Date().toISOString().split('T')[0];
+                document.getElementById('display-today').innerText = today;
                 this.hiddenSKUs = new Set(safeStorage.get('pm_hidden_skus'));
                 document.getElementById('hidden-count').innerText = this.hiddenSKUs.size;
                 this.bindEvents();
@@ -307,11 +315,11 @@
                 const empty = document.getElementById('empty-state');
                 tbody.innerHTML = '';
 
-                // HEADER RENDER (Compacted & Centered)
+                // HEADER RENDER
                 const createHeader = (cols) => {
                     return `<tr>${cols.map(c => 
                         `<th class="sortable w-[${c.w}] text-center" onclick="app.sort('${c.k}')">
-                            <div class="th-content"><span>${c.t}</span><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><polyline points="6 9 12 15 18 9"></polyline></svg></div>
+                            <div class="th-content"><span>${c.t}</span><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></div>
                         </th>`
                     ).join('')}${this.view==='sku'?'<th class="w-[5%]"></th>':''}</tr>`;
                 };
@@ -319,7 +327,7 @@
                 if (this.view === 'sku') {
                     thead.innerHTML = createHeader([
                         {t:'項次', k:'itemNo', w:'10%'},
-                        {t:'品項', k:'sku', w:'auto'}, // Shows Full SKU
+                        {t:'品項', k:'sku', w:'auto'}, 
                         {t:'總出', k:'rawOutflow', w:'15%'},
                         {t:'月需', k:'runRate', w:'15%'},
                         {t:'北倉', k:'inv', w:'15%'},
@@ -328,7 +336,7 @@
                 } else {
                     thead.innerHTML = createHeader([
                         {t:'項次', k:'itemNo', w:'10%'},
-                        {t:'產品', k:'name', w:'auto'}, // Shows Trimmed Product Name
+                        {t:'產品', k:'name', w:'auto'}, 
                         {t:'總出', k:'rawOutflow', w:'15%'},
                         {t:'月需', k:'runRate', w:'15%'},
                         {t:'北倉', k:'inv', w:'15%'},
@@ -346,7 +354,6 @@
                     visibleCount++;
                     const tr = document.createElement('tr');
                     tr.className = "table-row group";
-                    
                     let status = 'OK';
                     if (row.runRate > 0 && (row.inv / row.runRate) < 2) status = 'Risk';
                     let badgeClass = status === 'Risk' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700';
@@ -356,13 +363,11 @@
                         
                         tr.innerHTML = `
                             <td class="cell-base text-slate-400 text-center font-mono">${row.itemNo === 9999 ? '-' : row.itemNo}</td>
-                            <td class="cell-base text-slate-900">
-                                <div class="name-cell">${row.sku}</div>
-                            </td>
+                            <td class="cell-base name-cell text-slate-900">${row.sku}</td>
                             <td class="cell-base text-right font-bold text-indigo-600 font-mono bg-indigo-50/20">${row.rawOutflow.toLocaleString()}</td>
                             <td class="cell-base text-right font-mono font-bold text-slate-800">${row.runRate.toLocaleString()}</td>
                             <td class="cell-base text-right font-mono text-slate-600">${Math.round(row.inv).toLocaleString()}</td>
-                            <td class="cell-base text-center"><span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold ${badgeClass}">${status==='Risk'?'!':'OK'}</span></td>
+                            <td class="cell-base text-center"><span class="status-badge ${badgeClass}">${status==='Risk'?'!':'OK'}</span></td>
                             <td class="cell-base text-center">
                                 <button onclick="app.hideItem('${row.sku}')" class="text-slate-300 hover:text-rose-500 transition-colors opacity-100 sm:opacity-0 group-hover:opacity-100 px-1">✕</button>
                             </td>
@@ -375,7 +380,7 @@
                             <td class="cell-base text-right font-mono font-bold text-indigo-600 bg-indigo-50/20">${row.rawOutflow.toLocaleString()}</td>
                             <td class="cell-base text-right font-mono font-bold text-black">${row.runRate.toLocaleString()}</td>
                             <td class="cell-base text-right font-mono text-black">${Math.round(row.inv).toLocaleString()}</td>
-                            <td class="cell-base text-center"><span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold ${badgeClass}">${status==='Risk'?'!':'OK'}</span></td>
+                            <td class="cell-base text-center"><span class="status-badge ${badgeClass}">${status==='Risk'?'!':'OK'}</span></td>
                         `;
                     }
                     tbody.appendChild(tr);
