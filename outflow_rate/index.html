@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory Intelligence Dashboard v28</title>
+    <title>Inventory Intelligence Dashboard v29</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
@@ -24,7 +24,7 @@
     <!-- Header -->
     <header class="bg-white border-b border-slate-200 h-14 flex items-center px-6 justify-between flex-shrink-0 z-20">
         <div class="flex items-center gap-3">
-            <span class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">v28</span>
+            <span class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">v29</span>
             <h1 class="font-bold text-slate-800">Inventory Intelligence</h1>
         </div>
         <div class="flex items-center gap-4">
@@ -75,8 +75,7 @@
     <!-- Loading -->
     <div id="loader" class="fixed inset-0 bg-white/80 z-50 flex flex-col items-center justify-center">
         <div class="loader mb-3"></div>
-        <div class="text-sm font-medium text-slate-600">Connecting...</div>
-        <div class="text-xs text-rose-500 mt-2 hidden cursor-pointer hover:underline" id="loader-timeout" onclick="app.forceStopLoader()">Takes too long? Click to Cancel.</div>
+        <div class="text-sm font-medium text-slate-600">Syncing with Google Sheets...</div>
     </div>
 
     <!-- Debug Modal -->
@@ -119,12 +118,12 @@
 
     <script>
         const DEFAULT = { ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI', TAB: 'inventory_tracking', ROW: 2, SKU: 'D', INV: 'J', NO: 'A', START: 'L' };
-        const db = { get: () => JSON.parse(localStorage.getItem('conf_v28')) || DEFAULT, set: (v) => localStorage.setItem('conf_v28', JSON.stringify(v)) };
+        const db = { get: () => JSON.parse(localStorage.getItem('conf_v29')) || DEFAULT, set: (v) => localStorage.setItem('conf_v29', JSON.stringify(v)) };
         const l2i = (l) => !l ? -1 : l.toUpperCase().split('').reduce((p,c) => p*26 + c.charCodeAt(0)-64, 0)-1;
         const idxToLetter = (i) => { let l=''; while(i>=0){ l=String.fromCharCode((i%26)+65)+l; i=Math.floor(i/26)-1; } return l; };
 
         // Global JSONP Wrapper
-        window.handleJSONP = (json) => {
+        window.googleSheetCallback = (json) => {
             if (json.status === 'error') { 
                 alert("API Error: "+json.errors[0].detailed_message); 
                 app.toggleLoader(false); 
@@ -135,10 +134,10 @@
         };
 
         const app = {
-            config: DEFAULT, rawData: [], data: [], sortCol: 'itemNo', sortAsc: true, map: {}, timeout: null,
+            config: DEFAULT, rawData: [], data: [], sortCol: 'itemNo', sortAsc: true, map: {},
 
             init() {
-                // v28 key ensures fresh settings
+                // v29 ensures fresh config
                 this.config = db.get();
                 ['id','tab','row','inv','sku','start'].forEach(k => document.getElementById('conf-'+k).value = this.config[k.toUpperCase()] || this.config[k]);
                 
@@ -149,15 +148,8 @@
             },
 
             fetchData() {
-                this.toggleLoader(true);
-                
-                // Safety Timeout (10s)
-                if(this.timeout) clearTimeout(this.timeout);
-                this.timeout = setTimeout(() => {
-                    document.getElementById('loader-timeout').classList.remove('hidden');
-                }, 5000); // Show cancel button after 5s
-
-                const url = `https://docs.google.com/spreadsheets/d/${this.config.ID}/gviz/tq?sheet=${this.config.TAB}&tqx=out:csv&range=A1:ZZ&headers=0&tqx=responseHandler:handleJSONP`;
+                document.getElementById('loader').classList.remove('hidden');
+                const url = `https://docs.google.com/spreadsheets/d/${this.config.ID}/gviz/tq?sheet=${this.config.TAB}&tqx=out:csv&range=A1:ZZ&headers=0&tqx=responseHandler:googleSheetCallback`;
                 const s = document.createElement('script'); s.src = url; 
                 s.onerror = () => { alert("Connection Error. Check Internet."); app.toggleLoader(false); };
                 document.body.appendChild(s);
@@ -167,21 +159,15 @@
                 try {
                     const cfg = this.config;
                     const hRowIdx = parseInt(cfg.ROW) - 1;
-                    if (!this.rawData[hRowIdx]) { 
-                        alert("Header row not found. Check settings."); 
-                        this.toggleLoader(false); 
-                        return; 
-                    }
+                    if (!this.rawData[hRowIdx]) { alert("Header row not found."); app.toggleLoader(false); return; }
 
                     const headers = this.rawData[hRowIdx].map(v => v.toLowerCase().trim());
                     const col = { no: l2i(cfg.NO), sku: l2i(cfg.SKU), inv: l2i(cfg.INV), start: l2i(cfg.START), dates: [] };
 
-                    // 1. DATE MAPPING
+                    // 1. DATE MAPPING (Regex 25.0907)
                     const dateRegex = /\d{2}\.\d{4}/; 
                     for(let i = col.start; i < headers.length; i++) {
                         const txt = headers[i];
-                        // Scan logic: regex OR just assume columns > L are dates if they contain numbers
-                        // We strictly look for regex match 25.0907
                         if (txt && dateRegex.test(txt)) {
                             const m = txt.match(/(\d{2})\.(\d{4})/);
                             if (m) col.dates.push({ idx: i, raw: txt, iso: `20${m[1]}-${m[2].substr(0,2)}-${m[2].substr(2,2)}` });
@@ -195,14 +181,13 @@
                     const today = new Date();
                     const currentMonthISO = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
                     
-                    let validHistory = col.dates.filter(d => d.iso < currentMonthISO);
-                    let activeDates = validHistory;
+                    let activeDates = col.dates.filter(d => d.iso < currentMonthISO);
                     
                     if (winVal !== 'all') {
                         const monthsBack = parseInt(winVal);
                         const d = new Date(today.getFullYear(), today.getMonth() - monthsBack, 1);
                         const startISO = d.toISOString().split('T')[0];
-                        activeDates = validHistory.filter(d => d.iso >= startISO);
+                        activeDates = activeDates.filter(d => d.iso >= startISO);
                     }
 
                     let denom = 1;
@@ -216,27 +201,27 @@
                     document.getElementById('debug-stats').innerText = `Date Cols: ${activeDates.length} | Denom: ${denom} Mo | Range: ${activeDates[0]?.iso || 'N/A'} - ${activeDates[activeDates.length-1]?.iso || 'N/A'}`;
 
                     const results = [];
-                    // Start scanning Row 4 (Index 3). Skip header area.
-                    // Also check for Row 3 "sort_" logic to be safe.
-                    const startRow = hRowIdx + 1; 
+                    
+                    // CRITICAL: Start loop at Row 4 (Index 3). 
+                    // This strictly aligns with your sheet structure (Header Row 2, Gap Row 3, Data Row 4)
+                    const startRow = 3; 
 
                     for(let i = startRow; i < this.rawData.length; i++) {
                         const row = this.rawData[i];
-                        // Safety: Check if row exists and SKU column exists
                         if(!row || !row[col.sku]) continue;
 
                         const sku = row[col.sku].trim();
-                        // Filter invalid rows: Empty, "unique_key", or "sort_"
+                        // Filter header-like noise
                         if(!sku || sku === 'unique_key' || sku.includes('sort_')) continue;
 
-                        // Blind Sum (Total Outflow) - Independent of Date Regex
+                        // Blind Sum (All History after Col L)
                         let blindSum = 0;
                         for (let c = col.start; c < row.length; c++) {
                             const v = parseFloat(row[c].replace(/,/g, ''));
                             if (!isNaN(v) && v < 0) blindSum += Math.abs(v);
                         }
 
-                        // Filtered Sum (Run Rate) - Dependent on Date Regex
+                        // Filtered Sum (Date Range)
                         let filteredSum = 0, logs = [];
                         activeDates.forEach(d => {
                             const v = parseFloat(row[d.idx].replace(/,/g, ''));
@@ -248,7 +233,6 @@
                         
                         let status = 'OK';
                         if (runRate > 0 && (inv/runRate) < 2) status = 'Risk';
-                        // Fallback: If Blind Sum > 0 but RunRate = 0, warn user about date mismatch
                         if (blindSum > 0 && runRate === 0 && winVal === 'all') status = 'Check Dates';
 
                         results.push({
@@ -256,19 +240,19 @@
                             sku: sku,
                             name: sku.split('(')[0].trim(),
                             inv: inv,
-                            rawOutflow: blindSum, // Display blind sum for debug trust
+                            rawOutflow: blindSum, 
                             filteredSum, months: denom, runRate, status, logs
                         });
                     }
 
                     this.data = results;
                     this.sort('itemNo');
-                    this.toggleLoader(false);
+                    document.getElementById('loader').classList.add('hidden');
                     document.getElementById('status').innerText = `Loaded ${results.length} Valid SKUs`;
 
                 } catch(e) {
                     alert("Processing Error: " + e.message);
-                    this.toggleLoader(false);
+                    document.getElementById('loader').classList.add('hidden');
                 }
             },
 
@@ -333,13 +317,7 @@
 
             closeModal() { document.getElementById('modal-debug').classList.remove('active'); },
             toggleSettings(show) { const m = document.getElementById('modal-settings'); show ? m.classList.add('active') : m.classList.remove('active'); },
-            toggleLoader(show) { 
-                const el = document.getElementById('loader'); 
-                if(show) { el.classList.remove('hidden'); }
-                else { el.classList.add('hidden'); if(this.timeout) clearTimeout(this.timeout); }
-            },
-            forceStopLoader() { this.toggleLoader(false); },
-
+            
             saveSettings() {
                 ['id','tab','row','inv','sku','start'].forEach(k => this.config[k.toUpperCase()] = document.getElementById('conf-'+k).value);
                 db.set(this.config); this.toggleSettings(false); this.fetchData();
