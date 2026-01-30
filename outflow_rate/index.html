@@ -95,11 +95,21 @@
         .name-cell{ line-height: 1.25 !important; font-size: 0.8em !important; font-weight: 600 !important; }
         .cell-base{ padding-top: 5px !important; padding-bottom: 5px !important; }
 
-        /* MOBILE: hide delete column (last column) */
+        /* MOBILE: hide DELETE column only in SKU view, keep Risk column in Product view */
         @media (max-width: 767px){
-          thead th:last-child{ display: none !important; }
-          tbody td:last-child{ display: none !important; }
-        }
+
+          /* SKU view has an extra 7th column (delete) → hide last column */
+          thead tr:has(th:nth-child(7)) th:last-child,
+          tbody tr:has(td:nth-child(7)) td:last-child{
+            display: none !important;
+              }
+
+          /* Product view has only 6 columns → keep last column (Risk) visible */
+          thead tr:not(:has(th:nth-child(7))) th:last-child,
+          tbody tr:not(:has(td:nth-child(7))) td:last-child{
+            display: table-cell !important;
+              }
+            }
         
     </style>
 </head>
