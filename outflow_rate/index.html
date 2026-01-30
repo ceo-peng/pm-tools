@@ -62,7 +62,7 @@
         
         /* SKU Name - 5px, 3 Lines Max, Tight Leading */
         .name-cell {
-            @apply text-[5px] md:text-sm font-bold leading-[0.65] text-slate-900 break-words whitespace-normal;
+            @apply text-[5px] md:text-sm font-bold leading-[0.9] text-slate-900 break-words whitespace-normal;
             /* Allow wrapping up to 3 lines */
             display: -webkit-box;
             -webkit-line-clamp: 3;
@@ -90,6 +90,11 @@
         .modal.active { pointer-events: auto; opacity: 1; }
         .modal-content { transition: transform 0.2s ease-out; transform: scale(0.98); }
         .modal.active .modal-content { transform: scale(1); }
+
+        /* FORCE tighter line spacing for SKU/Product name (CSS-only, overrides @apply) */
+        .name-cell{ line-height: 0.85 !important; }
+        .cell-base{ padding-top: 2px !important; padding-bottom: 2px !important; }
+
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
