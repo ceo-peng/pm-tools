@@ -426,8 +426,8 @@
                         tr.innerHTML = `
                             <td class="cell-base text-slate-400 text-center font-mono">${row.itemNo === 9999 ? '-' : row.itemNo}</td>
                             <td class="cell-base name-td"><div class="name-cell">${row.name}</div></td>
-                            <td class="cell-base text-center font-semibold text-indigo-600 font-mono bg-indigo-50/20">${row.rawOutflow.toLocaleString()}</td>
-                            <td class="cell-base text-center font-mono font-semibold text-black">${row.runRate.toLocaleString()}</td>
+                            <td class="cell-base text-center text-indigo-600 font-mono bg-indigo-50/20">${row.rawOutflow.toLocaleString()}</td>
+                            <td class="cell-base text-center font-mono text-black">${row.runRate.toLocaleString()}</td>
                             <td class="cell-base text-center font-mono text-black">${Math.round(row.inv).toLocaleString()}</td>
                             <td class="cell-base text-center"><span class="status-badge ${badgeClass}">${status==='Risk'?'!':'OK'}</span></td>
                             <td class="cell-base text-center">
@@ -439,8 +439,8 @@
                         tr.innerHTML = `
                             <td class="cell-base text-center text-slate-400 font-mono">${row.itemNo}</td>
                             <td class="cell-base name-td"><div class="name-cell text-black font-bold">${row.name}</div></td>
-                            <td class="cell-base text-center font-mono font-bold text-indigo-600 bg-indigo-50/20">${row.rawOutflow.toLocaleString()}</td>
-                            <td class="cell-base text-center font-mono font-bold text-black">${row.runRate.toLocaleString()}</td>
+                            <td class="cell-base text-center font-mono text-indigo-600 bg-indigo-50/20">${row.rawOutflow.toLocaleString()}</td>
+                            <td class="cell-base text-center font-mono text-black">${row.runRate.toLocaleString()}</td>
                             <td class="cell-base text-center font-mono text-black">${Math.round(row.inv).toLocaleString()}</td>
                             <td class="cell-base text-center"><span class="status-badge ${badgeClass}">${status==='Risk'?'!':'OK'}</span></td>
                         `;
