@@ -110,6 +110,40 @@
             display: table-cell !important;
               }
             }
+        /* ===== Mobile typography system ===== */
+        @media (max-width: 767px){
+        
+          /* 預設 cell 字（數字、一般欄位） */
+          .cell-base{
+            font-size: 11px;        /* 全表基準字 */
+            line-height: 1.2;
+          }
+        
+          /* SKU / Product name（主角） */
+          .name-cell{
+            font-size: 12px;        /* 比其他字大一階 */
+            font-weight: 600;
+            line-height: 0.85;
+          }
+        
+          /* Header（小標題） */
+          th .th-content span{
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+          }
+        
+          /* 數字欄位（出貨、庫存、月需） */
+          td.font-mono{
+            font-size: 10.5px;
+          }
+        
+          /* Risk / OK badge */
+          .status-badge{
+            font-size: 10px;
+            font-weight: 600;
+          }
+        }
         
     </style>
 </head>
@@ -320,10 +354,20 @@
                     p.rawOutflow += item.rawOutflow;
                     p.inv += item.inv;
                 });
-                this.productData = Array.from(map.values()).map((p, i) => ({
-                    itemNo: i + 1, name: p.name, rawOutflow: p.rawOutflow, inv: p.inv,
-                    runRate: Math.ceil(p.rawOutflow / p.months), months: p.months
-                }));
+                this.productData = Array.from(map.values()).map((p, i) => {
+                  const runRate = Math.ceil(p.rawOutflow / p.months);
+                  const status = (runRate > 0 && (p.inv / runRate) < 2) ? 'Risk' : 'OK';
+                
+                  return {
+                    itemNo: i + 1,
+                    name: p.name,
+                    rawOutflow: p.rawOutflow,
+                    inv: p.inv,
+                    runRate,
+                    status,     // ✅ 關鍵
+                    months: p.months
+                  };
+                });
             },
 
             render(filterInput = '') {
