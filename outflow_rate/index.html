@@ -57,12 +57,12 @@
         
         /* Cells - 5px on Mobile */
         .cell-base { 
-            @apply px-0.5 md:px-3 py-0.5 text-[4px] md:text-sm align-middle; 
+            @apply px-0.5 md:px-3 py-0.5 text-[4px] md:text-xs align-middle; 
         }
         
         /* SKU Name - 5px, 3 Lines Max, Tight Leading */
         .name-cell {
-            @apply text-[5px] md:text-sm font-bold leading-[0.8] text-slate-900 break-words whitespace-normal;
+            @apply text-[5px] md:text-sm font-bold leading-[0.65] text-slate-900 break-words whitespace-normal;
             /* Allow wrapping up to 3 lines */
             display: -webkit-box;
             -webkit-line-clamp: 3;
@@ -362,8 +362,8 @@
                         tr.innerHTML = `
                             <td class="cell-base text-slate-400 text-center font-mono">${row.itemNo === 9999 ? '-' : row.itemNo}</td>
                             <td class="cell-base name-td"><div class="name-cell">${row.name}</div></td>
-                            <td class="cell-base text-center font-bold text-indigo-600 font-mono bg-indigo-50/20">${row.rawOutflow.toLocaleString()}</td>
-                            <td class="cell-base text-center font-mono font-bold text-black">${row.runRate.toLocaleString()}</td>
+                            <td class="cell-base text-center font-semibold text-indigo-600 font-mono bg-indigo-50/20">${row.rawOutflow.toLocaleString()}</td>
+                            <td class="cell-base text-center font-mono font-semibold text-black">${row.runRate.toLocaleString()}</td>
                             <td class="cell-base text-center font-mono text-black">${Math.round(row.inv).toLocaleString()}</td>
                             <td class="cell-base text-center"><span class="status-badge ${badgeClass}">${status==='Risk'?'!':'OK'}</span></td>
                             <td class="cell-base text-center">
