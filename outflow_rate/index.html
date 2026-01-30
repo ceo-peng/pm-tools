@@ -57,7 +57,7 @@
         
         /* Cells - 5px on Mobile */
         .cell-base { 
-            @apply px-0.5 md:px-3 py-0.5 text-[4px] md:text-xs align-middle; 
+            @apply px-0.5 md:px-3 py-0.5 md:text-xs align-middle; 
         }
         
         /* SKU Name - 5px, 3 Lines Max, Tight Leading */
@@ -91,8 +91,6 @@
         .modal-content { transition: transform 0.2s ease-out; transform: scale(0.98); }
         .modal.active .modal-content { transform: scale(1); }
 
-        /* FORCE tighter line spacing for SKU/Product name (CSS-only, overrides @apply) */
-        .name-cell{ line-height: 1.25 !important; font-size: 0.8em !important; font-weight: 600 !important; }
         .cell-base{ padding-top: 5px !important; padding-bottom: 5px !important; }
 
         /* MOBILE: hide DELETE column only in SKU view, keep Risk column in Product view */
