@@ -243,9 +243,28 @@
             </svg>
         );
 
+        // 用本地時區格式化日期（避免 toISOString 在 UTC+8 少一天）
+        const fmtDate = (d) => {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        };
+
         // Location Multi-Select Component
         const LocationMultiSelect = ({ locationFilter, setLocationFilter }) => {
             const [open, setOpen] = useState(false);
+            const boxRef = React.useRef(null);
+
+            // 點外面收起面板
+            useEffect(() => {
+                if (!open) return;
+                const onDown = (e) => {
+                    if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false);
+                };
+                document.addEventListener('mousedown', onDown);
+                return () => document.removeEventListener('mousedown', onDown);
+            }, [open]);
 
             const locations = [
                 { value: 'ALL', label: '全部' },
@@ -275,7 +294,7 @@
                 : locationFilter.join(', ');
 
             return (
-                <div className="relative">
+                <div className="relative" ref={boxRef}>
                     <button
                         className="btn btn-outline w-48 justify-between"
                         onClick={() => setOpen(!open)}
@@ -327,7 +346,7 @@
             return (
                 <div className="space-y-2">
                     <div className="text-2xl font-bold">
-                        {earliestItem.expiry.toISOString().split('T')[0]}
+                        {fmtDate(earliestItem.expiry)}
                     </div>
                     <div className="text-sm opacity-60">
                         {earliestItem.dte} days remaining
@@ -367,6 +386,7 @@
             const [sortDirection, setSortDirection] = useState('asc');
             const [showSettings, setShowSettings] = useState(false);
             const [lastFetch, setLastFetch] = useState(null);
+            const [errors, setErrors] = useState([]);
 
             const defaultSources = [{
                 name: 'TPE',
@@ -495,7 +515,8 @@
                         if (!name || !expiryStr) continue;
 
                         const expiry = parseDate(expiryStr);
-                        const qty = parseInt(qtyStr) || 0;
+                        // 數量可能帶千分位逗號或空白，先洗掉再轉數字
+                        const qty = Math.round(parseFloat(String(qtyStr || '').replace(/[,\s]/g, ''))) || 0;
 
                         if (expiry && !isNaN(qty)) {
                             items.push({ name, expiry, qty });
@@ -504,7 +525,7 @@
                     return items;
                 } catch (error) {
                     console.error(`[${source.name}] Error fetching data:`, error);
-                    alert(`[${source.name}] HTTP Error: ${error.message}`);
+                    setErrors(prev => prev.includes(source.name) ? prev : [...prev, source.name]);
                     return [];
                 }
             };
@@ -512,6 +533,7 @@
             // Fetch all data and aggregate
             const fetchAllData = async () => {
                 setLoading(true);
+                setErrors([]);
                 try {
                     const results = await Promise.all(sources.map(fetchSheetData));
                     const productMap = new Map();
@@ -597,10 +619,24 @@
                 } else if (dteFilter === '≥913') {
                     filtered = filtered.filter(item => item.dte >= 913);
                 } else if (dteFilter === 'custom') {
-                    const min = customDteMin ? parseInt(customDteMin) : -Infinity;
-                    const max = customDteMax ? parseInt(customDteMax) : Infinity;
+                    const rawMin = parseInt(customDteMin, 10);
+                    const rawMax = parseInt(customDteMax, 10);
+                    // 空白或亂打視為不設限；min > max 時自動對調，不讓畫面變空
+                    let min = Number.isFinite(rawMin) ? rawMin : -Infinity;
+                    let max = Number.isFinite(rawMax) ? rawMax : Infinity;
+                    if (min > max) [min, max] = [max, min];
                     filtered = filtered.filter(item => item.dte >= min && item.dte <= max);
                 }
+
+                // 只選部分倉時，TTQ 欄顯示的是所選倉合計，排序要跟著同一個數字走
+                const selectedKeys = locationFilter.includes('ALL')
+                    ? ['qty_TPE', 'qty_SC', 'qty_MOMO']
+                    : [
+                        locationFilter.includes('TAIPEI') && 'qty_TPE',
+                        locationFilter.includes('SANCHONG') && 'qty_SC',
+                        locationFilter.includes('MOMO') && 'qty_MOMO'
+                      ].filter(Boolean);
+                const shownTotal = (item) => selectedKeys.reduce((sum, k) => sum + item[k], 0);
 
                 filtered.sort((a, b) => {
                     let aVal = a[sortField];
@@ -608,6 +644,9 @@
                     if (sortField === 'expiry') {
                         aVal = a.expiry.getTime();
                         bVal = b.expiry.getTime();
+                    } else if (sortField === 'qty_TTQ') {
+                        aVal = shownTotal(a);
+                        bVal = shownTotal(b);
                     }
                     if (typeof aVal === 'string' && typeof bVal === 'string') {
                         aVal = aVal.toLowerCase();
@@ -827,11 +866,47 @@
                                         <option value="≥548">≥548天</option>
                                         <option value="≥730">≥730天</option>
                                         <option value="≥913">≥913天</option>
-                                        <option value="custom">自訂義區間</option>
+                                        <option value="custom">自訂區間</option>
                                     </select>
                                 </div>
                             </div>
+
+                            {dteFilter === 'custom' && (
+                                <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t">
+                                    <span className="text-sm opacity-60">DTE 區間（天）</span>
+                                    <input
+                                        className="input w-28"
+                                        type="number"
+                                        placeholder="最小"
+                                        value={customDteMin}
+                                        onChange={(e) => setCustomDteMin(e.target.value)}
+                                    />
+                                    <span className="text-sm opacity-60">到</span>
+                                    <input
+                                        className="input w-28"
+                                        type="number"
+                                        placeholder="最大"
+                                        value={customDteMax}
+                                        onChange={(e) => setCustomDteMax(e.target.value)}
+                                    />
+                                    <button
+                                        className="btn btn-outline px-3 h-10"
+                                        onClick={() => { setCustomDteMin(''); setCustomDteMax(''); }}
+                                    >
+                                        清空
+                                    </button>
+                                    <span className="text-sm opacity-60">
+                                        留空＝不設限，可用負數看已過期
+                                    </span>
+                                </div>
+                            )}
                         </div>
+
+                        {errors.length > 0 && (
+                            <div className="card rounded-lg p-3 text-sm" style={{ borderColor: 'hsl(var(--destructive))' }}>
+                                以下來源讀取失敗，數字不完整：{errors.join('、')}。請確認試算表仍為「知道連結的人可檢視」，再按重新整理。
+                            </div>
+                        )}
 
                         {/* Stats */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -931,6 +1006,8 @@
                                 </table>
                             </div>
                         </div>
+
+                        <div className="text-xs opacity-50 text-right">最後更新 2026/07/27 21:20</div>
                     </div>
                 </div>
             );
