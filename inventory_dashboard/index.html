@@ -73,6 +73,25 @@
             color: hsl(25 95% 53%);
         }
 
+        .tier-card {
+            cursor: pointer;
+            transition: box-shadow 0.15s, transform 0.15s;
+        }
+
+        .tier-card:hover {
+            box-shadow: 0 4px 10px -2px rgb(0 0 0 / 0.12);
+            transform: translateY(-1px);
+        }
+
+        .tier-card[data-active="true"] {
+            outline: 2px solid hsl(var(--ring));
+            outline-offset: 1px;
+        }
+
+        .batch-row td {
+            background-color: hsl(var(--muted) / 0.35);
+        }
+
         .data-table th {
             background-color: hsl(var(--muted) / 0.5);
         }
@@ -85,6 +104,27 @@
             background-color: hsl(var(--card));
             border: 1px solid hsl(var(--border));
             color: hsl(var(--card-foreground));
+        }
+
+        /* 到期分層配色，寫在 .card 之後才不會被卡片底色蓋掉 */
+        .tier-expired, .card.tier-expired {
+            background-color: hsl(0 84% 94%);
+            color: hsl(0 72% 35%);
+        }
+
+        .tier-d90, .card.tier-d90 {
+            background-color: hsl(28 96% 92%);
+            color: hsl(25 90% 33%);
+        }
+
+        .tier-d180, .card.tier-d180 {
+            background-color: hsl(45 95% 90%);
+            color: hsl(38 85% 28%);
+        }
+
+        .tier-safe, .card.tier-safe {
+            background-color: hsl(145 60% 93%);
+            color: hsl(150 55% 25%);
         }
 
         .btn {
@@ -251,6 +291,31 @@
             return `${y}-${m}-${day}`;
         };
 
+        // 到期分層：四層互斥
+        const TIERS = [
+            { key: 'expired', label: '已過期', min: -Infinity, max: -1, cls: 'tier-expired' },
+            { key: 'd90', label: '90天內', min: 0, max: 90, cls: 'tier-d90' },
+            { key: 'd180', label: '91至180天', min: 91, max: 180, cls: 'tier-d180' },
+            { key: 'safe', label: '180天以上', min: 181, max: Infinity, cls: 'tier-safe' }
+        ];
+        const tierOf = (dte) => TIERS.find(t => dte >= t.min && dte <= t.max);
+
+        // 篩選條件存進網址 hash，方便同事互丟連結
+        const readUrlState = () => {
+            const p = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+            return {
+                q: p.get('q') || '',
+                dte: p.get('dte') || '≤90',
+                min: p.get('min') || '',
+                max: p.get('max') || '',
+                loc: (p.get('loc') || 'ALL').split(',').filter(Boolean),
+                sort: p.get('sort') || 'dte',
+                dir: p.get('dir') === 'desc' ? 'desc' : 'asc'
+            };
+        };
+
+        const SOURCES_KEY = 'pm_inventory_sources_v1';
+
         // Location Multi-Select Component
         const LocationMultiSelect = ({ locationFilter, setLocationFilter }) => {
             const [open, setOpen] = useState(false);
@@ -375,15 +440,17 @@
         };
 
         const PMInventoryDashboard = () => {
+            const urlState = React.useRef(readUrlState()).current;
             const [loading, setLoading] = useState(false);
             const [data, setData] = useState([]);
-            const [searchTerm, setSearchTerm] = useState('');
-            const [dteFilter, setDteFilter] = useState('≤90');
-            const [customDteMin, setCustomDteMin] = useState('');
-            const [customDteMax, setCustomDteMax] = useState('');
-            const [locationFilter, setLocationFilter] = useState(['ALL']);
-            const [sortField, setSortField] = useState('dte');
-            const [sortDirection, setSortDirection] = useState('asc');
+            const [searchTerm, setSearchTerm] = useState(urlState.q);
+            const [dteFilter, setDteFilter] = useState(urlState.dte);
+            const [customDteMin, setCustomDteMin] = useState(urlState.min);
+            const [customDteMax, setCustomDteMax] = useState(urlState.max);
+            const [locationFilter, setLocationFilter] = useState(urlState.loc.length ? urlState.loc : ['ALL']);
+            const [sortField, setSortField] = useState(urlState.sort);
+            const [sortDirection, setSortDirection] = useState(urlState.dir);
+            const [expanded, setExpanded] = useState({});
             const [showSettings, setShowSettings] = useState(false);
             const [lastFetch, setLastFetch] = useState(null);
             const [errors, setErrors] = useState([]);
@@ -414,7 +481,31 @@
                 qtyCol: 'J'
             }];
 
-            const [sources, setSources] = useState(defaultSources);
+            // 試算表設定記在瀏覽器，重新整理不會退回預設
+            const [sources, setSources] = useState(() => {
+                try {
+                    const saved = JSON.parse(localStorage.getItem(SOURCES_KEY) || 'null');
+                    if (Array.isArray(saved) && saved.length) {
+                        return defaultSources.map(d => ({ ...d, ...(saved.find(s => s.name === d.name) || {}) }));
+                    }
+                } catch (e) { /* 壞掉就用預設 */ }
+                return defaultSources;
+            });
+
+            // 篩選條件同步進網址
+            useEffect(() => {
+                const p = new URLSearchParams();
+                if (searchTerm) p.set('q', searchTerm);
+                if (dteFilter !== '≤90') p.set('dte', dteFilter);
+                if (customDteMin) p.set('min', customDteMin);
+                if (customDteMax) p.set('max', customDteMax);
+                if (!locationFilter.includes('ALL')) p.set('loc', locationFilter.join(','));
+                if (sortField !== 'dte') p.set('sort', sortField);
+                if (sortDirection !== 'asc') p.set('dir', sortDirection);
+                const next = p.toString();
+                const url = window.location.pathname + window.location.search + (next ? '#' + next : '');
+                window.history.replaceState(null, '', url);
+            }, [searchTerm, dteFilter, customDteMin, customDteMax, locationFilter, sortField, sortDirection]);
 
             // CSV parsing utility
             const parseCSV = (csv) => {
@@ -531,47 +622,46 @@
             };
 
             // Fetch all data and aggregate
-            const fetchAllData = async () => {
+            const fetchAllData = async (srcOverride) => {
+                const srcs = Array.isArray(srcOverride) ? srcOverride : sources;
                 setLoading(true);
                 setErrors([]);
                 try {
-                    const results = await Promise.all(sources.map(fetchSheetData));
-                    const productMap = new Map();
+                    const results = await Promise.all(srcs.map(fetchSheetData));
+                    // 以「品名 + 效期」為單位保留批次，不再把不同效期壓成一列
+                    const batchMap = new Map();
 
                     results.forEach((items, sourceIndex) => {
-                        const sourceName = sources[sourceIndex].name;
+                        const sourceName = srcs[sourceIndex].name;
                         items.forEach(item => {
-                            const existing = productMap.get(item.name);
-                            if (existing) {
-                                if (item.expiry < existing.expiry) {
-                                    existing.expiry = item.expiry;
-                                }
-                                if (sourceName === 'TPE') existing.qty_TPE += item.qty;
-                                else if (sourceName === 'SC') existing.qty_SC += item.qty;
-                                else if (sourceName === 'MOMO') existing.qty_MOMO += item.qty;
-                            } else {
-                                const newItem = {
+                            const key = `${item.name}|${item.expiry.getTime()}`;
+                            let batch = batchMap.get(key);
+                            if (!batch) {
+                                batch = {
                                     name: item.name,
                                     expiry: item.expiry,
-                                    qty_TPE: sourceName === 'TPE' ? item.qty : 0,
-                                    qty_SC: sourceName === 'SC' ? item.qty : 0,
-                                    qty_MOMO: sourceName === 'MOMO' ? item.qty : 0
+                                    qty_TPE: 0,
+                                    qty_SC: 0,
+                                    qty_MOMO: 0
                                 };
-                                productMap.set(item.name, newItem);
+                                batchMap.set(key, batch);
                             }
+                            if (sourceName === 'TPE') batch.qty_TPE += item.qty;
+                            else if (sourceName === 'SC') batch.qty_SC += item.qty;
+                            else if (sourceName === 'MOMO') batch.qty_MOMO += item.qty;
                         });
                     });
 
                     const today = new Date();
                     today.setHours(0, 0, 0, 0);
-                    
-                    const aggregatedData = Array.from(productMap.values()).map(item => ({
-                        ...item,
-                        qty_TTQ: item.qty_TPE + item.qty_SC + item.qty_MOMO,
-                        dte: Math.floor((item.expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+
+                    const batches = Array.from(batchMap.values()).map(batch => ({
+                        ...batch,
+                        qty_TTQ: batch.qty_TPE + batch.qty_SC + batch.qty_MOMO,
+                        dte: Math.floor((batch.expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
                     }));
 
-                    setData(aggregatedData);
+                    setData(batches);
                     setLastFetch(new Date());
                 } catch (error) {
                     console.error('Error fetching data:', error);
@@ -585,24 +675,39 @@
                 fetchAllData();
             }, []);
 
-            // Filter and sort data
-            const filteredAndSortedData = useMemo(() => {
+            // 目前勾選的倉別對應到哪幾個數量欄位
+            const selectedKeys = useMemo(() => (
+                locationFilter.includes('ALL')
+                    ? ['qty_TPE', 'qty_SC', 'qty_MOMO']
+                    : [
+                        locationFilter.includes('TAIPEI') && 'qty_TPE',
+                        locationFilter.includes('SANCHONG') && 'qty_SC',
+                        locationFilter.includes('MOMO') && 'qty_MOMO'
+                      ].filter(Boolean)
+            ), [locationFilter]);
+
+            // 只套品名與倉別的批次，效期分層統計用這一份（不受效期篩選影響）
+            const scopedBatches = useMemo(() => {
                 let filtered = data.slice();
 
                 if (searchTerm) {
-                    filtered = filtered.filter(item => 
+                    filtered = filtered.filter(item =>
                         item.name.toLowerCase().includes(searchTerm.toLowerCase())
                     );
                 }
 
                 if (!locationFilter.includes('ALL')) {
-                    filtered = filtered.filter(item => {
-                        if (locationFilter.includes('TAIPEI') && item.qty_TPE > 0) return true;
-                        if (locationFilter.includes('SANCHONG') && item.qty_SC > 0) return true;
-                        if (locationFilter.includes('MOMO') && item.qty_MOMO > 0) return true;
-                        return false;
-                    });
+                    filtered = filtered.filter(item =>
+                        selectedKeys.some(k => item[k] > 0)
+                    );
                 }
+
+                return filtered;
+            }, [data, searchTerm, locationFilter, selectedKeys]);
+
+            // 再套效期篩選，仍是批次層級
+            const filteredBatches = useMemo(() => {
+                let filtered = scopedBatches;
 
                 if (dteFilter === '≤90') {
                     filtered = filtered.filter(item => item.dte <= 90);
@@ -628,17 +733,44 @@
                     filtered = filtered.filter(item => item.dte >= min && item.dte <= max);
                 }
 
+                return filtered;
+            }, [scopedBatches, dteFilter, customDteMin, customDteMax]);
+
+            // 收攏成一列一品名，數量只算符合目前效期篩選的批次
+            const filteredAndSortedData = useMemo(() => {
+                const productMap = new Map();
+
+                filteredBatches.forEach(batch => {
+                    let product = productMap.get(batch.name);
+                    if (!product) {
+                        product = {
+                            name: batch.name,
+                            expiry: batch.expiry,
+                            qty_TPE: 0,
+                            qty_SC: 0,
+                            qty_MOMO: 0,
+                            batches: []
+                        };
+                        productMap.set(batch.name, product);
+                    }
+                    if (batch.expiry < product.expiry) product.expiry = batch.expiry;
+                    product.qty_TPE += batch.qty_TPE;
+                    product.qty_SC += batch.qty_SC;
+                    product.qty_MOMO += batch.qty_MOMO;
+                    product.batches.push(batch);
+                });
+
+                const products = Array.from(productMap.values()).map(product => ({
+                    ...product,
+                    qty_TTQ: product.qty_TPE + product.qty_SC + product.qty_MOMO,
+                    dte: Math.min(...product.batches.map(b => b.dte)),
+                    batches: product.batches.slice().sort((a, b) => a.dte - b.dte)
+                }));
+
                 // 只選部分倉時，TTQ 欄顯示的是所選倉合計，排序要跟著同一個數字走
-                const selectedKeys = locationFilter.includes('ALL')
-                    ? ['qty_TPE', 'qty_SC', 'qty_MOMO']
-                    : [
-                        locationFilter.includes('TAIPEI') && 'qty_TPE',
-                        locationFilter.includes('SANCHONG') && 'qty_SC',
-                        locationFilter.includes('MOMO') && 'qty_MOMO'
-                      ].filter(Boolean);
                 const shownTotal = (item) => selectedKeys.reduce((sum, k) => sum + item[k], 0);
 
-                filtered.sort((a, b) => {
+                products.sort((a, b) => {
                     let aVal = a[sortField];
                     let bVal = b[sortField];
                     if (sortField === 'expiry') {
@@ -656,8 +788,8 @@
                     if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
                     return 0;
                 });
-                return filtered;
-            }, [data, searchTerm, locationFilter, dteFilter, customDteMin, customDteMax, sortField, sortDirection]);
+                return products;
+            }, [filteredBatches, selectedKeys, sortField, sortDirection]);
 
             // Get selected location columns for dynamic display
             const selectedLocationColumns = useMemo(() => {
@@ -683,21 +815,68 @@
                 return columns;
             }, [locationFilter]);
 
+            const sumSelected = useCallback(
+                (item) => selectedKeys.reduce((sum, k) => sum + item[k], 0),
+                [selectedKeys]
+            );
+
             // Calculate stats
-            const stats = useMemo(() => {
-                const sku = filteredAndSortedData.length;
-                
-                const qty = filteredAndSortedData.reduce((sum, item) => {
-                    if (locationFilter.includes('ALL')) return sum + item.qty_TTQ;
-                    let total = 0;
-                    if (locationFilter.includes('TAIPEI')) total += item.qty_TPE;
-                    if (locationFilter.includes('SANCHONG')) total += item.qty_SC;
-                    if (locationFilter.includes('MOMO')) total += item.qty_MOMO;
-                    return sum + total;
-                }, 0);
-                
-                return { sku, qty };
-            }, [filteredAndSortedData, locationFilter]);
+            const stats = useMemo(() => ({
+                sku: filteredAndSortedData.length,
+                qty: filteredAndSortedData.reduce((sum, item) => sum + sumSelected(item), 0)
+            }), [filteredAndSortedData, sumSelected]);
+
+            // 四層到期壓力：只看品名與倉別範圍，不受效期篩選影響，所以四格加起來就是全貌
+            const tierStats = useMemo(() => {
+                const acc = {};
+                TIERS.forEach(t => { acc[t.key] = { sku: new Set(), qty: 0 }; });
+                scopedBatches.forEach(batch => {
+                    const tier = tierOf(batch.dte);
+                    if (!tier) return;
+                    acc[tier.key].sku.add(batch.name);
+                    acc[tier.key].qty += sumSelected(batch);
+                });
+                return TIERS.map(t => ({ ...t, sku: acc[t.key].sku.size, qty: acc[t.key].qty }));
+            }, [scopedBatches, sumSelected]);
+
+            // 點分層卡片＝把該層套成自訂區間
+            const applyTier = (tier) => {
+                setDteFilter('custom');
+                setCustomDteMin(Number.isFinite(tier.min) ? String(tier.min) : '');
+                setCustomDteMax(Number.isFinite(tier.max) ? String(tier.max) : '');
+            };
+
+            // 匯出目前篩出來的批次，給倉庫盤點或促銷清單直接用
+            const exportCSV = () => {
+                const cols = selectedLocationColumns;
+                const header = ['品名', '效期', 'DTE', ...cols.map(c => c.label), '合計'];
+                const lines = [header];
+                filteredAndSortedData.forEach(product => {
+                    product.batches.forEach(batch => {
+                        lines.push([
+                            batch.name,
+                            fmtDate(batch.expiry),
+                            batch.dte,
+                            ...cols.map(c => batch[c.key]),
+                            sumSelected(batch)
+                        ]);
+                    });
+                });
+                const csv = lines
+                    .map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
+                    .join('\r\n');
+                // BOM 讓 Excel 直接開不會變亂碼
+                const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `inventory_${fmtDate(new Date())}.csv`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+            };
+
+            const toggleExpanded = (name) => {
+                setExpanded(prev => ({ ...prev, [name]: !prev[name] }));
+            };
 
             // Handle sorting
             const handleSort = (field) => {
@@ -711,9 +890,8 @@
 
             // Get DTE status class
             const getDTEStatusClass = (dte) => {
-                if (dte < 0) return 'status-expired';
-                if (dte <= 60) return 'status-warning';
-                return '';
+                const tier = tierOf(dte);
+                return tier ? tier.cls : '';
             };
 
             return (
@@ -829,9 +1007,30 @@
                                         </div>
                                     </div>
                                 ))}
-                                <button className="btn btn-outline w-full py-2" onClick={() => { setShowSettings(false); fetchAllData(); }}>
-                                    Save All Sources (Reload Now)
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        className="btn btn-outline flex-1 py-2"
+                                        onClick={() => {
+                                            try { localStorage.setItem(SOURCES_KEY, JSON.stringify(sources)); } catch (e) { /* 無痕模式忽略 */ }
+                                            setShowSettings(false);
+                                            fetchAllData();
+                                        }}
+                                    >
+                                        儲存並重新載入
+                                    </button>
+                                    <button
+                                        className="btn btn-outline px-4 py-2"
+                                        onClick={() => {
+                                            try { localStorage.removeItem(SOURCES_KEY); } catch (e) { /* 同上 */ }
+                                            const fresh = defaultSources.map(s => ({ ...s }));
+                                            setSources(fresh);
+                                            setShowSettings(false);
+                                            fetchAllData(fresh);
+                                        }}
+                                    >
+                                        還原預設
+                                    </button>
+                                </div>
                             </div>
                         )}
 
@@ -859,6 +1058,7 @@
                                         value={dteFilter}
                                         onChange={(e) => setDteFilter(e.target.value)}
                                     >
+                                        <option value="ALL">全部效期</option>
                                         <option value="≤90">≤90天</option>
                                         <option value="≤180">≤180天</option>
                                         <option value="≤365">≤365天</option>
@@ -868,7 +1068,20 @@
                                         <option value="≥913">≥913天</option>
                                         <option value="custom">自訂區間</option>
                                     </select>
+
+                                    <button
+                                        className="btn btn-outline px-3"
+                                        onClick={exportCSV}
+                                        disabled={filteredAndSortedData.length === 0}
+                                        title="匯出目前篩選結果（批次層級）"
+                                    >
+                                        匯出 CSV
+                                    </button>
                                 </div>
+                            </div>
+
+                            <div className="text-xs opacity-60 mt-2">
+                                數量為符合目前效期篩選的批次合計。點品名可展開該品項的各批效期。
                             </div>
 
                             {dteFilter === 'custom' && (
@@ -907,6 +1120,27 @@
                                 以下來源讀取失敗，數字不完整：{errors.join('、')}。請確認試算表仍為「知道連結的人可檢視」，再按重新整理。
                             </div>
                         )}
+
+                        {/* 到期壓力分層（點一下就套成該區間） */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {tierStats.map(tier => {
+                                const active = dteFilter === 'custom'
+                                    && customDteMin === (Number.isFinite(tier.min) ? String(tier.min) : '')
+                                    && customDteMax === (Number.isFinite(tier.max) ? String(tier.max) : '');
+                                return (
+                                    <div
+                                        key={tier.key}
+                                        className={`card tier-card rounded-lg p-4 ${tier.cls}`}
+                                        data-active={active}
+                                        onClick={() => applyTier(tier)}
+                                    >
+                                        <div className="text-sm font-medium">{tier.label}</div>
+                                        <div className="text-2xl font-bold mt-1">{tier.qty.toLocaleString()}</div>
+                                        <div className="text-xs opacity-80">{tier.sku} 個品項</div>
+                                    </div>
+                                );
+                            })}
+                        </div>
 
                         {/* Stats */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -973,41 +1207,78 @@
                                                 </td>
                                             </tr>
                                         ) : (
-                                            filteredAndSortedData.map((item, index) => (
-                                                <tr key={`${item.name}-${index}`} className="border-t hover:bg-gray-50">
-                                                    <td className="p-3">
-                                                        <div className="font-medium">{item.name}</div>
-                                                    </td>
-                                                    {selectedLocationColumns.map(column => (
-                                                        <td key={column.key} className="p-3 text-right font-medium">
-                                                            {item[column.key].toLocaleString()}
-                                                        </td>
-                                                    ))}
-                                                    {selectedLocationColumns.length > 1 && (
-                                                        <td className="p-3 text-right font-bold text-blue-600">
-                                                            {locationFilter.includes('ALL') 
-                                                                ? item.qty_TTQ.toLocaleString()
-                                                                : selectedLocationColumns.reduce((sum, col) => 
-                                                                    sum + item[col.key], 0
-                                                                  ).toLocaleString()
-                                                            }
-                                                        </td>
-                                                    )}
-                                                    <td className="p-3 text-right">
-                                                        <span className={`px-2 py-1 rounded text-xs font-medium ${getDTEStatusClass(item.dte)}`}>
-                                                            {item.dte < 0 && <AlertTriangle className="inline h-3 w-3 mr-1" />}
-                                                            {item.dte}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            ))
+                                            filteredAndSortedData.map((item, index) => {
+                                                const isOpen = !!expanded[item.name];
+                                                const multiBatch = item.batches.length > 1;
+                                                return (
+                                                    <React.Fragment key={`${item.name}-${index}`}>
+                                                        <tr className="border-t hover:bg-gray-50">
+                                                            <td className="p-3">
+                                                                <button
+                                                                    className="btn btn-ghost p-0 h-auto text-left"
+                                                                    onClick={() => toggleExpanded(item.name)}
+                                                                >
+                                                                    <span className="font-medium">{item.name}</span>
+                                                                    <span className="text-xs opacity-60 ml-2">
+                                                                        {item.batches.length} 批
+                                                                    </span>
+                                                                    {isOpen
+                                                                        ? <ChevronUp className="h-3 w-3 ml-1 opacity-60" />
+                                                                        : <ChevronDown className="h-3 w-3 ml-1 opacity-60" />}
+                                                                </button>
+                                                            </td>
+                                                            {selectedLocationColumns.map(column => (
+                                                                <td key={column.key} className="p-3 text-right font-medium">
+                                                                    {item[column.key].toLocaleString()}
+                                                                </td>
+                                                            ))}
+                                                            {selectedLocationColumns.length > 1 && (
+                                                                <td className="p-3 text-right font-bold text-blue-600">
+                                                                    {sumSelected(item).toLocaleString()}
+                                                                </td>
+                                                            )}
+                                                            <td className="p-3 text-right">
+                                                                <span className={`px-2 py-1 rounded text-xs font-medium ${getDTEStatusClass(item.dte)}`}>
+                                                                    {item.dte < 0 && <AlertTriangle className="inline h-3 w-3 mr-1" />}
+                                                                    {item.dte}
+                                                                </span>
+                                                                {multiBatch && (
+                                                                    <div className="text-xs opacity-50 mt-1">最早批</div>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                        {isOpen && item.batches.map(batch => (
+                                                            <tr key={`${item.name}-${batch.expiry.getTime()}`} className="batch-row border-t">
+                                                                <td className="p-2 pl-8 text-xs opacity-70">
+                                                                    效期 {fmtDate(batch.expiry)}
+                                                                </td>
+                                                                {selectedLocationColumns.map(column => (
+                                                                    <td key={column.key} className="p-2 text-right text-xs">
+                                                                        {batch[column.key].toLocaleString()}
+                                                                    </td>
+                                                                ))}
+                                                                {selectedLocationColumns.length > 1 && (
+                                                                    <td className="p-2 text-right text-xs font-medium">
+                                                                        {sumSelected(batch).toLocaleString()}
+                                                                    </td>
+                                                                )}
+                                                                <td className="p-2 text-right">
+                                                                    <span className={`px-2 py-0.5 rounded text-xs ${getDTEStatusClass(batch.dte)}`}>
+                                                                        {batch.dte}
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </React.Fragment>
+                                                );
+                                            })
                                         )}
                                     </tbody>
                                 </table>
                             </div>
                         </div>
 
-                        <div className="text-xs opacity-50 text-right">最後更新 2026/07/27 21:20</div>
+                        <div className="text-xs opacity-50 text-right">最後更新 2026/07/27 21:25</div>
                     </div>
                 </div>
             );
