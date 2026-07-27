@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>出貨量 vs 庫存 警示表 v53</title>
+    <title>出貨量 vs 庫存 警示表 v54</title>
     <script src="https://cdn.tailwindcss.com"></script>
 <style>
     :root{
@@ -70,10 +70,12 @@
     .basis{font-size:11.5px;color:var(--ink-3);line-height:1.4;}
 
     /* ---- Table ---- */
-    .wrap{flex:1;overflow:auto;}
-    .wrap-in{max-width:1200px;margin:0 auto;padding:0 14px 24px;}
-    table{width:100%;border-collapse:collapse;background:var(--card);
-          border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+    .wrap{flex:1;overflow:auto;background:var(--card);padding-bottom:32px;}
+    /* 表格滿版：分隔線直接到兩側，間距放在儲存格裡，不把線往內壓 */
+    .wrap-in{max-width:1200px;margin:0 auto;padding:0;}
+    table{width:100%;border-collapse:collapse;background:var(--card);}
+    thead th:first-child,tbody td:first-child{padding-left:14px;}
+    thead th:last-child,tbody td:last-child{padding-right:14px;}
     thead th{position:sticky;top:0;z-index:2;background:#fbfcfd;
              font-size:11.5px;font-weight:600;color:var(--ink-2);letter-spacing:.02em;
              padding:9px 10px;text-align:right;white-space:nowrap;
@@ -126,7 +128,6 @@
     /* ---- 手機 ---- */
     @media (max-width:639px){
         .hd-in,.tb-in{padding:9px 12px;}
-        .wrap-in{padding:0 12px 20px;}
         .tb-in{gap:8px;}
         .seg-view{flex:1 0 100%;}
         .seg-view button{flex:1;padding:7px 0;}
@@ -136,14 +137,18 @@
         tbody tr.risk td.nm{box-shadow:inset 2px 0 0 var(--risk-ink);}
         thead th{padding:8px;font-size:11px;}
         tbody td{padding:10px 8px;font-size:13px;}
+        thead th.name-col,tbody td.nm{padding-left:12px;}
+        thead th:last-child,tbody td:last-child{padding-right:12px;}
         .nm{font-size:13.5px;font-weight:600;}
         .title{font-size:14px;}
     }
 
     /* 很窄的手機（iPhone SE 這類）再收一階，把寬度讓給品名 */
-    @media (max-width:399px){
+    @media (max-width:359px){
         thead th{padding:8px 5px;font-size:10.5px;}
         tbody td{padding:9px 5px;font-size:12.5px;}
+        thead th.name-col,tbody td.nm{padding-left:12px;}
+        thead th:last-child,tbody td:last-child{padding-right:12px;}
         .nm{font-size:13px;}
         .exp{font-size:11px;}
         .pill{padding:2px 6px;font-size:11px;}
@@ -158,7 +163,7 @@
                 <div class="logo">PM</div>
                 <div style="min-width:0;">
                     <div class="title">出貨量 vs 庫存 警示表</div>
-                    <div class="sub">v53 · <span id="status">讀取中</span></div>
+                    <div class="sub">v54 · <span id="status">讀取中</span></div>
                 </div>
             </div>
             <div style="display:flex;gap:8px;">
