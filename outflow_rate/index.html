@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>出貨量 vs 庫存 警示表 v51</title>
+    <title>出貨量 vs 庫存 警示表 v52</title>
     <script src="https://cdn.tailwindcss.com"></script>
 <style>
     :root{
@@ -120,8 +120,9 @@
         .hd-in,.tb-in{padding:9px 12px;}
         .wrap-in{padding:0 12px 20px;}
         .tb-in{gap:8px;}
-        .seg{flex:1 0 100%;}
-        .seg button{flex:1;padding:7px 0;}
+        .seg-view{flex:1 0 100%;}
+        .seg-view button{flex:1;padding:7px 0;}
+        #mult-seg button{padding:6px 12px;}
         .col-no,.col-del{display:none;}
         /* 手機第一欄是品名，紅色標記要跟著移過來 */
         tbody tr.risk td.nm{box-shadow:inset 2px 0 0 var(--risk-ink);}
@@ -149,7 +150,7 @@
                 <div class="logo">PM</div>
                 <div style="min-width:0;">
                     <div class="title">出貨量 vs 庫存 警示表</div>
-                    <div class="sub">v51 · <span id="status">讀取中</span></div>
+                    <div class="sub">v52 · <span id="status">讀取中</span></div>
                 </div>
             </div>
             <div style="display:flex;gap:8px;">
@@ -166,9 +167,10 @@
     <div class="tb">
         <div class="tb-in">
             <div class="tb-row">
-                <div class="seg">
+                <div class="seg seg-view">
                     <button id="btn-view-sku" class="on" onclick="app.switchView('sku')">品項</button>
                     <button id="btn-view-product" onclick="app.switchView('product')">產品</button>
+                    <button id="btn-view-year" onclick="app.switchView('year')">年量</button>
                 </div>
                 <div class="search">
                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -178,6 +180,19 @@
                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                     匯出
                 </button>
+            </div>
+            <div class="tb-row" id="mult-box" style="display:none;">
+                <span style="font-size:13px;color:var(--ink-2);flex:none;">倍數</span>
+                <div class="seg" id="mult-seg" style="flex:none;">
+                    <button onclick="app.setMult(1)">1</button>
+                    <button onclick="app.setMult(1.5)">1.5</button>
+                    <button onclick="app.setMult(2)">2</button>
+                </div>
+                <input id="mult-input" type="number" step="0.1" min="0" value="1"
+                       style="height:36px;width:80px;border:1px solid var(--line);border-radius:8px;padding:0 10px;font-size:13px;">
+                <span style="font-size:13px;color:var(--ink-2);margin-left:auto;white-space:nowrap;">
+                    合計 <strong id="mult-total" class="num">0</strong> 件
+                </span>
             </div>
             <div class="basis" id="debug-stats"></div>
         </div>
@@ -251,7 +266,7 @@
         const safeStorage = { get: (k) => { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
 
         const app = {
-            data: [], productData: [], sortCol: 'itemNo', sortAsc: true, hiddenSKUs: new Set(), view: 'sku',
+            data: [], productData: [], sortCol: 'itemNo', sortAsc: true, hiddenSKUs: new Set(), view: 'sku', mult: 1,
 
             init() {
                 this.hiddenSKUs = new Set(safeStorage.get('pm_hidden_skus'));
@@ -260,11 +275,22 @@
                 this.fetchData();
             },
 
-            bindEvents() { document.getElementById('search').addEventListener('input', (e) => this.render(e.target.value)); },
+            setMult(v) {
+                const n = parseFloat(v);
+                this.mult = (isNaN(n) || n < 0) ? 1 : n;
+                document.getElementById('mult-input').value = this.mult;
+                document.querySelectorAll('#mult-seg button').forEach(b =>
+                    b.className = parseFloat(b.innerText) === this.mult ? 'on' : '');
+                this.render(document.getElementById('search').value);
+            },
+
+            bindEvents() { document.getElementById('search').addEventListener('input', (e) => this.render(e.target.value));
+                document.getElementById('mult-input').addEventListener('input', (e) => this.setMult(e.target.value)); },
             switchView(mode) {
                 this.view = mode;
-                document.getElementById('btn-view-sku').className = mode === 'sku' ? 'on' : '';
-                document.getElementById('btn-view-product').className = mode === 'product' ? 'on' : '';
+                ['sku','product','year'].forEach(v =>
+                    document.getElementById('btn-view-' + v).className = mode === v ? 'on' : '');
+                document.getElementById('mult-box').style.display = mode === 'year' ? 'flex' : 'none';
                 this.sort('itemNo', true); 
             },
             fetchData() {
@@ -375,21 +401,30 @@
 
                 // HEADER RENDER
                 const createHeader = (cols) => `<tr>${cols.map(c =>
-                    `<th class="${c.k==='name'?'name-col':''}${c.k==='itemNo'?' col-no':''}" onclick="app.sort('${c.k}')">${c.t}<span class="arw">▲</span></th>`
+                    `<th class="${c.k==='name'?'name-col':''}${c.k==='itemNo'?' col-no':''}"${c.k?` onclick="app.sort('${c.k}')"`:' style="cursor:default;"'}>${c.t}${c.k?'<span class="arw">▲</span>':''}</th>`
                 ).join('')}${this.view==='sku'?'<th class="col-del"></th>':''}</tr>`;
 
-                const cols = [
-                    {t:'#', k:'itemNo'},
-                    {t: this.view==='sku' ? '品項' : '產品', k:'name'},
-                    {t:'總出', k:'rawOutflow'},
-                    {t:'月需', k:'runRate'},
-                    {t:'北倉', k:'inv'},
-                    {t:'風險', k:'status'}
-                ];
+                const cols = this.view === 'year'
+                    ? [
+                        {t:'#', k:'itemNo'},
+                        {t:'產品', k:'name'},
+                        {t:'月需', k:'runRate'},
+                        {t:'年需求', k:null},
+                        {t:'倍數後總量', k:null}
+                      ]
+                    : [
+                        {t:'#', k:'itemNo'},
+                        {t: this.view==='sku' ? '品項' : '產品', k:'name'},
+                        {t:'總出', k:'rawOutflow'},
+                        {t:'月需', k:'runRate'},
+                        {t:'北倉', k:'inv'},
+                        {t:'風險', k:'status'}
+                      ];
                 thead.innerHTML = createHeader(cols);
 
                 const dataset = this.view === 'sku' ? this.data : this.productData;
                 let visibleCount = 0;
+                let yearSum = 0;
 
                 dataset.forEach(row => {
                     if (this.view === 'sku' && this.hiddenSKUs.has(row.sku)) return;
@@ -398,16 +433,34 @@
                     visibleCount++;
                     const tr = document.createElement('tr');
 
+                    const nameHTML = (() => {
+                        const m = String(row.name).match(/^(.*?)\s*\((\d{4}-\d{2}-\d{2})\)\s*$/);
+                        return m ? `${m[1]}<span class="exp">效期 ${m[2]}</span>` : row.name;
+                    })();
+
+                    if (this.view === 'year') {
+                        // 年量：純粹用月需推一年要多少，不看庫存；沒出貨的不列
+                        if (!(row.runRate > 0)) { visibleCount--; return; }
+                        const year = row.runRate * 12;
+                        const total = Math.round(year * this.mult);
+                        yearSum += total;
+                        tr.innerHTML = `
+                            <td class="no num col-no">${row.itemNo}</td>
+                            <td class="nm">${nameHTML}</td>
+                            <td class="num">${row.runRate.toLocaleString()}</td>
+                            <td class="num">${year.toLocaleString()}</td>
+                            <td class="num" style="font-weight:700;color:var(--accent);">${total.toLocaleString()}</td>`;
+                        tbody.appendChild(tr);
+                        return;
+                    }
+
                     let status = 'OK';
                     if (row.runRate > 0 && (row.inv / row.runRate) < 2) status = 'Risk';
                     if (status === 'Risk') tr.className = 'risk';
 
                     const cells = `
                         <td class="no num col-no">${row.itemNo === 9999 ? '-' : row.itemNo}</td>
-                        <td class="nm">${(() => {
-                            const m = String(row.name).match(/^(.*?)\s*\((\d{4}-\d{2}-\d{2})\)\s*$/);
-                            return m ? `${m[1]}<span class="exp">效期 ${m[2]}</span>` : row.name;
-                        })()}</td>
+                        <td class="nm">${nameHTML}</td>
                         <td class="out num">${row.rawOutflow.toLocaleString()}</td>
                         <td class="num">${row.runRate.toLocaleString()}</td>
                         <td class="num">${Math.round(row.inv).toLocaleString()}</td>
@@ -425,6 +478,7 @@
                 });
                 
                 empty.style.display = visibleCount === 0 ? "block" : "none";
+                document.getElementById('mult-total').innerText = yearSum.toLocaleString();
                 this.updateSortIcons();
             },
 
@@ -432,7 +486,7 @@
                 if(forceAsc) { this.sortAsc = true; this.sortCol = key; }
                 else { this.sortAsc = (this.sortCol === key) ? !this.sortAsc : true; this.sortCol = key; }
                 const m = this.sortAsc ? 1 : -1;
-                const set = this.view === 'sku' ? this.data : this.productData;
+                const set = this.view === 'sku' ? this.data : this.productData;  // 年量與產品同一份
                 set.sort((a, b) => {
                     let v1 = a[key], v2 = b[key];
                     if (typeof v1 === 'string') return v1.localeCompare(v2) * m;
@@ -454,8 +508,17 @@
             exportCSV() {
                 const dataset = this.view === 'sku' ? this.data : this.productData;
                 if(!dataset.length) { alert("No data"); return; }
-                let headers = this.view === 'sku' ? ["項次","品項","總出","月需","北倉","風險"] : ["項次","產品","總出","月需","北倉","風險"];
-                let mapper = this.view === 'sku' ? r => [r.itemNo, r.sku, r.rawOutflow, r.runRate, r.inv, r.status] : r => [r.itemNo, r.name, r.rawOutflow, r.runRate, r.inv, r.status];
+                let headers, mapper;
+                if (this.view === 'year') {
+                    headers = ["項次","產品","月需","年需求",`倍數 ${this.mult} 後總量`];
+                    mapper = r => [r.itemNo, r.name, r.runRate, r.runRate * 12, Math.round(r.runRate * 12 * this.mult)];
+                } else if (this.view === 'sku') {
+                    headers = ["項次","品項","總出","月需","北倉","風險"];
+                    mapper = r => [r.itemNo, r.sku, r.rawOutflow, r.runRate, r.inv, r.status];
+                } else {
+                    headers = ["項次","產品","總出","月需","北倉","風險"];
+                    mapper = r => [r.itemNo, r.name, r.rawOutflow, r.runRate, r.inv, r.status];
+                }
                 const csv = "\ufeff" + [headers.join(","), ...dataset.filter(r => this.view!=='sku' || !this.hiddenSKUs.has(r.sku)).map(r => mapper(r).map(c => `"${String(c).replace(/"/g, '""')}"`).join(","))].join("\n");
                 const url = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
                 const a = document.createElement("a"); a.href = url; a.download = `Inv_${this.view}_${new Date().toISOString().split('T')[0]}.csv`; a.click();
