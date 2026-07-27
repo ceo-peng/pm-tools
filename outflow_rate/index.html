@@ -2,223 +2,202 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>歷史出貨量vs庫存 警示表 v50</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>出貨量 vs 庫存 警示表 v51</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-        
-        body { font-family: 'Inter', "Microsoft JhengHei", sans-serif; background-color: #f8fafc; color: #0f172a; -webkit-font-smoothing: antialiased; }
-        .font-mono { font-family: 'JetBrains Mono', monospace; }
+<style>
+    :root{
+        --bg:#f6f7f9; --card:#ffffff; --line:#e6e8ec; --line-soft:#f1f3f5;
+        --ink:#101828; --ink-2:#475467; --ink-3:#98a2b3;
+        --accent:#4f46e5; --accent-soft:#eef2ff;
+        --risk-bg:#fef1f2; --risk-ink:#be123c;
+        --ok-bg:#ecfdf3; --ok-ink:#067647;
+    }
+    *{box-sizing:border-box;}
+    body{
+        margin:0; background:var(--bg); color:var(--ink);
+        font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC","Microsoft JhengHei",sans-serif;
+        -webkit-font-smoothing:antialiased;
+        font-size:14px; line-height:1.45;
+    }
+    .num{font-variant-numeric:tabular-nums; font-feature-settings:"tnum";}
 
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    ::-webkit-scrollbar{width:8px;height:8px;}
+    ::-webkit-scrollbar-thumb{background:#d0d5dd;border-radius:4px;}
+    ::-webkit-scrollbar-track{background:transparent;}
 
-        /* Toggle Buttons */
-        .btn-toggle { 
-            @apply rounded-full transition-all duration-200 border shadow-sm flex items-center justify-center gap-1 whitespace-nowrap
-            text-[10px] px-3 py-1.5      /* Mobile */
-            md:text-sm md:px-5 md:py-2;  /* Desktop */
-        }
-        .btn-toggle.active { @apply bg-indigo-600 text-white border-indigo-600 font-bold ring-1 ring-indigo-100; }
-        .btn-toggle.inactive { @apply bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-700 font-medium; }
+    /* ---- Header ---- */
+    .hd{background:var(--card);border-bottom:1px solid var(--line);flex-shrink:0;}
+    .hd-in{display:flex;align-items:center;justify-content:space-between;gap:12px;
+           padding:10px 14px;max-width:1200px;margin:0 auto;}
+    .logo{background:var(--accent);color:#fff;font-weight:700;font-size:14px;
+          width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex:none;}
+    .title{font-size:15px;font-weight:600;letter-spacing:-.01em;line-height:1.2;}
+    .sub{font-size:11px;color:var(--ink-3);margin-top:1px;}
+    .icon-btn{width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--card);
+              color:var(--ink-2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;}
+    .icon-btn:hover{background:var(--line-soft);color:var(--ink);}
+    .icon-btn svg{width:17px;height:17px;}
 
-        /* Table Header - 5px on Mobile */
-        th.sortable { 
-            @apply cursor-pointer select-none transition-colors 
-            hover:bg-slate-100 hover:text-indigo-600 
-            px-0.5 py-1.5 md:px-2 md:py-4 
-            align-middle border-b border-slate-200 bg-white sticky top-0 z-10;
-        }
-        
-        .th-content {
-            @apply flex flex-col items-center justify-center gap-0.5 text-[5px] md:text-xs font-bold text-slate-500 uppercase tracking-tight w-full h-full;
-        }
-        
-        /* FIXED ICON SIZE - 8px for Mobile, 10px for Desktop */
-        th.sortable .icon { 
-            @apply flex-none opacity-20 transition-transform duration-200 text-slate-400; 
-            width: 8px; height: 8px; 
-            min-width: 8px; min-height: 8px;
-        }
-        @media (min-width: 768px) {
-            th.sortable .icon { width: 10px; height: 10px; min-width: 10px; min-height: 10px; }
-        }
+    /* ---- Toolbar ---- */
+    .tb{background:var(--card);border-bottom:1px solid var(--line);}
+    .tb-in{max-width:1200px;margin:0 auto;padding:10px 14px;display:flex;flex-direction:column;gap:8px;}
+    .tb-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
 
-        th.sortable .icon { display: block; margin: 0 auto; }
-        th.sortable.asc .icon { @apply opacity-100 rotate-0 text-indigo-600; }
-        th.sortable.desc .icon { @apply opacity-100 rotate-180 text-indigo-600; }
-        
-        /* Rows */
-        .table-row { @apply border-b border-slate-100 hover:bg-indigo-50/40 transition-colors h-auto min-h-[36px] md:min-h-[40px]; } 
-        
-        /* Cells - 5px on Mobile */
-        .cell-base { 
-            @apply px-0.5 md:px-3 py-0.5 md:text-xs align-middle; 
-        }
-        
-        /* SKU Name - 5px, 3 Lines Max, Tight Leading */
-        .name-cell {
-            @apply text-[5px] md:text-sm font-bold leading-[0.9] text-slate-900 break-words whitespace-normal;
-            /* Allow wrapping up to 3 lines */
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            max-width: 130px; /* Constraint width to force wrapping */
-        }
-        @media (min-width: 768px) { 
-            .name-cell { max-width: none; font-size: 0.875rem; line-height: 1.25; -webkit-line-clamp: 2; } 
-        }
+    /* 分段控制：品項 / 產品 */
+    .seg{display:inline-flex;background:var(--line-soft);border:1px solid var(--line);
+         border-radius:9px;padding:2px;flex:none;}
+    .seg button{appearance:none;border:0;background:transparent;cursor:pointer;
+                font-size:13px;font-weight:500;color:var(--ink-2);
+                padding:6px 14px;border-radius:7px;white-space:nowrap;transition:background .15s,color .15s;}
+    .seg button.on{background:var(--card);color:var(--ink);font-weight:600;
+                   box-shadow:0 1px 2px rgb(16 24 40 / .06);}
 
-        /* Status Badge - Scale down */
-        .status-badge {
-            @apply px-1 py-0.5 rounded-full font-bold tracking-wide;
-            font-size: 5px; /* Tiny for mobile */
-        }
-        @media (min-width: 768px) { .status-badge { font-size: 10px; padding: 2px 5px; } }
+    .search{position:relative;flex:1;min-width:0;}
+    .search input{width:100%;height:36px;border:1px solid var(--line);border-radius:8px;
+                  background:var(--card);padding:0 12px 0 32px;font-size:13px;color:var(--ink);outline:none;}
+    .search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+    .search svg{position:absolute;left:10px;top:10px;width:15px;height:15px;color:var(--ink-3);}
 
-        /* Loader */
-        .loader { border: 2px solid #e2e8f0; border-top: 2px solid #4f46e5; width: 20px; height: 20px; border-radius: 50%; animation: spin 0.8s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .btn{height:36px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);
+         color:var(--ink-2);font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;
+         align-items:center;gap:6px;white-space:nowrap;flex:none;}
+    .btn:hover{background:var(--line-soft);color:var(--ink);}
+    .btn svg{width:15px;height:15px;}
+    .btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
+    .btn-primary:hover{background:#4338ca;color:#fff;}
 
-        /* Modal */
-        .modal { transition: opacity 0.2s ease-out; pointer-events: none; opacity: 0; }
-        .modal.active { pointer-events: auto; opacity: 1; }
-        .modal-content { transition: transform 0.2s ease-out; transform: scale(0.98); }
-        .modal.active .modal-content { transform: scale(1); }
+    .basis{font-size:11.5px;color:var(--ink-3);line-height:1.4;}
 
-        .cell-base{ padding-top: 5.5px !important; padding-bottom: 5.5px !important; }
+    /* ---- Table ---- */
+    .wrap{flex:1;overflow:auto;}
+    .wrap-in{max-width:1200px;margin:0 auto;padding:0 14px 24px;}
+    table{width:100%;border-collapse:collapse;background:var(--card);
+          border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+    thead th{position:sticky;top:0;z-index:2;background:#fbfcfd;
+             font-size:11.5px;font-weight:600;color:var(--ink-2);letter-spacing:.02em;
+             padding:9px 10px;text-align:right;white-space:nowrap;
+             border-bottom:1px solid var(--line);cursor:pointer;user-select:none;}
+    thead th:first-child{text-align:left;}
+    thead th.name-col{text-align:left;width:100%;}
+    thead th:hover{color:var(--accent);}
+    thead th .arw{opacity:0;margin-left:3px;font-size:10px;}
+    thead th:hover .arw{opacity:.35;}
+    thead th.asc .arw,thead th.desc .arw{opacity:1;color:var(--accent);}
+    thead th.desc .arw{display:inline-block;transform:rotate(180deg);}
 
-        /* MOBILE: hide DELETE column only in SKU view, keep Risk column in Product view */
-        @media (max-width: 767px){
+    tbody td{padding:7px 10px;text-align:right;white-space:nowrap;
+             border-top:1px solid var(--line-soft);font-size:13px;}
+    tbody td:first-child{text-align:left;}
+    tbody tr:hover td{background:#fafbfc;}
+    tbody tr.risk td:first-child{box-shadow:inset 2px 0 0 var(--risk-ink);}
 
-          /* SKU view has an extra 7th column (delete) → hide last column */
-          thead tr:has(th:nth-child(7)) th:last-child,
-          tbody tr:has(td:nth-child(7)) td:last-child{
-            display: none !important;
-              }
+    .no{color:var(--ink-3);font-size:12px;}
+    .nm{text-align:left;font-weight:500;color:var(--ink);white-space:normal;
+        line-height:1.35;word-break:break-word;}
+    /* 效期拆成第二行小字，窄螢幕不會把品名擠成好幾行 */
+    .exp{display:block;font-size:11.5px;font-weight:400;color:var(--ink-3);margin-top:1px;
+         font-variant-numeric:tabular-nums;white-space:nowrap;}
+    .out{color:var(--accent);font-weight:500;}
+    .del{color:#d0d5dd;background:none;border:0;cursor:pointer;padding:2px 4px;font-size:13px;line-height:1;}
+    .del:hover{color:var(--risk-ink);}
 
-          /* Product view has only 6 columns → keep last column (Risk) visible */
-          thead tr:not(:has(th:nth-child(7))) th:last-child,
-          tbody tr:not(:has(td:nth-child(7))) td:last-child{
-            display: table-cell !important;
-              }
-            }
-        /* ===== Mobile typography system ===== */
-        @media (max-width: 767px){
-        
-          /* 預設 cell 字（數字、一般欄位） */
-          .cell-base{
-            font-size: 12px;        /* 全表基準字 */
-            line-height: 1.25;
-          }
-        
-          /* SKU / Product name（主角） */
-          .name-cell{
-            font-size: 12.5px;        /* 比其他字大一階 */
-            font-weight: 600;
-            line-height: 1.3;
-          }
-        
-          /* Header（小標題） */
-          th .th-content span{
-            font-size: 13px;
-            font-weight: 700;
-            letter-spacing: 0.02em;
-          }
-        
-          /* 數字欄位（出貨、庫存、月需） */
-          td.font-mono{
-            font-size: 13px;
-            font-weight: 600;
-          }
-        
-          /* Risk / OK badge */
-          .status-badge{
-            font-size: 11.5px;
-            font-weight: 600;
-          }
-        }
-        
-    </style>
+    .pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11.5px;font-weight:600;}
+    .pill.risk{background:var(--risk-bg);color:var(--risk-ink);}
+    .pill.ok{background:var(--ok-bg);color:var(--ok-ink);}
+
+    /* ---- Loader / Modal ---- */
+    .loader{border:2px solid var(--line);border-top:2px solid var(--accent);width:22px;height:22px;
+            border-radius:50%;animation:spin .8s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .modal{transition:opacity .18s ease-out;pointer-events:none;opacity:0;}
+    .modal.active{pointer-events:auto;opacity:1;}
+    .modal-content{transition:transform .18s ease-out;transform:scale(.98);}
+    .modal.active .modal-content{transform:scale(1);}
+
+    /* ---- 手機 ---- */
+    @media (max-width:639px){
+        .hd-in,.tb-in{padding:9px 12px;}
+        .wrap-in{padding:0 12px 20px;}
+        .tb-in{gap:8px;}
+        .seg{flex:1 0 100%;}
+        .seg button{flex:1;padding:7px 0;}
+        .col-no,.col-del{display:none;}
+        /* 手機第一欄是品名，紅色標記要跟著移過來 */
+        tbody tr.risk td.nm{box-shadow:inset 2px 0 0 var(--risk-ink);}
+        thead th{padding:8px;font-size:11px;}
+        tbody td{padding:10px 8px;font-size:13px;}
+        .nm{font-size:13.5px;font-weight:600;}
+        .title{font-size:14px;}
+    }
+
+    /* 很窄的手機（iPhone SE 這類）再收一階，把寬度讓給品名 */
+    @media (max-width:399px){
+        thead th{padding:8px 5px;font-size:10.5px;}
+        tbody td{padding:9px 5px;font-size:12.5px;}
+        .nm{font-size:13px;}
+        .exp{font-size:11px;}
+        .pill{padding:2px 6px;font-size:11px;}
+    }
+</style>
 </head>
-<body class="flex flex-col h-screen overflow-hidden">
+<body style="display:flex;flex-direction:column;height:100vh;overflow:hidden;">
 
-    <!-- Header -->
-    <header class="bg-white border-b border-slate-200 h-14 flex-shrink-0 z-30 shadow-sm relative">
-        <div class="h-full px-3 md:px-6 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="bg-indigo-600 text-white p-1.5 rounded-lg font-bold text-lg leading-none shadow-md shadow-indigo-200">PM</div>
-                <div class="hidden md:block">
-                    <h1 class="text-base font-bold text-slate-800 tracking-tight leading-tight">歷史出貨量 vs 即時庫存 警示表</h1>
-                    <div class="text-[10px] text-slate-400 font-medium">v50 <span class="mx-1">•</span> <span id="status">Ready</span></div>
+    <header class="hd">
+        <div class="hd-in">
+            <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+                <div class="logo">PM</div>
+                <div style="min-width:0;">
+                    <div class="title">出貨量 vs 庫存 警示表</div>
+                    <div class="sub">v51 · <span id="status">讀取中</span></div>
                 </div>
             </div>
-
-            <!-- View Switcher -->
-            <div class="flex items-center gap-3 absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                <button onclick="app.switchView('sku')" id="btn-view-sku" class="btn-toggle active">
-                    品項總覽 
+            <div style="display:flex;gap:8px;">
+                <button class="icon-btn" onclick="window.location.reload()" title="重新整理" aria-label="重新整理">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                 </button>
-                <button onclick="app.switchView('product')" id="btn-view-product" class="btn-toggle inactive">
-                    產品總覽
-                </button>
-            </div>
-
-            <!-- Actions -->
-            <div class="flex items-center gap-2">
-                <button onclick="window.location.reload()" class="p-2 rounded-full hover:bg-slate-100 text-slate-400 transition-colors" title="Reload">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                </button>
-                <button onclick="app.toggleSettings(true)" class="p-2 rounded-full hover:bg-slate-100 text-slate-400 transition-colors" title="Settings">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                <button class="icon-btn" onclick="app.toggleSettings(true)" title="設定" aria-label="設定">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                 </button>
             </div>
         </div>
     </header>
 
-    <!-- Toolbar -->
-    <div class="bg-white border-b border-slate-200 px-3 py-2 md:py-3 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.05)] z-20">
-        <div class="max-w-7xl mx-auto flex items-center gap-2">
-            <!-- Search -->
-            <div class="relative flex-grow">
-                <input type="text" id="search" placeholder="Search..." class="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-md focus:bg-white focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all placeholder-slate-400 text-black">
-                <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+    <div class="tb">
+        <div class="tb-in">
+            <div class="tb-row">
+                <div class="seg">
+                    <button id="btn-view-sku" class="on" onclick="app.switchView('sku')">品項</button>
+                    <button id="btn-view-product" onclick="app.switchView('product')">產品</button>
+                </div>
+                <div class="search">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <input type="text" id="search" placeholder="搜尋品名">
+                </div>
+                <button class="btn" onclick="app.exportCSV()">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    匯出
+                </button>
             </div>
-            
-            <button onclick="app.exportCSV()" class="flex items-center gap-1 bg-white border border-slate-300 hover:bg-slate-50 text-slate-600 px-3 py-1.5 rounded-md text-[10px] md:text-xs font-bold uppercase tracking-wide transition-all shadow-sm">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                <span class="hidden sm:inline">Export</span> CSV
-            </button>
-        </div>
-        <div class="max-w-7xl mx-auto mt-1 text-right hidden sm:block">
-            <span class="text-[10px] text-slate-400 font-mono" id="debug-stats"></span>
+            <div class="basis" id="debug-stats"></div>
         </div>
     </div>
 
-    <!-- Data Table -->
-    <div class="flex-grow overflow-auto bg-white relative">
-        <div class="max-w-7xl mx-auto h-full">
-            <table class="w-full text-left border-collapse table-auto md:table-fixed">
-                <thead id="table-head" class="bg-white sticky top-0 z-10 shadow-sm border-b border-slate-200"></thead>
-                <tbody id="table-body" class="divide-y divide-slate-100 bg-white"></tbody>
+    <div class="wrap">
+        <div class="wrap-in">
+            <table>
+                <thead id="table-head"></thead>
+                <tbody id="table-body"></tbody>
             </table>
-            
-            <div id="empty-state" class="hidden flex flex-col items-center justify-center h-64 text-slate-400">
-                <p class="text-sm">No items found</p>
-            </div>
+            <div id="empty-state" class="hidden" style="padding:48px 0;text-align:center;color:var(--ink-3);font-size:13px;">沒有符合的項目</div>
         </div>
     </div>
 
     <!-- Loading -->
     <div id="loader" class="fixed inset-0 bg-white/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center transition-opacity duration-300">
         <div class="loader mb-4"></div>
-        <div class="text-sm font-semibold text-slate-800">Connecting...</div>
-        <div class="text-xs text-slate-400 mt-2">Loading data from Google Sheets</div>
+        <div style="font-size:13px;font-weight:600;color:#101828;">讀取中</div>
+        <div style="font-size:12px;color:#98a2b3;margin-top:6px;">正在讀取 Google 試算表</div>
     </div>
 
     <!-- Debug Modal -->
@@ -281,11 +260,11 @@
                 this.fetchData();
             },
 
-            bindEvents() { document.getElementById('search').addEventListener('keyup', (e) => this.render(e.target.value)); },
+            bindEvents() { document.getElementById('search').addEventListener('input', (e) => this.render(e.target.value)); },
             switchView(mode) {
                 this.view = mode;
-                document.getElementById('btn-view-sku').className = mode === 'sku' ? 'btn-toggle active' : 'btn-toggle inactive';
-                document.getElementById('btn-view-product').className = mode === 'product' ? 'btn-toggle active' : 'btn-toggle inactive';
+                document.getElementById('btn-view-sku').className = mode === 'sku' ? 'on' : '';
+                document.getElementById('btn-view-product').className = mode === 'product' ? 'on' : '';
                 this.sort('itemNo', true); 
             },
             fetchData() {
@@ -351,6 +330,8 @@
                     }
                     this.data = skuResults;
                     this.aggregateProducts(skuResults);
+                    document.getElementById('status').innerText =
+                        `${skuResults.length} 個品項 · ${new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })} 更新`;
                     this.sort('itemNo', true); 
                     app.toggleLoader(false);
                 } catch(e) {
@@ -393,33 +374,19 @@
                 tbody.innerHTML = '';
 
                 // HEADER RENDER
-                const createHeader = (cols) => {
-                    return `<tr>${cols.map(c => 
-                        `<th class="sortable w-[${c.w}] text-center" onclick="app.sort('${c.k}')">
-                            <div class="th-content"><span>${c.t}</span><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></div>
-                        </th>`
-                    ).join('')}${this.view==='sku'?'<th class="w-[5%]"></th>':''}</tr>`;
-                };
+                const createHeader = (cols) => `<tr>${cols.map(c =>
+                    `<th class="${c.k==='name'?'name-col':''}${c.k==='itemNo'?' col-no':''}" onclick="app.sort('${c.k}')">${c.t}<span class="arw">▲</span></th>`
+                ).join('')}${this.view==='sku'?'<th class="col-del"></th>':''}</tr>`;
 
-                if (this.view === 'sku') {
-                    thead.innerHTML = createHeader([
-                        {t:'項次', k:'itemNo', w:'10%'},
-                        {t:'品項', k:'name', w:'auto'}, // Shows Full SKU as 'name' in sku view
-                        {t:'總出', k:'rawOutflow', w:'15%'},
-                        {t:'月需', k:'runRate', w:'15%'},
-                        {t:'北倉', k:'inv', w:'15%'},
-                        {t:'風險', k:'status', w:'10%'}
-                    ]);
-                } else {
-                    thead.innerHTML = createHeader([
-                        {t:'項次', k:'itemNo', w:'10%'},
-                        {t:'產品', k:'name', w:'auto'},
-                        {t:'總出', k:'rawOutflow', w:'15%'},
-                        {t:'月需', k:'runRate', w:'15%'},
-                        {t:'北倉', k:'inv', w:'15%'},
-                        {t:'風險', k:'status', w:'12%'}
-                    ]);
-                }
+                const cols = [
+                    {t:'#', k:'itemNo'},
+                    {t: this.view==='sku' ? '品項' : '產品', k:'name'},
+                    {t:'總出', k:'rawOutflow'},
+                    {t:'月需', k:'runRate'},
+                    {t:'北倉', k:'inv'},
+                    {t:'風險', k:'status'}
+                ];
+                thead.innerHTML = createHeader(cols);
 
                 const dataset = this.view === 'sku' ? this.data : this.productData;
                 let visibleCount = 0;
@@ -430,41 +397,34 @@
                     
                     visibleCount++;
                     const tr = document.createElement('tr');
-                    tr.className = "table-row group";
-                    
+
                     let status = 'OK';
                     if (row.runRate > 0 && (row.inv / row.runRate) < 2) status = 'Risk';
-                    let badgeClass = status === 'Risk' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700';
+                    if (status === 'Risk') tr.className = 'risk';
+
+                    const cells = `
+                        <td class="no num col-no">${row.itemNo === 9999 ? '-' : row.itemNo}</td>
+                        <td class="nm">${(() => {
+                            const m = String(row.name).match(/^(.*?)\s*\((\d{4}-\d{2}-\d{2})\)\s*$/);
+                            return m ? `${m[1]}<span class="exp">效期 ${m[2]}</span>` : row.name;
+                        })()}</td>
+                        <td class="out num">${row.rawOutflow.toLocaleString()}</td>
+                        <td class="num">${row.runRate.toLocaleString()}</td>
+                        <td class="num">${Math.round(row.inv).toLocaleString()}</td>
+                        <td><span class="pill ${status === 'Risk' ? 'risk' : 'ok'}">${status === 'Risk' ? '要補' : 'OK'}</span></td>`;
 
                     if (this.view === 'sku') {
-                        tr.onclick = (e) => { if(!e.target.closest('button')) app.showDetails(row); };
-                        
-                        tr.innerHTML = `
-                            <td class="cell-base text-slate-400 text-center font-mono">${row.itemNo === 9999 ? '-' : row.itemNo}</td>
-                            <td class="cell-base name-td"><div class="name-cell">${row.name}</div></td>
-                            <td class="cell-base text-center text-indigo-600 font-mono bg-indigo-50/20">${row.rawOutflow.toLocaleString()}</td>
-                            <td class="cell-base text-center font-mono text-black">${row.runRate.toLocaleString()}</td>
-                            <td class="cell-base text-center font-mono text-black">${Math.round(row.inv).toLocaleString()}</td>
-                            <td class="cell-base text-center"><span class="status-badge ${badgeClass}">${status==='Risk'?'!':'OK'}</span></td>
-                            <td class="cell-base text-center">
-                                <button onclick="app.hideItem('${row.sku}')" class="text-slate-300 hover:text-rose-500 transition-colors opacity-100 sm:opacity-0 group-hover:opacity-100 px-1">✕</button>
-                            </td>
-                        `;
+                        tr.onclick = (e) => { if (!e.target.closest('button')) app.showDetails(row); };
+                        tr.style.cursor = 'pointer';
+                        tr.innerHTML = cells + `
+                        <td class="col-del"><button class="del" onclick="app.hideItem('${String(row.sku).replace(/'/g, "\\'")}')" title="隱藏">✕</button></td>`;
                     } else {
-                        // Product View
-                        tr.innerHTML = `
-                            <td class="cell-base text-center text-slate-400 font-mono">${row.itemNo}</td>
-                            <td class="cell-base name-td"><div class="name-cell text-black">${row.name}</div></td>
-                            <td class="cell-base text-center font-mono text-indigo-600 bg-indigo-50/20">${row.rawOutflow.toLocaleString()}</td>
-                            <td class="cell-base text-center font-mono text-black">${row.runRate.toLocaleString()}</td>
-                            <td class="cell-base text-center font-mono text-black">${Math.round(row.inv).toLocaleString()}</td>
-                            <td class="cell-base text-center"><span class="status-badge ${badgeClass}">${status==='Risk'?'!':'OK'}</span></td>
-                        `;
+                        tr.innerHTML = cells;
                     }
                     tbody.appendChild(tr);
                 });
                 
-                empty.className = visibleCount === 0 ? "flex flex-col items-center justify-center h-64 text-slate-400" : "hidden";
+                empty.style.display = visibleCount === 0 ? "block" : "none";
                 this.updateSortIcons();
             },
 
@@ -482,7 +442,7 @@
             },
 
             updateSortIcons() {
-                document.querySelectorAll('th.sortable').forEach(th => {
+                document.querySelectorAll('thead th[onclick]').forEach(th => {
                     th.classList.remove('asc', 'desc');
                     if(th.getAttribute('onclick').includes(this.sortCol)) th.classList.add(this.sortAsc ? 'asc' : 'desc');
                 });
@@ -503,16 +463,25 @@
 
             showDetails(row) {
                 document.getElementById('modal-content').innerHTML = `
-                    <div class="mb-4 pb-2 border-b"><div class="font-bold text-base text-black">${row.sku}</div></div>
-                    <div class="grid grid-cols-2 gap-4 mb-4 font-mono text-sm">
-                        <div class="bg-slate-50 p-2 rounded"><div class="text-[10px] text-slate-400">Total Outflow</div><div class="font-bold text-indigo-600">${row.rawOutflow}</div></div>
-                        <div class="bg-slate-50 p-2 rounded"><div class="text-[10px] text-slate-400">Months</div><div class="font-bold text-slate-700">${row.months}</div></div>
+                    <div style="font-weight:600;font-size:14px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--line);">${row.sku}</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+                        <div style="background:#f8fafc;padding:10px;border-radius:8px;">
+                            <div style="font-size:11px;color:var(--ink-3);">總出（已排除盤點退庫）</div>
+                            <div style="font-weight:700;font-size:18px;color:var(--accent);" class="num">${row.rawOutflow.toLocaleString()}</div>
+                        </div>
+                        <div style="background:#f8fafc;padding:10px;border-radius:8px;">
+                            <div style="font-size:11px;color:var(--ink-3);">計算月數</div>
+                            <div style="font-weight:700;font-size:18px;" class="num">${row.months}</div>
+                        </div>
                     </div>
-                    <div class="text-xs text-slate-500">Rate: ${row.rawOutflow}/${row.months} = <strong>${row.runRate}</strong></div>
+                    <div style="font-size:12.5px;color:var(--ink-2);">
+                        月需 ＝ ${row.rawOutflow.toLocaleString()} ÷ ${row.months} ＝ <strong>${row.runRate.toLocaleString()}</strong><br>
+                        北倉 ${Math.round(row.inv).toLocaleString()} 件，可撐 ${row.runRate > 0 ? (row.inv / row.runRate).toFixed(1) : '∞'} 個月
+                    </div>
                 `;
                 document.getElementById('modal-debug').classList.add('active');
             },
-            closeModal() { document.getElementById('modal-debug').classList.remove('active'); },
+                        closeModal() { document.getElementById('modal-debug').classList.remove('active'); },
             // RESTORED: Toggle Loader Helper
             toggleLoader(show) { document.getElementById('loader').classList.toggle('hidden', !show); },
             toggleSettings(show) { 
