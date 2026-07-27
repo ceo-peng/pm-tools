@@ -76,11 +76,12 @@
     <div class="card rounded-lg p-3">
         <div class="flex flex-col sm:flex-row gap-2">
             <input id="q" class="inp flex-1" placeholder="搜尋產品" oninput="app.render()">
-            <div class="flex gap-2">
+            <div class="flex flex-wrap gap-2">
                 <button class="btn on flex-1" id="f-real" onclick="app.setKind('real')">正品</button>
                 <button class="btn flex-1" id="f-pack" onclick="app.setKind('pack')">包材周邊</button>
                 <button class="btn flex-1" id="f-all" onclick="app.setKind('all')">全部</button>
-                <button class="btn shrink-0" onclick="app.exportCSV()">匯出</button>
+                <button class="btn flex-1 sm:flex-none" onclick="app.exportCSV()">匯出</button>
+                <button class="btn flex-1 sm:flex-none" onclick="app.exportCSV(true)" title="含試算表 unique_key，回去對帳用">明細</button>
             </div>
         </div>
         <div class="text-xs text-slate-400 mt-2" id="basis"></div>
@@ -109,7 +110,7 @@
     <!-- 清單（手機） -->
     <div class="card rounded-lg md:hidden" id="mlist"></div>
 
-    <div class="text-xs text-slate-400 text-right" id="stamp">最後更新 2026/07/27 22:55</div>
+    <div class="text-xs text-slate-400 text-right" id="stamp">最後更新 2026/07/27 23:20</div>
 </div>
 </div>
 
@@ -198,7 +199,7 @@ const app = {
         const map = new Map();
         const get = (name) => {
             const k = baseName(name);
-            if (!map.has(k)) map.set(k, { name: k, type: '', tpe: 0, sc: 0, momo: 0, expired: 0, batches: [] });
+            if (!map.has(k)) map.set(k, { name: k, type: '', tpe: 0, sc: 0, momo: 0, expired: 0, skus: new Map() });
             return map.get(k);
         };
 
@@ -212,13 +213,18 @@ const app = {
                 const qty = num(r[9]);
                 const p = get(name);
                 if (typeCol && r[typeCol] && !p.type) p.type = String(r[typeCol]).trim();
+                const dead = hasExp && new Date(exp + 'T00:00:00') < today;
+
+                // 保留試算表原始的 unique_key，回去對帳要用這個字串
+                if (!p.skus.has(name)) p.skus.set(name, { key: name, exp: hasExp ? exp : '', tpe: 0, sc: 0, momo: 0, dead });
+                p.skus.get(name)[key] += qty;
+
                 // 包材與印刷品沒有效期，照樣算可用庫存
-                if (hasExp && new Date(exp + 'T00:00:00') < today) {
+                if (dead) {
                     p.expired += qty;   // 已過期的貨不能算進可撐月數，另外標出來
                     return;
                 }
                 p[key] += qty;
-                if (qty > 0 && hasExp) p.batches.push({ exp, qty, where: key });
             });
         };
         readStock(tpe, 'tpe', 1);
@@ -254,8 +260,8 @@ const app = {
             const rate3 = (d3[p.name] || 0) / 3;
             const stock = p.tpe + p.sc + p.momo;
             const runway = rate6 > 0 ? stock / rate6 : Infinity;
-            p.batches.sort((a, b) => a.exp < b.exp ? -1 : 1);
-            return { ...p, rate6, rate3, stock, runway, year: rate6 * 12 };
+            const skus = Array.from(p.skus.values()).sort((a, b) => (a.exp || '9999') < (b.exp || '9999') ? -1 : 1);
+            return { ...p, skus, rate6, rate3, stock, runway, year: rate6 * 12 };
         });
 
         const expiredQty = this.products.reduce((s, p) => s + p.expired, 0);
@@ -283,7 +289,9 @@ const app = {
         return this.products.filter(p => {
             if (this.kind === 'real' && !String(p.type).startsWith('正品')) return false;
             if (this.kind === 'pack' && String(p.type).startsWith('正品')) return false;
-            if (term && !p.name.toLowerCase().includes(term)) return false;
+            // 搜尋也吃完整的 unique_key，貼效期或整串品名都找得到
+            if (term && !p.name.toLowerCase().includes(term)
+                && !p.skus.some(s => s.key.toLowerCase().includes(term))) return false;
             return true;
         });
     },
@@ -392,29 +400,60 @@ const app = {
                     </div>`).join('')}
                 </div>
             </div>` : '<div class="text-xs text-slate-400 mt-2">近六個月沒有出貨紀錄，沒辦法估月均</div>';
-        const batch = p.batches.length
-            ? `最早效期 ${p.batches[0].exp}（${p.batches[0].qty.toLocaleString()} 件）`
-            : (p.expired ? `庫存全部已過期（${p.expired.toLocaleString()} 件）` : '沒有效期資料');
+        // 試算表的原始 unique_key，回去 Google Sheet 找哪一批就靠這個
+        const skuHTML = `
+            <div class="mt-2">
+                <div class="text-xs text-slate-500 mb-1">試算表品項（unique_key）</div>
+                <div class="overflow-x-auto">
+                <table class="text-xs">
+                    <tr class="text-slate-400">
+                        <th class="text-left font-normal py-0.5 pr-3">品項</th>
+                        <th class="font-normal py-0.5 px-2">北倉</th>
+                        <th class="font-normal py-0.5 px-2">三重</th>
+                        <th class="font-normal py-0.5 px-2">MOMO</th>
+                    </tr>
+                    ${p.skus.map(s => `<tr class="${s.dead ? 'text-rose-500' : ''}">
+                        <td class="text-left py-0.5 pr-3 font-mono">${s.key}${s.dead ? '　已過期' : ''}</td>
+                        <td class="py-0.5 px-2">${s.tpe.toLocaleString()}</td>
+                        <td class="py-0.5 px-2">${s.sc.toLocaleString()}</td>
+                        <td class="py-0.5 px-2">${s.momo.toLocaleString()}</td>
+                    </tr>`).join('')}
+                </table>
+                </div>
+            </div>`;
         return `<div class="text-xs text-slate-600 space-y-1 py-1">
             <div>北倉 ${p.tpe.toLocaleString()}　三重 ${p.sc.toLocaleString()}　MOMO ${p.momo.toLocaleString()}${p.expired ? `　已過期 ${p.expired.toLocaleString()}` : ''}</div>
             <div>月均 近六月 ${r1(p.rate6)}　近三月 ${r1(p.rate3)}　${trend}</div>
-            <div>${batch}</div>
+            ${skuHTML}
             ${optHTML}
         </div>`;
     },
 
-    exportCSV() {
+    exportCSV(bySku) {
         const rows = this.rows();
         if (!rows.length) { alert('沒有資料'); return; }
-        const head = ['產品', '北倉', '三重', 'MOMO', '可用庫存', '已過期', '月均(近6月)', '月均(近3月)', '一年份', '可撐月數', '狀態'];
-        const body = rows.map(p => [p.name, p.tpe, p.sc, p.momo, p.stock, p.expired,
-            Math.round(p.rate6 * 10) / 10, Math.round(p.rate3 * 10) / 10,
-            p.rate6 > 0 ? Math.round(p.year) : '', p.runway === Infinity ? '' : Math.round(p.runway * 10) / 10,
-            this.tierOf(p).label]);
+        let head, body;
+        if (bySku) {
+            // 明細：一列一個試算表 unique_key，回去 Google Sheet 直接對得上
+            head = ['unique_key', '效期', '已過期', '北倉', '三重', 'MOMO', '所屬產品', '產品月均(近6月)', '產品可撐月數', '狀態'];
+            body = [];
+            rows.forEach(p => p.skus.forEach(s => body.push([
+                s.key, s.exp, s.dead ? 'Y' : '', s.tpe, s.sc, s.momo, p.name,
+                Math.round(p.rate6 * 10) / 10,
+                p.runway === Infinity ? '' : Math.round(p.runway * 10) / 10,
+                this.tierOf(p).label
+            ])));
+        } else {
+            head = ['產品', '北倉', '三重', 'MOMO', '可用庫存', '已過期', '月均(近6月)', '月均(近3月)', '一年份', '可撐月數', '狀態'];
+            body = rows.map(p => [p.name, p.tpe, p.sc, p.momo, p.stock, p.expired,
+                Math.round(p.rate6 * 10) / 10, Math.round(p.rate3 * 10) / 10,
+                p.rate6 > 0 ? Math.round(p.year) : '', p.runway === Infinity ? '' : Math.round(p.runway * 10) / 10,
+                this.tierOf(p).label]);
+        }
         const text = '﻿' + [head, ...body].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
         const a = document.createElement('a');
         a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8;' }));
-        a.download = `備料水位_${fmtDate(new Date())}.csv`;
+        a.download = `備料水位${bySku ? '_明細' : ''}_${fmtDate(new Date())}.csv`;
         a.click();
         URL.revokeObjectURL(a.href);
     }
