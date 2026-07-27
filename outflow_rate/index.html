@@ -1,519 +1,425 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>歷史出貨量vs庫存 警示表 v45</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-        
-        body { font-family: 'Inter', "Microsoft JhengHei", sans-serif; background-color: #f8fafc; color: #0f172a; -webkit-font-smoothing: antialiased; }
-        .font-mono { font-family: 'JetBrains Mono', monospace; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>備料水位表</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<style>
+    body { font-family: "Microsoft JhengHei", -apple-system, sans-serif; background:#f8fafc; color:#0f172a; }
+    .card { background:#fff; border:1px solid #e2e8f0; }
+    .btn { display:inline-flex; align-items:center; justify-content:center; white-space:nowrap;
+           border-radius:6px; font-size:13px; font-weight:500; cursor:pointer; border:1px solid #e2e8f0;
+           background:#fff; color:#0f172a; padding:6px 12px; transition:background .15s; }
+    .btn:hover { background:#f1f5f9; }
+    .btn.on { background:#4f46e5; color:#fff; border-color:#4f46e5; }
+    .inp { height:38px; border:1px solid #e2e8f0; border-radius:6px; padding:0 10px; font-size:13px; background:#fff; }
 
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    /* 四個備料分類，跟庫存儀表板同一套語言 */
+    .t-short { background:hsl(0 84% 94%); color:hsl(0 72% 35%); }
+    .t-ok    { background:hsl(145 60% 93%); color:hsl(150 55% 25%); }
+    .t-many  { background:hsl(45 95% 90%); color:hsl(38 85% 28%); }
+    .t-over  { background:hsl(28 96% 92%); color:hsl(25 90% 33%); }
+    .tier-card { cursor:pointer; transition:box-shadow .15s, transform .15s; }
+    .tier-card:hover { box-shadow:0 4px 10px -2px rgb(0 0 0 / .12); transform:translateY(-1px); }
+    .tier-card[data-on="true"] { outline:2px solid #4f46e5; outline-offset:1px; }
 
-        /* Toggle Buttons */
-        .btn-toggle { 
-            @apply rounded-full transition-all duration-200 border shadow-sm flex items-center justify-center gap-1 whitespace-nowrap
-            text-[10px] px-3 py-1.5      /* Mobile */
-            md:text-sm md:px-5 md:py-2;  /* Desktop */
-        }
-        .btn-toggle.active { @apply bg-indigo-600 text-white border-indigo-600 font-bold ring-1 ring-indigo-100; }
-        .btn-toggle.inactive { @apply bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-700 font-medium; }
-
-        /* Table Header - 5px on Mobile */
-        th.sortable { 
-            @apply cursor-pointer select-none transition-colors 
-            hover:bg-slate-100 hover:text-indigo-600 
-            px-0.5 py-1.5 md:px-2 md:py-4 
-            align-middle border-b border-slate-200 bg-white sticky top-0 z-10;
-        }
-        
-        .th-content {
-            @apply flex flex-col items-center justify-center gap-0.5 text-[5px] md:text-xs font-bold text-slate-500 uppercase tracking-tight w-full h-full;
-        }
-        
-        /* FIXED ICON SIZE - 8px for Mobile, 10px for Desktop */
-        th.sortable .icon { 
-            @apply flex-none opacity-20 transition-transform duration-200 text-slate-400; 
-            width: 8px; height: 8px; 
-            min-width: 8px; min-height: 8px;
-        }
-        @media (min-width: 768px) {
-            th.sortable .icon { width: 10px; height: 10px; min-width: 10px; min-height: 10px; }
-        }
-
-        th.sortable .icon { display: block; margin: 0 auto; }
-        th.sortable.asc .icon { @apply opacity-100 rotate-0 text-indigo-600; }
-        th.sortable.desc .icon { @apply opacity-100 rotate-180 text-indigo-600; }
-        
-        /* Rows */
-        .table-row { @apply border-b border-slate-100 hover:bg-indigo-50/40 transition-colors h-auto min-h-[36px] md:min-h-[40px]; } 
-        
-        /* Cells - 5px on Mobile */
-        .cell-base { 
-            @apply px-0.5 md:px-3 py-0.5 md:text-xs align-middle; 
-        }
-        
-        /* SKU Name - 5px, 3 Lines Max, Tight Leading */
-        .name-cell {
-            @apply text-[5px] md:text-sm font-bold leading-[0.9] text-slate-900 break-words whitespace-normal;
-            /* Allow wrapping up to 3 lines */
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            max-width: 130px; /* Constraint width to force wrapping */
-        }
-        @media (min-width: 768px) { 
-            .name-cell { max-width: none; font-size: 0.875rem; line-height: 1.25; -webkit-line-clamp: 2; } 
-        }
-
-        /* Status Badge - Scale down */
-        .status-badge {
-            @apply px-1 py-0.5 rounded-full font-bold tracking-wide;
-            font-size: 5px; /* Tiny for mobile */
-        }
-        @media (min-width: 768px) { .status-badge { font-size: 10px; padding: 2px 5px; } }
-
-        /* Loader */
-        .loader { border: 2px solid #e2e8f0; border-top: 2px solid #4f46e5; width: 20px; height: 20px; border-radius: 50%; animation: spin 0.8s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        /* Modal */
-        .modal { transition: opacity 0.2s ease-out; pointer-events: none; opacity: 0; }
-        .modal.active { pointer-events: auto; opacity: 1; }
-        .modal-content { transition: transform 0.2s ease-out; transform: scale(0.98); }
-        .modal.active .modal-content { transform: scale(1); }
-
-        .cell-base{ padding-top: 5.5px !important; padding-bottom: 5.5px !important; }
-
-        /* MOBILE: hide DELETE column only in SKU view, keep Risk column in Product view */
-        @media (max-width: 767px){
-
-          /* SKU view has an extra 7th column (delete) → hide last column */
-          thead tr:has(th:nth-child(7)) th:last-child,
-          tbody tr:has(td:nth-child(7)) td:last-child{
-            display: none !important;
-              }
-
-          /* Product view has only 6 columns → keep last column (Risk) visible */
-          thead tr:not(:has(th:nth-child(7))) th:last-child,
-          tbody tr:not(:has(td:nth-child(7))) td:last-child{
-            display: table-cell !important;
-              }
-            }
-        /* ===== Mobile typography system ===== */
-        @media (max-width: 767px){
-        
-          /* 預設 cell 字（數字、一般欄位） */
-          .cell-base{
-            font-size: 12px;        /* 全表基準字 */
-            line-height: 1.25;
-          }
-        
-          /* SKU / Product name（主角） */
-          .name-cell{
-            font-size: 12.5px;        /* 比其他字大一階 */
-            font-weight: 600;
-            line-height: 1.3;
-          }
-        
-          /* Header（小標題） */
-          th .th-content span{
-            font-size: 13px;
-            font-weight: 700;
-            letter-spacing: 0.02em;
-          }
-        
-          /* 數字欄位（出貨、庫存、月需） */
-          td.font-mono{
-            font-size: 13px;
-            font-weight: 600;
-          }
-        
-          /* Risk / OK badge */
-          .status-badge{
-            font-size: 11.5px;
-            font-weight: 600;
-          }
-        }
-        
-    </style>
+    th { background:#f8fafc; font-size:12px; font-weight:600; color:#64748b; padding:10px 8px; text-align:right; white-space:nowrap; }
+    th:first-child { text-align:left; }
+    th.s { cursor:pointer; }
+    th.s:hover { color:#4f46e5; }
+    td { padding:9px 8px; font-size:13px; text-align:right; }
+    td:first-child { text-align:left; }
+    tbody tr { border-top:1px solid #f1f5f9; }
+    tbody tr.main:hover { background:#f8fafc; }
+    .detail td { background:#f8fafc; }
+    .spin { animation:spin 1s linear infinite; display:inline-block; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+</style>
 </head>
-<body class="flex flex-col h-screen overflow-hidden">
+<body>
+<div class="min-h-screen p-3 sm:p-4">
+<div class="max-w-6xl mx-auto space-y-3 sm:space-y-4">
 
-    <!-- Header -->
-    <header class="bg-white border-b border-slate-200 h-14 flex-shrink-0 z-30 shadow-sm relative">
-        <div class="h-full px-3 md:px-6 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="bg-indigo-600 text-white p-1.5 rounded-lg font-bold text-lg leading-none shadow-md shadow-indigo-200">PM</div>
-                <div class="hidden md:block">
-                    <h1 class="text-base font-bold text-slate-800 tracking-tight leading-tight">歷史出貨量 vs 即時庫存 警示表</h1>
-                    <div class="text-[10px] text-slate-400 font-medium">v45 <span class="mx-1">•</span> <span id="status">Ready</span></div>
-                </div>
-            </div>
-
-            <!-- View Switcher -->
-            <div class="flex items-center gap-3 absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                <button onclick="app.switchView('sku')" id="btn-view-sku" class="btn-toggle active">
-                    品項總覽 
-                </button>
-                <button onclick="app.switchView('product')" id="btn-view-product" class="btn-toggle inactive">
-                    產品總覽
-                </button>
-            </div>
-
-            <!-- Actions -->
-            <div class="flex items-center gap-2">
-                <button onclick="window.location.reload()" class="p-2 rounded-full hover:bg-slate-100 text-slate-400 transition-colors" title="Reload">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                </button>
-                <button onclick="app.toggleSettings(true)" class="p-2 rounded-full hover:bg-slate-100 text-slate-400 transition-colors" title="Settings">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                </button>
-            </div>
+    <div class="flex items-center justify-between gap-2">
+        <div>
+            <h1 class="text-xl sm:text-2xl font-bold">備料水位表</h1>
+            <div class="text-xs text-slate-400" id="sub">讀取中</div>
         </div>
-    </header>
-
-    <!-- Toolbar -->
-    <div class="bg-white border-b border-slate-200 px-3 py-2 md:py-3 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.05)] z-20">
-        <div class="max-w-7xl mx-auto flex items-center gap-2">
-            <!-- Search -->
-            <div class="relative flex-grow">
-                <input type="text" id="search" placeholder="Search..." class="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-md focus:bg-white focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all placeholder-slate-400 text-black">
-                <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-            </div>
-            
-            <button onclick="app.exportCSV()" class="flex items-center gap-1 bg-white border border-slate-300 hover:bg-slate-50 text-slate-600 px-3 py-1.5 rounded-md text-[10px] md:text-xs font-bold uppercase tracking-wide transition-all shadow-sm">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                <span class="hidden sm:inline">Export</span> CSV
-            </button>
-        </div>
-        <div class="max-w-7xl mx-auto mt-1 text-right hidden sm:block">
-            <span class="text-[10px] text-slate-400 font-mono" id="debug-stats"></span>
+        <div class="flex gap-2 shrink-0">
+            <button class="btn" onclick="app.load()">重新整理</button>
+            <button class="btn" onclick="app.toggleSet()">設定</button>
         </div>
     </div>
 
-    <!-- Data Table -->
-    <div class="flex-grow overflow-auto bg-white relative">
-        <div class="max-w-7xl mx-auto h-full">
-            <table class="w-full text-left border-collapse table-auto md:table-fixed">
-                <thead id="table-head" class="bg-white sticky top-0 z-10 shadow-sm border-b border-slate-200"></thead>
-                <tbody id="table-body" class="divide-y divide-slate-100 bg-white"></tbody>
-            </table>
-            
-            <div id="empty-state" class="hidden flex flex-col items-center justify-center h-64 text-slate-400">
-                <p class="text-sm">No items found</p>
-            </div>
+    <!-- 設定 -->
+    <div id="settings" class="card rounded-lg p-3 hidden">
+        <div class="flex flex-wrap items-end gap-3 text-sm">
+            <label class="flex flex-col gap-1">
+                <span class="text-xs text-slate-500">補貨前置期（月）</span>
+                <input id="s-lead" type="number" class="inp w-24" value="3">
+            </label>
+            <label class="flex flex-col gap-1">
+                <span class="text-xs text-slate-500">安全庫存（月）</span>
+                <input id="s-safe" type="number" class="inp w-24" value="1">
+            </label>
+            <label class="flex flex-col gap-1">
+                <span class="text-xs text-slate-500">到貨時剩餘效期（月）</span>
+                <input id="s-shelf" type="number" class="inp w-28" value="34">
+            </label>
+            <button class="btn on" onclick="app.saveSet()">套用</button>
+            <span class="text-xs text-slate-400">要補的門檻＝前置期＋安全庫存。效期用來判斷備太多。</span>
         </div>
     </div>
 
-    <!-- Loading -->
-    <div id="loader" class="fixed inset-0 bg-white/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center transition-opacity duration-300">
-        <div class="loader mb-4"></div>
-        <div class="text-sm font-semibold text-slate-800">Connecting...</div>
-        <div class="text-xs text-slate-400 mt-2">Loading data from Google Sheets</div>
-    </div>
-
-    <!-- Debug Modal -->
-    <div id="modal-debug" class="modal fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick="app.closeModal()"></div>
-        <div class="modal-content bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col relative z-10 overflow-hidden">
-            <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                <h3 class="font-bold text-slate-800 text-sm">Details</h3>
-                <button onclick="app.closeModal()" class="text-slate-400 hover:text-slate-600">✕</button>
+    <!-- 工具列 -->
+    <div class="card rounded-lg p-3">
+        <div class="flex flex-col sm:flex-row gap-2">
+            <input id="q" class="inp flex-1" placeholder="搜尋產品" oninput="app.render()">
+            <div class="flex gap-2">
+                <button class="btn on flex-1" id="f-real" onclick="app.setKind('real')">正品</button>
+                <button class="btn flex-1" id="f-pack" onclick="app.setKind('pack')">包材周邊</button>
+                <button class="btn flex-1" id="f-all" onclick="app.setKind('all')">全部</button>
+                <button class="btn shrink-0" onclick="app.exportCSV()">匯出</button>
             </div>
-            <div id="modal-content" class="p-5 overflow-y-auto font-mono text-xs space-y-4 bg-white"></div>
         </div>
+        <div class="text-xs text-slate-400 mt-2" id="basis"></div>
     </div>
 
-    <!-- Settings Modal -->
-    <div id="modal-settings" class="modal fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick="app.toggleSettings(false)"></div>
-        <div class="modal-content bg-white w-full max-w-md rounded-xl shadow-2xl z-10 p-5 relative">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-base font-bold text-slate-800">Configuration</h2>
-                <button onclick="app.toggleSettings(false)" class="text-slate-400 hover:text-slate-600">✕</button>
-            </div>
-            <div class="space-y-4">
-                <div class="grid grid-cols-1 gap-3">
-                    <div><label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Sheet ID</label><input id="conf-id" class="w-full p-2 text-xs border border-slate-200 rounded focus:ring-2 focus:ring-indigo-500"></div>
-                    <div><label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tab Name</label><input id="conf-tab" class="w-full p-2 text-xs border border-slate-200 rounded focus:ring-2 focus:ring-indigo-500"></div>
-                </div>
-                
-                <div class="bg-slate-50 rounded-lg p-3 border border-slate-100 flex justify-between items-center">
-                    <span class="text-xs font-bold text-slate-700">Hidden Items</span>
-                    <div class="text-xs"><span id="hidden-count" class="font-bold text-slate-600">0</span> hidden <button onclick="app.clearHidden()" class="text-indigo-600 hover:underline ml-2">Reset</button></div>
-                </div>
-            </div>
-            <div class="mt-6 flex justify-end"><button onclick="app.saveSettings()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded text-xs shadow-md">Save</button></div>
-        </div>
+    <!-- 四個備料分類 -->
+    <div class="grid grid-cols-4 gap-2 sm:gap-3" id="tiers"></div>
+
+    <!-- 表格（桌機） -->
+    <div class="card rounded-lg hidden md:block overflow-x-auto">
+        <table class="w-full">
+            <thead>
+                <tr>
+                    <th class="s" onclick="app.sort('name')">產品</th>
+                    <th class="s" onclick="app.sort('stock')">可用庫存</th>
+                    <th class="s" onclick="app.sort('rate6')">月均</th>
+                    <th class="s" onclick="app.sort('year')">一年份</th>
+                    <th class="s" onclick="app.sort('runway')">可撐月數</th>
+                    <th>狀態</th>
+                </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+        </table>
     </div>
 
-    <script>
-        const CONFIG = { ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI', TAB: 'inventory_tracking', H_ROW: 1, D_ROW: 3, SKU_IDX: 3, INV_IDX: 9, START_IDX: 11 };
-        window.googleSheetCallback = function(json) {
-            if (json.status === 'error') { alert("API Error: " + json.errors[0].detailed_message); app.toggleLoader(false); return; }
-            const rows = json.table.rows.map(r => r.c.map(cell => (cell && cell.v !== null) ? String(cell.v) : ""));
-            app.process(rows);
+    <!-- 清單（手機） -->
+    <div class="card rounded-lg md:hidden" id="mlist"></div>
+
+    <div class="text-xs text-slate-400 text-right" id="stamp">最後更新 2026/07/27 22:55</div>
+</div>
+</div>
+
+<script>
+const SHEETS = {
+    TPE:  '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI',
+    SC:   '12C25rcfSEMtSkkARzLtxlW9Wmhu64m6eSP_KoK8M-js',
+    MOMO: '1j04xLITImSX6WgtXkaGQfs0IZ5E8r3UEOrT2CKKGAxE'
+};
+// 這些類別是庫存校正，不是需求，不列入月均
+const NON_DEMAND = ['盤點', '退庫', '歸倉', '客退'];
+const SET_KEY = 'pm_outflow_settings_v1';
+
+const csv = (text) => {
+    const rows = []; let row = [], f = '', q = false;
+    for (let i = 0; i < text.length; i++) {
+        const c = text[i], n = text[i + 1];
+        if (c === '"') { if (q && n === '"') { f += '"'; i++; continue; } q = !q; }
+        else if (c === ',' && !q) { row.push(f); f = ''; }
+        else if ((c === '\n' || c === '\r') && !q) { if (c === '\r' && n === '\n') i++; row.push(f); rows.push(row); row = []; f = ''; }
+        else f += c;
+    }
+    if (f || row.length) { row.push(f); rows.push(row); }
+    return rows;
+};
+const num = (v) => { const x = parseFloat(String(v == null ? '' : v).replace(/[,\s]/g, '')); return isNaN(x) ? 0 : x; };
+// 品名去掉尾端的效期與破折號，讓三張表與出貨日誌對得起來
+const baseName = (s) => String(s || '').replace(/\s*\(?\d{4}-\d{2}-\d{2}\)?.*$/, '').replace(/\s*-\s*$/, '').trim();
+const ymOf = (id) => { const m = String(id).match(/^(\d{2})\.(\d{2})/); return m ? '20' + m[1] + '-' + m[2] : null; };
+const fmtDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const r1 = (n) => (Math.round(n * 10) / 10).toLocaleString();
+
+const app = {
+    products: [], kind: 'real', sortKey: 'runway', asc: true, tier: null, open: {},
+    lead: 3, safe: 1, shelf: 34, basis: '',
+
+    async init() {
+        try {
+            const s = JSON.parse(localStorage.getItem(SET_KEY) || 'null');
+            if (s) { this.lead = s.lead; this.safe = s.safe; this.shelf = s.shelf; }
+        } catch (e) { /* 用預設 */ }
+        document.getElementById('s-lead').value = this.lead;
+        document.getElementById('s-safe').value = this.safe;
+        document.getElementById('s-shelf').value = this.shelf;
+        await this.load();
+    },
+
+    toggleSet() { document.getElementById('settings').classList.toggle('hidden'); },
+    saveSet() {
+        this.lead = num(document.getElementById('s-lead').value) || 3;
+        this.safe = num(document.getElementById('s-safe').value) || 0;
+        this.shelf = num(document.getElementById('s-shelf').value) || 34;
+        try { localStorage.setItem(SET_KEY, JSON.stringify({ lead: this.lead, safe: this.safe, shelf: this.shelf })); } catch (e) {}
+        this.toggleSet(); this.render();
+    },
+
+    url(id, tab, range) {
+        const r = range ? `&range=${range}` : '';
+        return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?sheet=${encodeURIComponent(tab)}${r}&tqx=out:csv`;
+    },
+
+    async grab(u) {
+        const res = await fetch(u, { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return csv(await res.text());
+    },
+
+    async load() {
+        document.getElementById('sub').innerHTML = '<span class="spin">◐</span> 讀取中';
+        try {
+            const [tpe, sc, momo, log] = await Promise.all([
+                this.grab(this.url(SHEETS.TPE, 'inventory_tracking', 'A4:Z')),
+                this.grab(this.url(SHEETS.SC, 'inventory_tracking', 'A4:Z')),
+                this.grab(this.url(SHEETS.MOMO, 'inventory_tracking', 'A4:Z')),
+                this.grab(this.url(SHEETS.TPE, 'LOG_inventory_update'))
+            ]);
+            this.build(tpe, sc, momo, log);
+            this.render();
+        } catch (e) {
+            document.getElementById('sub').innerText = '讀取失敗：' + e.message;
+        }
+    },
+
+    build(tpe, sc, momo, log) {
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const map = new Map();
+        const get = (name) => {
+            const k = baseName(name);
+            if (!map.has(k)) map.set(k, { name: k, type: '', tpe: 0, sc: 0, momo: 0, expired: 0, batches: [] });
+            return map.get(k);
         };
-        const safeStorage = { get: (k) => { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
 
-        const app = {
-            data: [], productData: [], sortCol: 'itemNo', sortAsc: true, hiddenSKUs: new Set(), view: 'sku',
-
-            init() {
-                this.hiddenSKUs = new Set(safeStorage.get('pm_hidden_skus'));
-                document.getElementById('hidden-count').innerText = this.hiddenSKUs.size;
-                this.bindEvents();
-                this.fetchData();
-            },
-
-            bindEvents() { document.getElementById('search').addEventListener('keyup', (e) => this.render(e.target.value)); },
-            switchView(mode) {
-                this.view = mode;
-                document.getElementById('btn-view-sku').className = mode === 'sku' ? 'btn-toggle active' : 'btn-toggle inactive';
-                document.getElementById('btn-view-product').className = mode === 'product' ? 'btn-toggle active' : 'btn-toggle inactive';
-                this.sort('itemNo', true); 
-            },
-            fetchData() {
-                document.getElementById('loader').classList.remove('hidden');
-                const s = document.createElement('script'); 
-                s.src = `https://docs.google.com/spreadsheets/d/${CONFIG.ID}/gviz/tq?sheet=${CONFIG.TAB}&headers=0&tqx=responseHandler:googleSheetCallback`;
-                s.onerror = () => { alert("Network Error"); app.toggleLoader(false); };
-                document.body.appendChild(s);
-            },
-
-            process(rows) {
-                try {
-                    const header = rows[CONFIG.H_ROW];
-                    let dateCols = [], firstDate = null, lastDate = null;
-                    for(let i = CONFIG.START_IDX; i < header.length; i++) {
-                        const txt = String(header[i]);
-                        if (/\d{2}\.\d{4}/.test(txt)) {
-                            const m = txt.match(/(\d{2})\.(\d{4})/);
-                            if (m) {
-                                const iso = `20${m[1]}-${m[2].substr(0,2)}-${m[2].substr(2,2)}`;
-                                dateCols.push({ idx: i, iso: iso, raw: txt });
-                                if(!firstDate) firstDate = new Date(iso); lastDate = new Date(iso);
-                            }
-                        }
-                    }
-                    let denom = 1;
-                    if(firstDate && lastDate) {
-                        denom = Math.max(1, ((lastDate.getFullYear() - firstDate.getFullYear()) * 12 + (lastDate.getMonth() - firstDate.getMonth()) + 1) - 1);
-                    }
-                    document.getElementById('debug-stats').innerText = `T: ${denom}m`;
-
-                    const skuResults = [];
-                    for(let i = CONFIG.D_ROW; i < rows.length; i++) {
-                        const row = rows[i];
-                        if (!row[CONFIG.SKU_IDX]) continue;
-                        const sku = String(row[CONFIG.SKU_IDX]).trim();
-                        if (sku.toLowerCase().includes('unique_key') || sku.includes('sort_')) continue;
-                        const itemNo = parseInt(row[0]) || 9999;
-                        const invRaw = row[CONFIG.INV_IDX];
-                        let inv = typeof invRaw === 'string' ? parseFloat(invRaw.replace(/,/g, '')) : (typeof invRaw === 'number' ? invRaw : 0);
-                        let totalOut = 0;
-                        for (let c = CONFIG.START_IDX; c < row.length; c++) {
-                            let val = row[c];
-                            if (typeof val === 'string') val = parseFloat(val.replace(/,/g, ''));
-                            if (!isNaN(val) && val < 0) totalOut += Math.abs(val);
-                        }
-                        const monthlyRate = Math.ceil(totalOut / denom);
-                        // SKU View: show original SKU but allow line wrapping
-                        const product = sku; 
-                        let status = 'OK';
-                        if (monthlyRate > 0 && (inv / monthlyRate) < 2) status = 'Risk';
-                        skuResults.push({ itemNo, sku, name: product, inv: inv || 0, rawOutflow: totalOut, months: denom, runRate: monthlyRate, status });
-                    }
-                    this.data = skuResults;
-                    this.aggregateProducts(skuResults);
-                    this.sort('itemNo', true); 
-                    app.toggleLoader(false);
-                } catch(e) {
-                    alert("Processing Error: " + e.message);
-                    app.toggleLoader(false);
+        // 三倉庫存：D 品名、E 效期、J 數量；台北的 B 欄有 product_type
+        const readStock = (rows, key, typeCol) => {
+            rows.forEach(r => {
+                const name = (r[3] || '').trim();
+                if (!name || name.includes('unique_key') || name.includes('sort_')) return;
+                const exp = (r[4] || '').trim();
+                const hasExp = /^\d{4}-\d{2}-\d{2}$/.test(exp);
+                const qty = num(r[9]);
+                const p = get(name);
+                if (typeCol && r[typeCol] && !p.type) p.type = String(r[typeCol]).trim();
+                // 包材與印刷品沒有效期，照樣算可用庫存
+                if (hasExp && new Date(exp + 'T00:00:00') < today) {
+                    p.expired += qty;   // 已過期的貨不能算進可撐月數，另外標出來
+                    return;
                 }
-            },
+                p[key] += qty;
+                if (qty > 0 && hasExp) p.batches.push({ exp, qty, where: key });
+            });
+        };
+        readStock(tpe, 'tpe', 1);
+        readStock(sc, 'sc', 1);
+        readStock(momo, 'momo', null);
 
-            aggregateProducts(skuData) {
-                const map = new Map();
-                skuData.forEach(item => {
-                    // For aggregation, we use the cleaned name
-                    const cleanName = item.sku.replace(/\s*\(?\d{4}-\d{2}-\d{2}\)?.*$/, "").replace(/\s*-\s*$/, "").trim();
-                    if(!map.has(cleanName)) map.set(cleanName, { name: cleanName, rawOutflow: 0, inv: 0, months: item.months });
-                    const p = map.get(cleanName);
-                    p.rawOutflow += item.rawOutflow;
-                    p.inv += item.inv;
-                });
-                this.productData = Array.from(map.values()).map((p, i) => {
-                  const runRate = Math.ceil(p.rawOutflow / p.months);
-                  const status = (runRate > 0 && (p.inv / runRate) < 2) ? 'Risk' : 'OK';
-                
-                  return {
-                    itemNo: i + 1,
-                    name: p.name,
-                    rawOutflow: p.rawOutflow,
-                    inv: p.inv,
-                    runRate,
-                    status,     // ✅ 關鍵
-                    months: p.months
-                  };
-                });
-            },
+        // 出貨日誌：A 事件時戳、C 產品、D 數量、F 類別
+        const monthKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const winMonths = (n) => {
+            const out = [];
+            for (let i = n; i >= 1; i--) {
+                const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                out.push(monthKey(d));
+            }
+            return out;
+        };
+        const w6 = winMonths(6), w3 = winMonths(3);
+        const d6 = {}, d3 = {};
+        let skippedNonDemand = 0;
+        log.forEach(r => {
+            const ym = ymOf(r[0]);
+            if (!ym) return;
+            const qty = num(r[3]);
+            if (qty >= 0) return;
+            if (NON_DEMAND.includes(String(r[5]).trim())) { skippedNonDemand += -qty; return; }
+            const k = baseName(r[2]);
+            if (w6.includes(ym)) d6[k] = (d6[k] || 0) + (-qty);
+            if (w3.includes(ym)) d3[k] = (d3[k] || 0) + (-qty);
+        });
 
-            render(filterInput = '') {
-                const term = (filterInput || document.getElementById('search').value).toLowerCase();
-                const tbody = document.getElementById('table-body');
-                const thead = document.getElementById('table-head');
-                const empty = document.getElementById('empty-state');
-                tbody.innerHTML = '';
+        this.products = Array.from(map.values()).map(p => {
+            const rate6 = (d6[p.name] || 0) / 6;
+            const rate3 = (d3[p.name] || 0) / 3;
+            const stock = p.tpe + p.sc + p.momo;
+            const runway = rate6 > 0 ? stock / rate6 : Infinity;
+            p.batches.sort((a, b) => a.exp < b.exp ? -1 : 1);
+            return { ...p, rate6, rate3, stock, runway, year: rate6 * 12 };
+        });
 
-                // HEADER RENDER
-                const createHeader = (cols) => {
-                    return `<tr>${cols.map(c => 
-                        `<th class="sortable w-[${c.w}] text-center" onclick="app.sort('${c.k}')">
-                            <div class="th-content"><span>${c.t}</span><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></div>
-                        </th>`
-                    ).join('')}${this.view==='sku'?'<th class="w-[5%]"></th>':''}</tr>`;
-                };
+        const expiredQty = this.products.reduce((s, p) => s + p.expired, 0);
+        const expiredN = this.products.filter(p => p.expired > 0).length;
+        this.basis = `月均取近 6 個完整月（${w6[0]} 到 ${w6[5]}），已排除 ${NON_DEMAND.join('、')} 共 ${Math.round(skippedNonDemand).toLocaleString()} 件的庫存校正。庫存為北倉＋三重＋MOMO，已過期的不計入可撐月數。`
+            + (expiredQty ? `目前有 ${expiredN} 個產品共 ${Math.round(expiredQty).toLocaleString()} 件已經過期。` : '');
+        document.getElementById('basis').innerText = this.basis;
+        document.getElementById('sub').innerText = `資料讀取 ${new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}`;
+    },
 
-                if (this.view === 'sku') {
-                    thead.innerHTML = createHeader([
-                        {t:'項次', k:'itemNo', w:'10%'},
-                        {t:'品項', k:'name', w:'auto'}, // Shows Full SKU as 'name' in sku view
-                        {t:'總出', k:'rawOutflow', w:'15%'},
-                        {t:'月需', k:'runRate', w:'15%'},
-                        {t:'北倉', k:'inv', w:'15%'},
-                        {t:'風險', k:'status', w:'10%'}
-                    ]);
-                } else {
-                    thead.innerHTML = createHeader([
-                        {t:'項次', k:'itemNo', w:'10%'},
-                        {t:'產品', k:'name', w:'auto'},
-                        {t:'總出', k:'rawOutflow', w:'15%'},
-                        {t:'月需', k:'runRate', w:'15%'},
-                        {t:'北倉', k:'inv', w:'15%'},
-                        {t:'風險', k:'status', w:'12%'}
-                    ]);
-                }
+    tiersOf() {
+        const need = this.lead + this.safe;
+        return [
+            { key: 'short', label: '要補', short: '要補', cls: 't-short', test: (p) => p.runway < need },
+            { key: 'ok', label: '正常', short: '正常', cls: 't-ok', test: (p) => p.runway >= need && p.runway <= 12 },
+            { key: 'many', label: '偏多', short: '偏多', cls: 't-many', test: (p) => p.runway > 12 && p.runway <= this.shelf },
+            // 可撐超過保存期，或根本沒出貨，都是這批注定用不完
+            { key: 'over', label: '過量', short: '過量', cls: 't-over', test: (p) => p.runway > this.shelf }
+        ];
+    },
+    tierOf(p) { return this.tiersOf().find(t => t.test(p)); },
 
-                const dataset = this.view === 'sku' ? this.data : this.productData;
-                let visibleCount = 0;
+    scoped() {
+        const term = document.getElementById('q').value.trim().toLowerCase();
+        return this.products.filter(p => {
+            if (this.kind === 'real' && !String(p.type).startsWith('正品')) return false;
+            if (this.kind === 'pack' && String(p.type).startsWith('正品')) return false;
+            if (term && !p.name.toLowerCase().includes(term)) return false;
+            return true;
+        });
+    },
 
-                dataset.forEach(row => {
-                    if (this.view === 'sku' && this.hiddenSKUs.has(row.sku)) return;
-                    if (term && !row.name.toLowerCase().includes(term) && !(row.sku && row.sku.toLowerCase().includes(term))) return;
-                    
-                    visibleCount++;
-                    const tr = document.createElement('tr');
-                    tr.className = "table-row group";
-                    
-                    let status = 'OK';
-                    if (row.runRate > 0 && (row.inv / row.runRate) < 2) status = 'Risk';
-                    let badgeClass = status === 'Risk' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700';
+    rows() {
+        let list = this.scoped();
+        if (this.tier) { const t = this.tiersOf().find(x => x.key === this.tier); list = list.filter(t.test); }
+        const k = this.sortKey, m = this.asc ? 1 : -1;
+        return list.slice().sort((a, b) => {
+            let x = a[k], y = b[k];
+            if (typeof x === 'string') return x.localeCompare(y) * m;
+            if (x === Infinity) x = Number.MAX_VALUE;
+            if (y === Infinity) y = Number.MAX_VALUE;
+            return (x - y) * m;
+        });
+    },
 
-                    if (this.view === 'sku') {
-                        tr.onclick = (e) => { if(!e.target.closest('button')) app.showDetails(row); };
-                        
-                        tr.innerHTML = `
-                            <td class="cell-base text-slate-400 text-center font-mono">${row.itemNo === 9999 ? '-' : row.itemNo}</td>
-                            <td class="cell-base name-td"><div class="name-cell">${row.name}</div></td>
-                            <td class="cell-base text-center text-indigo-600 font-mono bg-indigo-50/20">${row.rawOutflow.toLocaleString()}</td>
-                            <td class="cell-base text-center font-mono text-black">${row.runRate.toLocaleString()}</td>
-                            <td class="cell-base text-center font-mono text-black">${Math.round(row.inv).toLocaleString()}</td>
-                            <td class="cell-base text-center"><span class="status-badge ${badgeClass}">${status==='Risk'?'!':'OK'}</span></td>
-                            <td class="cell-base text-center">
-                                <button onclick="app.hideItem('${row.sku}')" class="text-slate-300 hover:text-rose-500 transition-colors opacity-100 sm:opacity-0 group-hover:opacity-100 px-1">✕</button>
-                            </td>
-                        `;
-                    } else {
-                        // Product View
-                        tr.innerHTML = `
-                            <td class="cell-base text-center text-slate-400 font-mono">${row.itemNo}</td>
-                            <td class="cell-base name-td"><div class="name-cell text-black">${row.name}</div></td>
-                            <td class="cell-base text-center font-mono text-indigo-600 bg-indigo-50/20">${row.rawOutflow.toLocaleString()}</td>
-                            <td class="cell-base text-center font-mono text-black">${row.runRate.toLocaleString()}</td>
-                            <td class="cell-base text-center font-mono text-black">${Math.round(row.inv).toLocaleString()}</td>
-                            <td class="cell-base text-center"><span class="status-badge ${badgeClass}">${status==='Risk'?'!':'OK'}</span></td>
-                        `;
-                    }
-                    tbody.appendChild(tr);
-                });
-                
-                empty.className = visibleCount === 0 ? "flex flex-col items-center justify-center h-64 text-slate-400" : "hidden";
-                this.updateSortIcons();
-            },
+    setKind(k) {
+        this.kind = k;
+        ['real', 'pack', 'all'].forEach(x => document.getElementById('f-' + x).className = 'btn flex-1' + (x === k ? ' on' : ''));
+        this.render();
+    },
+    sort(k) { if (this.sortKey === k) this.asc = !this.asc; else { this.sortKey = k; this.asc = true; } this.render(); },
+    setTier(k) { this.tier = this.tier === k ? null : k; this.render(); },
+    toggle(name) { this.open[name] = !this.open[name]; this.render(); },
 
-            sort(key, forceAsc) {
-                if(forceAsc) { this.sortAsc = true; this.sortCol = key; }
-                else { this.sortAsc = (this.sortCol === key) ? !this.sortAsc : true; this.sortCol = key; }
-                const m = this.sortAsc ? 1 : -1;
-                const set = this.view === 'sku' ? this.data : this.productData;
-                set.sort((a, b) => {
-                    let v1 = a[key], v2 = b[key];
-                    if (typeof v1 === 'string') return v1.localeCompare(v2) * m;
-                    return (v1 - v2) * m;
-                });
-                this.render(document.getElementById('search').value);
-            },
+    // 半年 / 一年 / 兩年份各是多少件，下了之後可撐多久，會不會超過效期
+    options(p) {
+        if (!(p.rate6 > 0)) return [];
+        return [[0.5, '半年份'], [1, '一年份'], [2, '兩年份']].map(([y, label]) => {
+            const qty = Math.round(p.rate6 * 12 * y);
+            const after = (p.stock + qty) / p.rate6;
+            return { label, qty, after, over: after > this.shelf };
+        });
+    },
 
-            updateSortIcons() {
-                document.querySelectorAll('th.sortable').forEach(th => {
-                    th.classList.remove('asc', 'desc');
-                    if(th.getAttribute('onclick').includes(this.sortCol)) th.classList.add(this.sortAsc ? 'asc' : 'desc');
-                });
-            },
+    render() {
+        const list = this.scoped();
+        const tiers = this.tiersOf();
+        document.getElementById('tiers').innerHTML = tiers.map(t => {
+            const n = list.filter(t.test).length;
+            return `<div class="card tier-card rounded-lg p-2 sm:p-3 ${t.cls}" data-on="${this.tier === t.key}" onclick="app.setTier('${t.key}')">
+                <div class="text-xs sm:text-sm font-medium whitespace-nowrap"><span class="sm:hidden">${t.short}</span><span class="hidden sm:inline">${t.label}</span></div>
+                <div class="text-lg sm:text-2xl font-bold leading-tight">${n}</div>
+                <div class="text-xs opacity-80">個產品</div>
+            </div>`;
+        }).join('');
 
-            hideItem(sku) { if(confirm('Hide?')) { this.hiddenSKUs.add(sku); safeStorage.set('pm_hidden_skus', Array.from(this.hiddenSKUs)); document.getElementById('hidden-count').innerText = this.hiddenSKUs.size; this.render(document.getElementById('search').value); } },
-            clearHidden() { if(confirm('Reset?')) { this.hiddenSKUs.clear(); safeStorage.set('pm_hidden_skus', []); document.getElementById('hidden-count').innerText = 0; this.render(document.getElementById('search').value); } },
-            
-            exportCSV() {
-                const dataset = this.view === 'sku' ? this.data : this.productData;
-                if(!dataset.length) { alert("No data"); return; }
-                let headers = this.view === 'sku' ? ["項次","品項","總出","月需","北倉","風險"] : ["項次","產品","總出","月需","北倉","風險"];
-                let mapper = this.view === 'sku' ? r => [r.itemNo, r.sku, r.rawOutflow, r.runRate, r.inv, r.status] : r => [r.itemNo, r.name, r.rawOutflow, r.runRate, r.inv, r.status];
-                const csv = "\ufeff" + [headers.join(","), ...dataset.filter(r => this.view!=='sku' || !this.hiddenSKUs.has(r.sku)).map(r => mapper(r).map(c => `"${String(c).replace(/"/g, '""')}"`).join(","))].join("\n");
-                const url = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
-                const a = document.createElement("a"); a.href = url; a.download = `Inv_${this.view}_${new Date().toISOString().split('T')[0]}.csv`; a.click();
-            },
+        const rows = this.rows();
+        const arrow = (k) => this.sortKey === k ? (this.asc ? ' ↑' : ' ↓') : '';
+        document.querySelectorAll('th.s').forEach(th => {
+            const k = th.getAttribute('onclick').match(/'(\w+)'/)[1];
+            th.innerText = th.innerText.replace(/[ ↑↓]+$/, '') + arrow(k);
+        });
 
-            showDetails(row) {
-                document.getElementById('modal-content').innerHTML = `
-                    <div class="mb-4 pb-2 border-b"><div class="font-bold text-base text-black">${row.sku}</div></div>
-                    <div class="grid grid-cols-2 gap-4 mb-4 font-mono text-sm">
-                        <div class="bg-slate-50 p-2 rounded"><div class="text-[10px] text-slate-400">Total Outflow</div><div class="font-bold text-indigo-600">${row.rawOutflow}</div></div>
-                        <div class="bg-slate-50 p-2 rounded"><div class="text-[10px] text-slate-400">Months</div><div class="font-bold text-slate-700">${row.months}</div></div>
+        const runTxt = (p) => p.runway === Infinity ? '無出貨' : r1(p.runway) + ' 月';
+        const tbody = document.getElementById('tbody');
+        const mlist = document.getElementById('mlist');
+
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-slate-400 py-8">沒有符合的產品</td></tr>';
+            mlist.innerHTML = '<div class="text-center text-slate-400 py-8 text-sm">沒有符合的產品</div>';
+            return;
+        }
+
+        tbody.innerHTML = rows.map(p => {
+            const t = this.tierOf(p);
+            const detail = this.open[p.name] ? `<tr class="detail"><td colspan="6">${this.detailHTML(p)}</td></tr>` : '';
+            return `<tr class="main cursor-pointer" onclick="app.toggle('${p.name.replace(/'/g, "\\'")}')">
+                <td class="font-medium">${p.name}${p.expired ? ` <span class="text-xs text-rose-500 whitespace-nowrap">已過期 ${p.expired.toLocaleString()}</span>` : ''}</td>
+                <td>${p.stock.toLocaleString()}</td>
+                <td>${r1(p.rate6)}</td>
+                <td>${p.rate6 > 0 ? Math.round(p.year).toLocaleString() : '-'}</td>
+                <td class="font-bold">${runTxt(p)}</td>
+                <td><span class="${t.cls} px-2 py-1 rounded text-xs font-medium">${t.label}</span></td>
+            </tr>${detail}`;
+        }).join('');
+
+        mlist.innerHTML = rows.map(p => {
+            const t = this.tierOf(p);
+            return `<div class="border-b last:border-b-0 border-slate-100">
+                <div class="px-3 py-2" onclick="app.toggle('${p.name.replace(/'/g, "\\'")}')">
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="font-medium text-sm leading-snug">${p.name}</div>
+                        <span class="${t.cls} shrink-0 px-2 py-0.5 rounded text-xs font-medium">${runTxt(p)}</span>
                     </div>
-                    <div class="text-xs text-slate-500">Rate: ${row.rawOutflow}/${row.months} = <strong>${row.runRate}</strong></div>
-                `;
-                document.getElementById('modal-debug').classList.add('active');
-            },
-            closeModal() { document.getElementById('modal-debug').classList.remove('active'); },
-            // RESTORED: Toggle Loader Helper
-            toggleLoader(show) { document.getElementById('loader').classList.toggle('hidden', !show); },
-            toggleSettings(show) { 
-                const m = document.getElementById('modal-settings'); show ? m.classList.add('active') : m.classList.remove('active');
-                if(show) { document.getElementById('conf-id').value = CONFIG.ID; document.getElementById('conf-tab').value = CONFIG.TAB; }
-            },
-            saveSettings() { 
-                CONFIG.ID = document.getElementById('conf-id').value;
-                CONFIG.TAB = document.getElementById('conf-tab').value;
-                safeStorage.set('pm_inv_config_v42', CONFIG);
-                this.toggleSettings(false);
-                this.fetchData();
-            },
-            loadMockData() { /* ... */ }
-        };
+                    <div class="flex justify-between gap-2 mt-1 text-xs text-slate-500">
+                        <span>庫存 ${p.stock.toLocaleString()}　月均 ${r1(p.rate6)}</span>
+                        <span>一年份 ${p.rate6 > 0 ? Math.round(p.year).toLocaleString() : '-'}</span>
+                    </div>
+                </div>
+                ${this.open[p.name] ? `<div class="px-3 pb-3">${this.detailHTML(p)}</div>` : ''}
+            </div>`;
+        }).join('');
+    },
 
-        window.addEventListener('load', () => app.init());
-    </script>
+    detailHTML(p) {
+        const trend = p.rate3 > p.rate6 * 1.2 ? '近三個月在升' : p.rate3 < p.rate6 * 0.8 ? '近三個月在降' : '近三個月持平';
+        const opts = this.options(p);
+        const optHTML = opts.length ? `
+            <div class="mt-2">
+                <div class="text-xs text-slate-500 mb-1">這次下單的話</div>
+                <div class="flex flex-wrap gap-2">
+                    ${opts.map(o => `<div class="rounded px-2 py-1 text-xs ${o.over ? 't-over' : 't-ok'}">
+                        ${o.label} ${o.qty.toLocaleString()} 件　下了可撐 ${r1(o.after)} 月${o.over ? '　超過效期' : ''}
+                    </div>`).join('')}
+                </div>
+            </div>` : '<div class="text-xs text-slate-400 mt-2">近六個月沒有出貨紀錄，沒辦法估月均</div>';
+        const batch = p.batches.length
+            ? `最早效期 ${p.batches[0].exp}（${p.batches[0].qty.toLocaleString()} 件）`
+            : (p.expired ? `庫存全部已過期（${p.expired.toLocaleString()} 件）` : '沒有效期資料');
+        return `<div class="text-xs text-slate-600 space-y-1 py-1">
+            <div>北倉 ${p.tpe.toLocaleString()}　三重 ${p.sc.toLocaleString()}　MOMO ${p.momo.toLocaleString()}${p.expired ? `　已過期 ${p.expired.toLocaleString()}` : ''}</div>
+            <div>月均 近六月 ${r1(p.rate6)}　近三月 ${r1(p.rate3)}　${trend}</div>
+            <div>${batch}</div>
+            ${optHTML}
+        </div>`;
+    },
+
+    exportCSV() {
+        const rows = this.rows();
+        if (!rows.length) { alert('沒有資料'); return; }
+        const head = ['產品', '北倉', '三重', 'MOMO', '可用庫存', '已過期', '月均(近6月)', '月均(近3月)', '一年份', '可撐月數', '狀態'];
+        const body = rows.map(p => [p.name, p.tpe, p.sc, p.momo, p.stock, p.expired,
+            Math.round(p.rate6 * 10) / 10, Math.round(p.rate3 * 10) / 10,
+            p.rate6 > 0 ? Math.round(p.year) : '', p.runway === Infinity ? '' : Math.round(p.runway * 10) / 10,
+            this.tierOf(p).label]);
+        const text = '﻿' + [head, ...body].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8;' }));
+        a.download = `備料水位_${fmtDate(new Date())}.csv`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }
+};
+window.addEventListener('load', () => app.init());
+</script>
 </body>
 </html>

@@ -15,4 +15,5 @@
 - `data/*.csv` 只放可公開商品資訊；customers.csv 是通路代碼不是客戶名單，新增欄位前先想會不會變成個資
 - 出貨動作打 webhook，兩支都已切 n8n：`taipei_inventory` → `/webhook/taipei-inventory-sales`（workflow `9zjxBAUyR6aYaXRy`）、`sanchong_inventory` → `/webhook/sanchong-inventory`（workflow `gYyYLz56qoDfpNkL`），host `n8n.srv972195.hstgr.cloud`。`app_config.json` 的 accessCode 是擋誤觸的軟閘不是安全機制
 - 兩倉是不同試算表：台北 `14yjT90s...`、三重 `12C25rcf...`，各自有 `inventory_tracking` 與 `LOG_inventory_update` 分頁，別搞混
+- `outflow_rate/` 備料水位表：需求讀台北表的 `LOG_inventory_update` 分頁（長格式交易明細，A 事件時戳 YY.MMDD.HHMM、C 產品、D 數量、F 類別），庫存讀三張 `inventory_tracking` 的 A4:Z（B 類別、D 品名含效期、E 效期、J 數量）。月均排除 盤點/退庫/歸倉/客退（庫存校正不是需求），MOMO 與公關算需求。台北寬表第 12 欄之後那 543 個出貨欄只有 35 欄留著時戳標題，別再拿它當時間依據
 - 根目錄 `index.html` 已改成純目錄頁（沒有表單、不打 webhook）。要加工具只改檔內 `TOOLS` 陣列，站外連結會自動加「外部」標記；不引外部 CDN，改完推 main 即上線
