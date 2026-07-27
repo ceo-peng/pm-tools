@@ -13,4 +13,5 @@
 - **這是 public repo**（GitHub Pages 自訂網域 tools.prophecymorocco.com.tw 要求免費方案 public）：禁 commit API key、Supabase 連線字串、密碼、成本價格、客戶個資
 - **推 main 即上公開站**，同事每天用它出貨；改動前想「畫面壞了同事出不了貨」，重要改動走 PR
 - `data/*.csv` 只放可公開商品資訊；customers.csv 是通路代碼不是客戶名單，新增欄位前先想會不會變成個資
-- 出貨動作打 Make.com webhook（計畫搬 n8n）；`app_config.json` 的 accessCode 是擋誤觸的軟閘不是安全機制
+- 出貨動作打 webhook：`taipei_inventory` 已切 n8n（`n8n.srv972195.hstgr.cloud/webhook/taipei-inventory-sales`，workflow id `9zjxBAUyR6aYaXRy`）；`sanchong_inventory` 與根目錄 `index.html` 仍在 Make.com，尚未搬。`app_config.json` 的 accessCode 是擋誤觸的軟閘不是安全機制
+- 根目錄 `index.html` 送的是舊版 payload（`表單_日期_ID` / `items[].qty` / `items[].id`），後端會濾掉，按了會顯示成功但庫存不動。待處理，別當它能用
