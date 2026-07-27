@@ -308,7 +308,11 @@
                 dte: p.get('dte') || '≤90',
                 min: p.get('min') || '',
                 max: p.get('max') || '',
-                loc: (p.get('loc') || 'ALL').split(',').filter(Boolean),
+                // 網址被改成空的 loc 會讓所有倉都不選，畫面全空，這裡兜回全部
+                loc: (() => {
+                    const parsed = (p.get('loc') || '').split(',').filter(Boolean);
+                    return parsed.length ? parsed : ['ALL'];
+                })(),
                 sort: p.get('sort') || 'dte',
                 dir: p.get('dir') === 'desc' ? 'desc' : 'asc'
             };
@@ -454,6 +458,9 @@
             const [showSettings, setShowSettings] = useState(false);
             const [lastFetch, setLastFetch] = useState(null);
             const [errors, setErrors] = useState([]);
+            const [diag, setDiag] = useState([]);
+            const [showDiag, setShowDiag] = useState(false);
+            const [zeroHidden, setZeroHidden] = useState(0);
 
             const defaultSources = [{
                 name: 'TPE',
@@ -556,14 +563,35 @@
             const parseDate = (dateStr) => {
                 if (!dateStr) return null;
 
-                if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-                    const date = new Date(dateStr + 'T00:00:00');
-                    return isNaN(date.getTime()) ? null : date;
+                // 2026-08-20
+                const iso = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+                if (iso) {
+                    return new Date(+iso[1], +iso[2] - 1, +iso[3]);
                 }
 
+                // 2026/8/20 或 2026.8.20
+                const ymd = dateStr.match(/^(\d{4})[\/.](\d{1,2})[\/.](\d{1,2})$/);
+                if (ymd) {
+                    return new Date(+ymd[1], +ymd[2] - 1, +ymd[3]);
+                }
+
+                // 2026年8月20日
+                const cjk = dateStr.match(/^(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日?$/);
+                if (cjk) {
+                    return new Date(+cjk[1], +cjk[2] - 1, +cjk[3]);
+                }
+
+                // 20/8/2026：第一段大於 12 才敢判定為「日在前」，否則交給瀏覽器（美式月在前）
+                const dmy = dateStr.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{4})$/);
+                if (dmy && +dmy[1] > 12) {
+                    return new Date(+dmy[3], +dmy[2] - 1, +dmy[1]);
+                }
+
+                // Google 試算表序號
                 const serial = parseFloat(dateStr);
-                if (!isNaN(serial) && serial > 25569) {
-                    return new Date((serial - 25569) * 86400 * 1000);
+                if (!isNaN(serial) && String(serial) === dateStr.trim() && serial > 25569) {
+                    const utc = new Date((serial - 25569) * 86400 * 1000);
+                    return new Date(utc.getUTCFullYear(), utc.getUTCMonth(), utc.getUTCDate());
                 }
 
                 const date = new Date(dateStr);
@@ -581,7 +609,7 @@
 
             // Fetch data from Google Sheets
             const fetchSheetData = async (source) => {
-                if (!source.sheetId) return [];
+                if (!source.sheetId) return { items: [], read: 0, skipped: [] };
                 try {
                     const sheetParam = source.sheetName ? `&sheet=${encodeURIComponent(source.sheetName)}` : '';
                     const url = `https://docs.google.com/spreadsheets/d/${source.sheetId}/gviz/tq?${sheetParam}&range=A${source.headerRow}:Z&tqx=out:csv`;
@@ -597,27 +625,43 @@
                     const expiryIdx = colToIndex(source.expiryCol);
                     const qtyIdx = colToIndex(source.qtyCol);
                     const items = [];
+                    // 記下每一列的去向，才能跟試算表對帳
+                    const skipped = [];
 
-                    for (const row of rows) {
+                    rows.forEach((row, i) => {
                         const name = row[nameIdx]?.trim();
                         const expiryStr = row[expiryIdx]?.trim();
                         const qtyStr = row[qtyIdx]?.trim();
+                        // 第一列是標題列，不算略過
+                        if (i === 0) return;
 
-                        if (!name || !expiryStr) continue;
+                        if (!name && !expiryStr && !qtyStr) return;
+
+                        if (!name) {
+                            skipped.push({ reason: '缺品名', detail: expiryStr || '（空白列）' });
+                            return;
+                        }
+                        if (!expiryStr) {
+                            skipped.push({ reason: '缺效期', detail: name });
+                            return;
+                        }
 
                         const expiry = parseDate(expiryStr);
-                        // 數量可能帶千分位逗號或空白，先洗掉再轉數字
-                        const qty = Math.round(parseFloat(String(qtyStr || '').replace(/[,\s]/g, ''))) || 0;
-
-                        if (expiry && !isNaN(qty)) {
-                            items.push({ name, expiry, qty });
+                        if (!expiry) {
+                            skipped.push({ reason: '效期讀不懂', detail: `${name}（${expiryStr}）` });
+                            return;
                         }
-                    }
-                    return items;
+
+                        // 數量可能帶千分位逗號或空白，先洗掉再轉數字
+                        const qty = parseFloat(String(qtyStr || '').replace(/[,\s]/g, ''));
+                        items.push({ name, expiry, qty: isNaN(qty) ? 0 : qty });
+                    });
+
+                    return { items, read: items.length, skipped };
                 } catch (error) {
                     console.error(`[${source.name}] Error fetching data:`, error);
                     setErrors(prev => prev.includes(source.name) ? prev : [...prev, source.name]);
-                    return [];
+                    return { items: [], read: 0, skipped: [] };
                 }
             };
 
@@ -631,9 +675,9 @@
                     // 以「品名 + 效期」為單位保留批次，不再把不同效期壓成一列
                     const batchMap = new Map();
 
-                    results.forEach((items, sourceIndex) => {
+                    results.forEach((result, sourceIndex) => {
                         const sourceName = srcs[sourceIndex].name;
-                        items.forEach(item => {
+                        result.items.forEach(item => {
                             const key = `${item.name}|${item.expiry.getTime()}`;
                             let batch = batchMap.get(key);
                             if (!batch) {
@@ -655,13 +699,23 @@
                     const today = new Date();
                     today.setHours(0, 0, 0, 0);
 
-                    const batches = Array.from(batchMap.values()).map(batch => ({
-                        ...batch,
-                        qty_TTQ: batch.qty_TPE + batch.qty_SC + batch.qty_MOMO,
-                        dte: Math.floor((batch.expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-                    }));
+                    const allBatches = Array.from(batchMap.values());
+                    const batches = allBatches
+                        // 三倉都是 0 的批次不必看，留著只會膨脹品項數
+                        .filter(batch => batch.qty_TPE !== 0 || batch.qty_SC !== 0 || batch.qty_MOMO !== 0)
+                        .map(batch => ({
+                            ...batch,
+                            qty_TTQ: batch.qty_TPE + batch.qty_SC + batch.qty_MOMO,
+                            dte: Math.floor((batch.expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+                        }));
 
                     setData(batches);
+                    setDiag(srcs.map((s, i) => ({
+                        name: s.name,
+                        read: results[i].read,
+                        skipped: results[i].skipped
+                    })));
+                    setZeroHidden(allBatches.length - batches.length);
                     setLastFetch(new Date());
                 } catch (error) {
                     console.error('Error fetching data:', error);
@@ -674,6 +728,20 @@
             useEffect(() => {
                 fetchAllData();
             }, []);
+
+            // DTE 是抓資料當下算的。頁面開一整天會過期，跨日或回到分頁時自動重抓
+            useEffect(() => {
+                const stale = () => !lastFetch || fmtDate(lastFetch) !== fmtDate(new Date());
+                const onVisible = () => {
+                    if (document.visibilityState === 'visible' && stale()) fetchAllData();
+                };
+                document.addEventListener('visibilitychange', onVisible);
+                const timer = setInterval(() => { if (stale()) fetchAllData(); }, 5 * 60 * 1000);
+                return () => {
+                    document.removeEventListener('visibilitychange', onVisible);
+                    clearInterval(timer);
+                };
+            }, [lastFetch, sources]);
 
             // 目前勾選的倉別對應到哪幾個數量欄位
             const selectedKeys = useMemo(() => (
@@ -814,6 +882,11 @@
                 
                 return columns;
             }, [locationFilter]);
+
+            const totalSkipped = useMemo(
+                () => diag.reduce((sum, d) => sum + d.skipped.length, 0),
+                [diag]
+            );
 
             const sumSelected = useCallback(
                 (item) => selectedKeys.reduce((sum, k) => sum + item[k], 0),
@@ -1121,6 +1194,49 @@
                             </div>
                         )}
 
+                        {/* 對帳列：讀進來幾筆、略過幾筆、為什麼略過 */}
+                        {diag.length > 0 && (
+                            <div className="card rounded-lg px-3 py-2 text-xs">
+                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                    <span className="opacity-70">
+                                        讀入 {diag.map(d => `${d.name} ${d.read}`).join('　')}
+                                        {zeroHidden > 0 && `　（0 件已隱藏 ${zeroHidden} 批）`}
+                                    </span>
+                                    {totalSkipped > 0 ? (
+                                        <button
+                                            className="btn btn-ghost px-2 py-1 text-xs text-orange-600 font-medium"
+                                            onClick={() => setShowDiag(!showDiag)}
+                                        >
+                                            略過 {totalSkipped} 筆，點開看原因
+                                            {showDiag ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />}
+                                        </button>
+                                    ) : (
+                                        <span className="opacity-50">沒有略過任何列</span>
+                                    )}
+                                </div>
+                                {showDiag && totalSkipped > 0 && (
+                                    <div className="mt-2 pt-2 border-t space-y-1 max-h-48 overflow-y-auto">
+                                        {diag.filter(d => d.skipped.length).map(d => (
+                                            <div key={d.name}>
+                                                <div className="font-medium">{d.name}　略過 {d.skipped.length} 筆</div>
+                                                {d.skipped.slice(0, 30).map((s, i) => (
+                                                    <div key={i} className="opacity-70 pl-3">
+                                                        {s.reason}：{s.detail}
+                                                    </div>
+                                                ))}
+                                                {d.skipped.length > 30 && (
+                                                    <div className="opacity-50 pl-3">還有 {d.skipped.length - 30} 筆</div>
+                                                )}
+                                            </div>
+                                        ))}
+                                        <div className="opacity-60 pt-1">
+                                            這些列沒有進入上面的數字，去試算表把效期或品名補好再按重新整理。
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {/* 到期壓力分層（點一下就套成該區間） */}
                         <div className="grid grid-cols-4 gap-2 sm:gap-4">
                             {tierStats.map(tier => {
@@ -1143,6 +1259,10 @@
                                     </div>
                                 );
                             })}
+                        </div>
+
+                        <div className="text-xs opacity-50 -mt-1">
+                            四層的件數加起來等於總件數；品項數會加起來比總品項數多，因為同一品項的不同批可能落在不同層。
                         </div>
 
                         {/* Stats：手機壓成一行摘要，桌機維持三張卡 */}
@@ -1369,7 +1489,7 @@
                             {lastFetch && (
                                 <span className="sm:hidden">資料讀取 {lastFetch.toLocaleTimeString()}　</span>
                             )}
-                            最後更新 2026/07/27 21:45
+                            最後更新 2026/07/27 22:10
                         </div>
                     </div>
                 </div>
