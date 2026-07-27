@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>歷史出貨量vs庫存 警示表 v48</title>
+    <title>歷史出貨量vs庫存 警示表 v49</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -155,7 +155,7 @@
                 <div class="bg-indigo-600 text-white p-1.5 rounded-lg font-bold text-lg leading-none shadow-md shadow-indigo-200">PM</div>
                 <div class="hidden md:block">
                     <h1 class="text-base font-bold text-slate-800 tracking-tight leading-tight">歷史出貨量 vs 即時庫存 警示表</h1>
-                    <div class="text-[10px] text-slate-400 font-medium">v48 <span class="mx-1">•</span> <span id="status">Ready</span></div>
+                    <div class="text-[10px] text-slate-400 font-medium">v49 <span class="mx-1">•</span> <span id="status">Ready</span></div>
                 </div>
             </div>
 
@@ -306,18 +306,15 @@
                         if (m) moves.push({ idx: i, cat: m[1].trim(), ym: `20${m[2]}-${m[3]}` });
                     }
 
-                    const now = new Date();
-                    const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-                    // 只算已經過完的月份，分子與分母才是同一段時間
-                    const months = [...new Set(moves.map(x => x.ym))].filter(m => m < thisMonth).sort();
+                    // 分母照原本的算法：最早到最晚跨幾個月，減 1 扣掉還沒過完的當月
+                    const months = [...new Set(moves.map(x => x.ym))].sort();
                     const first = months[0], last = months[months.length - 1];
                     let denom = 1;
                     if (first && last) {
-                        denom = Math.max(1, (+last.slice(0, 4) - +first.slice(0, 4)) * 12 + (+last.slice(5) - +first.slice(5)) + 1);
+                        denom = Math.max(1, (+last.slice(0, 4) - +first.slice(0, 4)) * 12 + (+last.slice(5) - +first.slice(5)) + 1 - 1);
                     }
-                    const inWindow = (x) => x.ym >= first && x.ym <= last;
-                    const demandCols = moves.filter(x => inWindow(x) && !NON_DEMAND.includes(x.cat)).map(x => x.idx);
-                    const skipCols = moves.filter(x => inWindow(x) && NON_DEMAND.includes(x.cat)).map(x => x.idx);
+                    const demandCols = moves.filter(x => !NON_DEMAND.includes(x.cat)).map(x => x.idx);
+                    const skipCols = moves.filter(x => NON_DEMAND.includes(x.cat)).map(x => x.idx);
 
                     let skipped = 0;
                     for (let i = CONFIG.D_ROW; i < rows.length; i++) {
