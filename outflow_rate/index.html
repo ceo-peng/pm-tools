@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>歷史出貨量vs庫存 警示表 v47</title>
+    <title>歷史出貨量vs庫存 警示表 v48</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -155,7 +155,7 @@
                 <div class="bg-indigo-600 text-white p-1.5 rounded-lg font-bold text-lg leading-none shadow-md shadow-indigo-200">PM</div>
                 <div class="hidden md:block">
                     <h1 class="text-base font-bold text-slate-800 tracking-tight leading-tight">歷史出貨量 vs 即時庫存 警示表</h1>
-                    <div class="text-[10px] text-slate-400 font-medium">v47 <span class="mx-1">•</span> <span id="status">Ready</span></div>
+                    <div class="text-[10px] text-slate-400 font-medium">v48 <span class="mx-1">•</span> <span id="status">Ready</span></div>
                 </div>
             </div>
 
@@ -260,8 +260,9 @@
         // headers=2 讓 gviz 把第 1 列（進出貨類別）與第 2 列（時戳）合成欄位標題。
         // 用 headers=0 讀會拿不到，因為 gviz 把出貨欄判定為數字欄，文字儲存格會被丟掉。
         const CONFIG = { ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI', TAB: 'inventory_tracking', D_ROW: 1, SKU_IDX: 3, INV_IDX: 9, START_IDX: 11 };
-        // 這些類別是庫存校正或進貨，不是需求，不列入月需
-        const NON_DEMAND = ['盤點', '退庫', '歸倉', '客退', '進貨'];
+        // 盤點是校正、退庫是退回台北倉的內部移動，兩者的負數都不是需求。
+        // 進貨、歸倉、客退本來就只有正數，進不了分子，不必列。
+        const NON_DEMAND = ['盤點', '退庫'];
         window.googleSheetCallback = function(json) {
             if (json.status === 'error') { alert("API Error: " + json.errors[0].detailed_message); app.toggleLoader(false); return; }
             const cols = json.table.cols.map(c => c.label || "");
