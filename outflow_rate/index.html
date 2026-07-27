@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>歷史出貨量vs庫存 警示表 v46</title>
+    <title>歷史出貨量vs庫存 警示表 v47</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -155,7 +155,7 @@
                 <div class="bg-indigo-600 text-white p-1.5 rounded-lg font-bold text-lg leading-none shadow-md shadow-indigo-200">PM</div>
                 <div class="hidden md:block">
                     <h1 class="text-base font-bold text-slate-800 tracking-tight leading-tight">歷史出貨量 vs 即時庫存 警示表</h1>
-                    <div class="text-[10px] text-slate-400 font-medium">v46 <span class="mx-1">•</span> <span id="status">Ready</span></div>
+                    <div class="text-[10px] text-slate-400 font-medium">v47 <span class="mx-1">•</span> <span id="status">Ready</span></div>
                 </div>
             </div>
 
@@ -257,31 +257,21 @@
     </div>
 
     <script>
-        const CONFIG = { ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI', TAB: 'inventory_tracking', H_ROW: 1, D_ROW: 3, SKU_IDX: 3, INV_IDX: 9, START_IDX: 11, LOG_TAB: 'LOG_inventory_update' };
-        // 這些類別是庫存校正，不是需求，不列入月需
-        const NON_DEMAND = ['盤點', '退庫', '歸倉', '客退'];
+        // headers=2 讓 gviz 把第 1 列（進出貨類別）與第 2 列（時戳）合成欄位標題。
+        // 用 headers=0 讀會拿不到，因為 gviz 把出貨欄判定為數字欄，文字儲存格會被丟掉。
+        const CONFIG = { ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI', TAB: 'inventory_tracking', D_ROW: 1, SKU_IDX: 3, INV_IDX: 9, START_IDX: 11 };
+        // 這些類別是庫存校正或進貨，不是需求，不列入月需
+        const NON_DEMAND = ['盤點', '退庫', '歸倉', '客退', '進貨'];
         window.googleSheetCallback = function(json) {
             if (json.status === 'error') { alert("API Error: " + json.errors[0].detailed_message); app.toggleLoader(false); return; }
+            const cols = json.table.cols.map(c => c.label || "");
             const rows = json.table.rows.map(r => r.c.map(cell => (cell && cell.v !== null) ? String(cell.v) : ""));
-            app.process(rows);
-        };
-        const parseCSV = (text) => {
-            const rows = []; let row = [], f = '', q = false;
-            for (let i = 0; i < text.length; i++) {
-                const c = text[i], n = text[i + 1];
-                if (c === '"') { if (q && n === '"') { f += '"'; i++; continue; } q = !q; }
-                else if (c === ',' && !q) { row.push(f); f = ''; }
-                else if ((c === '\n' || c === '\r') && !q) { if (c === '\r' && n === '\n') i++; row.push(f); rows.push(row); row = []; f = ''; }
-                else f += c;
-            }
-            if (f || row.length) { row.push(f); rows.push(row); }
-            return rows;
+            app.process(rows, cols);
         };
         const safeStorage = { get: (k) => { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
 
         const app = {
             data: [], productData: [], sortCol: 'itemNo', sortAsc: true, hiddenSKUs: new Set(), view: 'sku',
-            demand: {}, denom: 1, basis: '',
 
             init() {
                 this.hiddenSKUs = new Set(safeStorage.get('pm_hidden_skus'));
@@ -297,61 +287,46 @@
                 document.getElementById('btn-view-product').className = mode === 'product' ? 'btn-toggle active' : 'btn-toggle inactive';
                 this.sort('itemNo', true); 
             },
-            async fetchData() {
+            fetchData() {
                 document.getElementById('loader').classList.remove('hidden');
-                // 先讀出貨日誌算需求，寬表只負責品名、項次與北倉庫存
-                try {
-                    await this.fetchDemand();
-                } catch (e) {
-                    alert("讀取出貨日誌失敗：" + e.message);
-                    app.toggleLoader(false);
-                    return;
-                }
                 const s = document.createElement('script');
-                s.src = `https://docs.google.com/spreadsheets/d/${CONFIG.ID}/gviz/tq?sheet=${CONFIG.TAB}&headers=0&tqx=responseHandler:googleSheetCallback`;
+                s.src = `https://docs.google.com/spreadsheets/d/${CONFIG.ID}/gviz/tq?sheet=${CONFIG.TAB}&headers=2&tqx=responseHandler:googleSheetCallback`;
                 s.onerror = () => { alert("Network Error"); app.toggleLoader(false); };
                 document.body.appendChild(s);
             },
 
-            // 寬表的出貨欄位沒有類別（543 欄裡只有 35 欄有標記），要分辨盤點與退庫只能讀日誌
-            async fetchDemand() {
-                const url = `https://docs.google.com/spreadsheets/d/${CONFIG.ID}/gviz/tq?sheet=${encodeURIComponent(CONFIG.LOG_TAB)}&tqx=out:csv`;
-                const res = await fetch(url, { cache: 'no-store' });
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                const rows = parseCSV(await res.text());
 
-                const ym = (id) => { const m = String(id).match(/^(\d{2})\.(\d{2})/); return m ? '20' + m[1] + '-' + m[2] : null; };
-                const now = new Date();
-                const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-
-                // 只取已經過完的月份，分子分母才是同一段時間
-                const months = [...new Set(rows.map(r => ym(r[0])).filter(Boolean))].filter(m => m < thisMonth).sort();
-                if (!months.length) throw new Error('日誌沒有可用的完整月份');
-                const first = months[0], last = months[months.length - 1];
-                const [fy, fm] = first.split('-').map(Number), [ly, lm] = last.split('-').map(Number);
-                const span = (ly - fy) * 12 + (lm - fm) + 1;
-
-                const demand = {};
-                let dropped = 0;
-                rows.forEach(r => {
-                    const m = ym(r[0]);
-                    if (!m || m < first || m > last) return;
-                    const qty = parseFloat(String(r[3] || '').replace(/,/g, ''));
-                    if (isNaN(qty) || qty >= 0) return;
-                    if (NON_DEMAND.includes(String(r[5] || '').trim())) { dropped += -qty; return; }
-                    const key = String(r[2] || '').trim();
-                    if (key) demand[key] = (demand[key] || 0) + (-qty);
-                });
-
-                this.demand = demand;
-                this.denom = Math.max(1, span);
-                this.basis = `T: ${this.denom}m (${first} ~ ${last}) · 已排除 ${NON_DEMAND.join('/')} 共 ${Math.round(dropped).toLocaleString()} 件`;
-            },
-
-            process(rows) {
+            process(rows, cols) {
                 try {
-                    const denom = this.denom;
-                    document.getElementById('debug-stats').innerText = this.basis;
+                    // 欄位標題長這樣：「官網 25.0907.2241」＝ 第 1 列類別 + 第 2 列時戳
+                    const moves = [];
+                    for (let i = CONFIG.START_IDX; i < cols.length; i++) {
+                        const m = String(cols[i]).match(/^(.*?)\s*(\d{2})\.(\d{2})(\d{2})\.\d{4}\s*$/);
+                        if (m) moves.push({ idx: i, cat: m[1].trim(), ym: `20${m[2]}-${m[3]}` });
+                    }
+
+                    const now = new Date();
+                    const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                    // 只算已經過完的月份，分子與分母才是同一段時間
+                    const months = [...new Set(moves.map(x => x.ym))].filter(m => m < thisMonth).sort();
+                    const first = months[0], last = months[months.length - 1];
+                    let denom = 1;
+                    if (first && last) {
+                        denom = Math.max(1, (+last.slice(0, 4) - +first.slice(0, 4)) * 12 + (+last.slice(5) - +first.slice(5)) + 1);
+                    }
+                    const inWindow = (x) => x.ym >= first && x.ym <= last;
+                    const demandCols = moves.filter(x => inWindow(x) && !NON_DEMAND.includes(x.cat)).map(x => x.idx);
+                    const skipCols = moves.filter(x => inWindow(x) && NON_DEMAND.includes(x.cat)).map(x => x.idx);
+
+                    let skipped = 0;
+                    for (let i = CONFIG.D_ROW; i < rows.length; i++) {
+                        for (const c of skipCols) {
+                            const v = parseFloat(String(rows[i][c]).replace(/,/g, ''));
+                            if (!isNaN(v) && v < 0) skipped += Math.abs(v);
+                        }
+                    }
+                    document.getElementById('debug-stats').innerText =
+                        `T: ${denom}m (${first} ~ ${last}) · 已排除 ${NON_DEMAND.join('/')} 共 ${Math.round(skipped).toLocaleString()} 件`;
 
                     const skuResults = [];
                     for(let i = CONFIG.D_ROW; i < rows.length; i++) {
@@ -362,8 +337,12 @@
                         const itemNo = parseInt(row[0]) || 9999;
                         const invRaw = row[CONFIG.INV_IDX];
                         let inv = typeof invRaw === 'string' ? parseFloat(invRaw.replace(/,/g, '')) : (typeof invRaw === 'number' ? invRaw : 0);
-                        // 出貨量改由日誌對 unique_key 取得，已排除盤點與退庫
-                        const totalOut = this.demand[sku] || 0;
+                        // 只加需求欄位的出貨，盤點、退庫、歸倉、客退、進貨那幾欄跳過
+                        let totalOut = 0;
+                        for (const c of demandCols) {
+                            const v = parseFloat(String(row[c]).replace(/,/g, ''));
+                            if (!isNaN(v) && v < 0) totalOut += Math.abs(v);
+                        }
                         const monthlyRate = Math.ceil(totalOut / denom);
                         // SKU View: show original SKU but allow line wrapping
                         const product = sku; 
