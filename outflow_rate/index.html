@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>歷史出貨量vs庫存 警示表 v49</title>
+    <title>歷史出貨量vs庫存 警示表 v50</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -155,7 +155,7 @@
                 <div class="bg-indigo-600 text-white p-1.5 rounded-lg font-bold text-lg leading-none shadow-md shadow-indigo-200">PM</div>
                 <div class="hidden md:block">
                     <h1 class="text-base font-bold text-slate-800 tracking-tight leading-tight">歷史出貨量 vs 即時庫存 警示表</h1>
-                    <div class="text-[10px] text-slate-400 font-medium">v49 <span class="mx-1">•</span> <span id="status">Ready</span></div>
+                    <div class="text-[10px] text-slate-400 font-medium">v50 <span class="mx-1">•</span> <span id="status">Ready</span></div>
                 </div>
             </div>
 
@@ -303,7 +303,8 @@
                     const moves = [];
                     for (let i = CONFIG.START_IDX; i < cols.length; i++) {
                         const m = String(cols[i]).match(/^(.*?)\s*(\d{2})\.(\d{2})(\d{2})\.\d{4}\s*$/);
-                        if (m) moves.push({ idx: i, cat: m[1].trim(), ym: `20${m[2]}-${m[3]}` });
+                        // 類別去掉所有空白再比對，「盤 點」這種手打的空格也擋得住
+                        if (m) moves.push({ idx: i, cat: m[1].replace(/\s+/g, ''), ym: `20${m[2]}-${m[3]}` });
                     }
 
                     // 分母照原本的算法：最早到最晚跨幾個月，減 1 扣掉還沒過完的當月
