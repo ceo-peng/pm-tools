@@ -127,6 +127,12 @@
             color: hsl(150 55% 25%);
         }
 
+        /* 沒有效期的品項（包材、周邊、貼紙）自成一格，灰色不搶眼 */
+        .tier-none, .card.tier-none {
+            background-color: hsl(220 14% 93%);
+            color: hsl(220 9% 32%);
+        }
+
         .btn {
             display: inline-flex;
             align-items: center;
@@ -291,28 +297,35 @@
             return `${y}-${m}-${day}`;
         };
 
-        // 到期分層：四層互斥
+        // 到期分層：有效期的四層互斥，沒效期的自成一格
         const TIERS = [
             { key: 'expired', label: '已過期', short: '已過期', min: -Infinity, max: -1, cls: 'tier-expired' },
             { key: 'd90', label: '90天內', short: '90天內', min: 0, max: 90, cls: 'tier-d90' },
             { key: 'd180', label: '91至180天', short: '91-180天', min: 91, max: 180, cls: 'tier-d180' },
             { key: 'safe', label: '180天以上', short: '180天+', min: 181, max: Infinity, cls: 'tier-safe' }
         ];
-        const tierOf = (dte) => TIERS.find(t => dte >= t.min && dte <= t.max);
+        // 包材、貼紙、DM 這類沒有效期的品項，效期欄本來就空白，不是資料壞掉
+        const NONE_TIER = { key: 'none', label: '無效期', short: '無效期', cls: 'tier-none' };
+        const ALL_TIERS = [...TIERS, NONE_TIER];
+        const tierOf = (dte) => dte === null ? NONE_TIER : TIERS.find(t => dte >= t.min && dte <= t.max);
+
+        const SERIES_UNKNOWN = '未分類';
 
         // 篩選條件存進網址 hash，方便同事互丟連結
         const readUrlState = () => {
             const p = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+            // 網址被改成空的清單會讓所有選項都不選、畫面全空，這裡兜回全部
+            const list = (key) => {
+                const parsed = (p.get(key) || '').split(',').filter(Boolean);
+                return parsed.length ? parsed : ['ALL'];
+            };
             return {
                 q: p.get('q') || '',
                 dte: p.get('dte') || '≤90',
                 min: p.get('min') || '',
                 max: p.get('max') || '',
-                // 網址被改成空的 loc 會讓所有倉都不選，畫面全空，這裡兜回全部
-                loc: (() => {
-                    const parsed = (p.get('loc') || '').split(',').filter(Boolean);
-                    return parsed.length ? parsed : ['ALL'];
-                })(),
+                loc: list('loc'),
+                series: list('series'),
                 sort: p.get('sort') || 'dte',
                 dir: p.get('dir') === 'desc' ? 'desc' : 'asc'
             };
@@ -320,8 +333,8 @@
 
         const SOURCES_KEY = 'pm_inventory_sources_v1';
 
-        // Location Multi-Select Component
-        const LocationMultiSelect = ({ locationFilter, setLocationFilter }) => {
+        // 倉別與系列共用的多選下拉。options 為 [{ value, label, count }]，不含「全部」那一列
+        const MultiSelect = ({ options, value, onChange, allLabel = '全部', triggerClass = '', panelClass = '', align = 'left' }) => {
             const [open, setOpen] = useState(false);
             const boxRef = React.useRef(null);
 
@@ -335,80 +348,98 @@
                 return () => document.removeEventListener('mousedown', onDown);
             }, [open]);
 
-            const locations = [
-                { value: 'ALL', label: '全部' },
-                { value: 'TAIPEI', label: 'TPE' },
-                { value: 'SANCHONG', label: 'SC' },
-                { value: 'MOMO', label: 'MOMO' }
-            ];
+            const isAll = value.includes('ALL');
 
-            const handleLocationToggle = (value) => {
-                if (value === 'ALL') {
-                    setLocationFilter(['ALL']);
-                } else {
-                    const newFilter = locationFilter.includes('ALL')
-                        ? [value]
-                        : locationFilter.includes(value)
-                        ? locationFilter.filter(l => l !== value)
-                        : [...locationFilter.filter(l => l !== 'ALL'), value];
-                    
-                    setLocationFilter(newFilter.length === 0 ? ['ALL'] : newFilter);
+            const toggle = (val) => {
+                if (val === 'ALL') {
+                    onChange(['ALL']);
+                    return;
                 }
+                // 目前是「全部」時點一項＝只看那一項，一下就縮到想看的範圍
+                const next = isAll
+                    ? [val]
+                    : value.includes(val)
+                    ? value.filter(v => v !== val)
+                    : [...value.filter(v => v !== 'ALL'), val];
+                onChange(next.length === 0 ? ['ALL'] : next);
             };
 
-            const selectedText = locationFilter.includes('ALL') 
-                ? '全部' 
-                : locationFilter.length === 0
-                ? 'Select locations'
-                : locationFilter.join(', ');
+            const selectedText = isAll
+                ? allLabel
+                : options.filter(o => value.includes(o.value)).map(o => o.label).join('、') || allLabel;
+
+            const alignClass = align === 'right' ? 'right-0 sm:right-auto sm:left-0' : 'left-0';
 
             return (
-                <div className="relative flex-1 lg:flex-none" ref={boxRef}>
+                <div className="relative" ref={boxRef}>
                     <button
-                        className="btn btn-outline w-full lg:w-48 h-10 px-3 justify-between"
+                        className={`btn btn-outline w-full h-10 px-3 justify-between ${triggerClass}`}
                         onClick={() => setOpen(!open)}
+                        title={selectedText}
                     >
                         <span className="truncate">{selectedText}</span>
-                        <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                        <ChevronDown className="h-4 w-4 shrink-0 opacity-50 ml-1" />
                     </button>
                     {open && (
-                        <div className="popover w-48 p-3 mt-1">
-                            <div className="space-y-2">
-                                {locations.map(location => (
-                                    <div key={location.value} className="flex items-center space-x-2">
-                                        <input
-                                            type="checkbox"
-                                            className="checkbox"
-                                            id={location.value}
-                                            checked={locationFilter.includes(location.value)}
-                                            onChange={() => handleLocationToggle(location.value)}
-                                        />
-                                        <label htmlFor={location.value} className="text-sm font-normal cursor-pointer">
-                                            {location.label}
-                                        </label>
-                                    </div>
-                                ))}
-                            </div>
+                        <div className={`popover p-2 mt-1 max-h-72 overflow-y-auto ${alignClass} ${panelClass}`}>
+                            <label className="flex items-center gap-2 px-1 py-1.5 rounded cursor-pointer hover:bg-gray-100">
+                                <input
+                                    type="checkbox"
+                                    className="checkbox shrink-0"
+                                    checked={isAll}
+                                    onChange={() => toggle('ALL')}
+                                />
+                                <span className="text-sm font-medium">{allLabel}</span>
+                            </label>
+                            <div className="border-t my-1" />
+                            {options.map(opt => (
+                                <label
+                                    key={opt.value}
+                                    className="flex items-center gap-2 px-1 py-1.5 rounded cursor-pointer hover:bg-gray-100"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        className="checkbox shrink-0"
+                                        checked={!isAll && value.includes(opt.value)}
+                                        onChange={() => toggle(opt.value)}
+                                    />
+                                    <span className="text-sm truncate flex-1">{opt.label}</span>
+                                    {opt.count !== undefined && (
+                                        <span className="text-xs opacity-50 shrink-0">{opt.count}</span>
+                                    )}
+                                </label>
+                            ))}
+                            {options.length === 0 && (
+                                <div className="text-xs opacity-50 px-1 py-2">目前條件下沒有選項</div>
+                            )}
                         </div>
                     )}
                 </div>
             );
         };
 
+        const LOCATION_OPTIONS = [
+            { value: 'TAIPEI', label: 'TPE' },
+            { value: 'SANCHONG', label: 'SC' },
+            { value: 'MOMO', label: 'MOMO' }
+        ];
+
         // Earliest Expiry Collapsible Component
         const EarliestExpiryCollapsible = ({ data }) => {
             const [isOpen, setIsOpen] = useState(false);
 
-            const earliestItem = data.reduce((earliest, item) => 
-                !earliest || item.expiry < earliest.expiry ? item : earliest, 
+            // 沒效期的品項不參與「最早效期」的比較
+            const dated = data.filter(item => item.expiry);
+            const earliestItem = dated.reduce((earliest, item) =>
+                !earliest || item.expiry < earliest.expiry ? item : earliest,
                 null
             );
 
             if (!earliestItem) {
-                return <div className="text-sm opacity-60">No items</div>;
+                return <div className="text-sm opacity-60">無效期資料</div>;
             }
 
-            const itemsWithEarliestDate = data.filter(item => 
+            const itemsWithEarliestDate = dated.filter(item =>
                 item.expiry.getTime() === earliestItem.expiry.getTime()
             );
 
@@ -452,6 +483,7 @@
             const [customDteMin, setCustomDteMin] = useState(urlState.min);
             const [customDteMax, setCustomDteMax] = useState(urlState.max);
             const [locationFilter, setLocationFilter] = useState(urlState.loc.length ? urlState.loc : ['ALL']);
+            const [seriesFilter, setSeriesFilter] = useState(urlState.series.length ? urlState.series : ['ALL']);
             const [sortField, setSortField] = useState(urlState.sort);
             const [sortDirection, setSortDirection] = useState(urlState.dir);
             const [expanded, setExpanded] = useState({});
@@ -467,6 +499,7 @@
                 sheetId: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI',
                 sheetName: 'inventory_tracking',
                 headerRow: 4,
+                seriesCol: 'C',
                 nameCol: 'D',
                 expiryCol: 'E',
                 qtyCol: 'J'
@@ -475,6 +508,7 @@
                 sheetId: '12C25rcfSEMtSkkARzLtxlW9Wmhu64m6eSP_KoK8M-js',
                 sheetName: 'inventory_tracking',
                 headerRow: 4,
+                seriesCol: 'C',
                 nameCol: 'D',
                 expiryCol: 'E',
                 qtyCol: 'J'
@@ -483,6 +517,7 @@
                 sheetId: '1j04xLITImSX6WgtXkaGQfs0IZ5E8r3UEOrT2CKKGAxE',
                 sheetName: 'inventory_tracking',
                 headerRow: 4,
+                seriesCol: 'C',
                 nameCol: 'D',
                 expiryCol: 'E',
                 qtyCol: 'J'
@@ -507,12 +542,13 @@
                 if (customDteMin) p.set('min', customDteMin);
                 if (customDteMax) p.set('max', customDteMax);
                 if (!locationFilter.includes('ALL')) p.set('loc', locationFilter.join(','));
+                if (!seriesFilter.includes('ALL')) p.set('series', seriesFilter.join(','));
                 if (sortField !== 'dte') p.set('sort', sortField);
                 if (sortDirection !== 'asc') p.set('dir', sortDirection);
                 const next = p.toString();
                 const url = window.location.pathname + window.location.search + (next ? '#' + next : '');
                 window.history.replaceState(null, '', url);
-            }, [searchTerm, dteFilter, customDteMin, customDteMax, locationFilter, sortField, sortDirection]);
+            }, [searchTerm, dteFilter, customDteMin, customDteMax, locationFilter, seriesFilter, sortField, sortDirection]);
 
             // CSV parsing utility
             const parseCSV = (csv) => {
@@ -621,19 +657,24 @@
                     
                     const csvText = await response.text();
                     const rows = parseCSV(csvText);
+                    const seriesIdx = colToIndex(source.seriesCol || 'C');
                     const nameIdx = colToIndex(source.nameCol);
                     const expiryIdx = colToIndex(source.expiryCol);
                     const qtyIdx = colToIndex(source.qtyCol);
                     const items = [];
                     // 記下每一列的去向，才能跟試算表對帳
                     const skipped = [];
+                    // range 從 headerRow 起算，但那一列已經是資料。只有真的長得像標題才跳過，
+                    // 不然會像 2026-07 之前那樣每個表默默吃掉第一筆庫存
+                    const HEADER_TOKENS = ['unique_key', 'uid', 'sort_unique_key', '品名', '商品名稱', '產品名稱'];
 
                     rows.forEach((row, i) => {
+                        const series = row[seriesIdx]?.trim();
                         const name = row[nameIdx]?.trim();
                         const expiryStr = row[expiryIdx]?.trim();
                         const qtyStr = row[qtyIdx]?.trim();
-                        // 第一列是標題列，不算略過
-                        if (i === 0) return;
+
+                        if (i === 0 && name && HEADER_TOKENS.includes(name.toLowerCase())) return;
 
                         if (!name && !expiryStr && !qtyStr) return;
 
@@ -641,20 +682,20 @@
                             skipped.push({ reason: '缺品名', detail: expiryStr || '（空白列）' });
                             return;
                         }
-                        if (!expiryStr) {
-                            skipped.push({ reason: '缺效期', detail: name });
-                            return;
-                        }
 
-                        const expiry = parseDate(expiryStr);
-                        if (!expiry) {
-                            skipped.push({ reason: '效期讀不懂', detail: `${name}（${expiryStr}）` });
-                            return;
+                        // 包材、貼紙、DM 本來就沒有效期，放行並歸到「無效期」那一格
+                        let expiry = null;
+                        if (expiryStr) {
+                            expiry = parseDate(expiryStr);
+                            if (!expiry) {
+                                skipped.push({ reason: '效期讀不懂', detail: `${name}（${expiryStr}）` });
+                                return;
+                            }
                         }
 
                         // 數量可能帶千分位逗號或空白，先洗掉再轉數字
                         const qty = parseFloat(String(qtyStr || '').replace(/[,\s]/g, ''));
-                        items.push({ name, expiry, qty: isNaN(qty) ? 0 : qty });
+                        items.push({ name, series: series || SERIES_UNKNOWN, expiry, qty: isNaN(qty) ? 0 : qty });
                     });
 
                     return { items, read: items.length, skipped };
@@ -678,17 +719,22 @@
                     results.forEach((result, sourceIndex) => {
                         const sourceName = srcs[sourceIndex].name;
                         result.items.forEach(item => {
-                            const key = `${item.name}|${item.expiry.getTime()}`;
+                            const key = `${item.name}|${item.expiry ? item.expiry.getTime() : 'none'}`;
                             let batch = batchMap.get(key);
                             if (!batch) {
                                 batch = {
                                     name: item.name,
+                                    series: item.series,
                                     expiry: item.expiry,
                                     qty_TPE: 0,
                                     qty_SC: 0,
                                     qty_MOMO: 0
                                 };
                                 batchMap.set(key, batch);
+                            }
+                            // 同一品項在不同表的系列若有空白，以填了的那一份為準
+                            if (batch.series === SERIES_UNKNOWN && item.series !== SERIES_UNKNOWN) {
+                                batch.series = item.series;
                             }
                             if (sourceName === 'TPE') batch.qty_TPE += item.qty;
                             else if (sourceName === 'SC') batch.qty_SC += item.qty;
@@ -706,7 +752,10 @@
                         .map(batch => ({
                             ...batch,
                             qty_TTQ: batch.qty_TPE + batch.qty_SC + batch.qty_MOMO,
-                            dte: Math.floor((batch.expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+                            // 沒效期的批次 dte 給 null，全程當獨立一類處理，不要拿 0 或 Infinity 混充
+                            dte: batch.expiry
+                                ? Math.floor((batch.expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+                                : null
                         }));
 
                     setData(batches);
@@ -754,8 +803,8 @@
                       ].filter(Boolean)
             ), [locationFilter]);
 
-            // 只套品名與倉別的批次，效期分層統計用這一份（不受效期篩選影響）
-            const scopedBatches = useMemo(() => {
+            // 先套品名與倉別。系列選單的品項數從這一份算，才不會選了系列之後其他系列的數字歸零
+            const baseBatches = useMemo(() => {
                 let filtered = data.slice();
 
                 if (searchTerm) {
@@ -773,9 +822,42 @@
                 return filtered;
             }, [data, searchTerm, locationFilter, selectedKeys]);
 
+            // 系列選項與各自的品項數，跟著搜尋與倉別動
+            const seriesOptions = useMemo(() => {
+                const map = new Map();
+                baseBatches.forEach(batch => {
+                    if (!map.has(batch.series)) map.set(batch.series, new Set());
+                    map.get(batch.series).add(batch.name);
+                });
+                return Array.from(map.entries())
+                    .map(([value, names]) => ({ value, label: value, count: names.size }))
+                    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'zh-Hant'));
+            }, [baseBatches]);
+
+            // 網址帶了現在資料裡沒有的系列時視同全部，不讓畫面莫名其妙變空
+            const activeSeries = useMemo(() => {
+                if (seriesFilter.includes('ALL')) return null;
+                const available = new Set(seriesOptions.map(o => o.value));
+                const kept = seriesFilter.filter(s => available.has(s));
+                return kept.length ? new Set(kept) : null;
+            }, [seriesFilter, seriesOptions]);
+
+            // 再套系列。效期分層統計用這一份（不受效期篩選影響）
+            const scopedBatches = useMemo(() => (
+                activeSeries ? baseBatches.filter(b => activeSeries.has(b.series)) : baseBatches
+            ), [baseBatches, activeSeries]);
+
             // 再套效期篩選，仍是批次層級
             const filteredBatches = useMemo(() => {
                 let filtered = scopedBatches;
+
+                // 沒效期的品項只在「全部效期」與「無效期」兩種情況下出現，天數區間對它沒有意義
+                if (dteFilter === 'none') {
+                    return filtered.filter(item => item.dte === null);
+                }
+                if (dteFilter !== 'ALL') {
+                    filtered = filtered.filter(item => item.dte !== null);
+                }
 
                 if (dteFilter === '≤90') {
                     filtered = filtered.filter(item => item.dte <= 90);
@@ -813,6 +895,7 @@
                     if (!product) {
                         product = {
                             name: batch.name,
+                            series: batch.series,
                             expiry: batch.expiry,
                             qty_TPE: 0,
                             qty_SC: 0,
@@ -821,24 +904,42 @@
                         };
                         productMap.set(batch.name, product);
                     }
-                    if (batch.expiry < product.expiry) product.expiry = batch.expiry;
+                    if (batch.expiry && (!product.expiry || batch.expiry < product.expiry)) {
+                        product.expiry = batch.expiry;
+                    }
                     product.qty_TPE += batch.qty_TPE;
                     product.qty_SC += batch.qty_SC;
                     product.qty_MOMO += batch.qty_MOMO;
                     product.batches.push(batch);
                 });
 
-                const products = Array.from(productMap.values()).map(product => ({
-                    ...product,
-                    qty_TTQ: product.qty_TPE + product.qty_SC + product.qty_MOMO,
-                    dte: Math.min(...product.batches.map(b => b.dte)),
-                    batches: product.batches.slice().sort((a, b) => a.dte - b.dte)
-                }));
+                const products = Array.from(productMap.values()).map(product => {
+                    const dtes = product.batches.map(b => b.dte).filter(d => d !== null);
+                    return {
+                        ...product,
+                        qty_TTQ: product.qty_TPE + product.qty_SC + product.qty_MOMO,
+                        dte: dtes.length ? Math.min(...dtes) : null,
+                        // 沒效期的批次排最後
+                        batches: product.batches.slice().sort((a, b) => {
+                            if (a.dte === null || b.dte === null) {
+                                return (a.dte === null ? 1 : 0) - (b.dte === null ? 1 : 0);
+                            }
+                            return a.dte - b.dte;
+                        })
+                    };
+                });
 
                 // 只選部分倉時，TTQ 欄顯示的是所選倉合計，排序要跟著同一個數字走
                 const shownTotal = (item) => selectedKeys.reduce((sum, k) => sum + item[k], 0);
 
                 products.sort((a, b) => {
+                    // 不論升冪降冪，沒效期的都沉到最後，免得它們卡在有效期的品項中間
+                    if (sortField === 'dte' || sortField === 'expiry') {
+                        const aNone = a.dte === null;
+                        const bNone = b.dte === null;
+                        if (aNone !== bNone) return aNone ? 1 : -1;
+                        if (aNone && bNone) return a.name.localeCompare(b.name, 'zh-Hant');
+                    }
                     let aVal = a[sortField];
                     let bVal = b[sortField];
                     if (sortField === 'expiry') {
@@ -899,21 +1000,25 @@
                 qty: filteredAndSortedData.reduce((sum, item) => sum + sumSelected(item), 0)
             }), [filteredAndSortedData, sumSelected]);
 
-            // 四層到期壓力：只看品名與倉別範圍，不受效期篩選影響，所以四格加起來就是全貌
+            // 到期壓力分格：只看品名、倉別、系列範圍，不受效期篩選影響，所以五格加起來就是全貌
             const tierStats = useMemo(() => {
                 const acc = {};
-                TIERS.forEach(t => { acc[t.key] = { sku: new Set(), qty: 0 }; });
+                ALL_TIERS.forEach(t => { acc[t.key] = { sku: new Set(), qty: 0 }; });
                 scopedBatches.forEach(batch => {
                     const tier = tierOf(batch.dte);
                     if (!tier) return;
                     acc[tier.key].sku.add(batch.name);
                     acc[tier.key].qty += sumSelected(batch);
                 });
-                return TIERS.map(t => ({ ...t, sku: acc[t.key].sku.size, qty: acc[t.key].qty }));
+                return ALL_TIERS.map(t => ({ ...t, sku: acc[t.key].sku.size, qty: acc[t.key].qty }));
             }, [scopedBatches, sumSelected]);
 
-            // 點分層卡片＝把該層套成自訂區間
+            // 點卡片＝套成對應的效期條件
             const applyTier = (tier) => {
+                if (tier.key === 'none') {
+                    setDteFilter('none');
+                    return;
+                }
                 setDteFilter('custom');
                 setCustomDteMin(Number.isFinite(tier.min) ? String(tier.min) : '');
                 setCustomDteMax(Number.isFinite(tier.max) ? String(tier.max) : '');
@@ -922,14 +1027,15 @@
             // 匯出目前篩出來的批次，給倉庫盤點或促銷清單直接用
             const exportCSV = () => {
                 const cols = selectedLocationColumns;
-                const header = ['品名', '效期', 'DTE', ...cols.map(c => c.label), '合計'];
+                const header = ['系列', '品名', '效期', 'DTE', ...cols.map(c => c.label), '合計'];
                 const lines = [header];
                 filteredAndSortedData.forEach(product => {
                     product.batches.forEach(batch => {
                         lines.push([
+                            batch.series,
                             batch.name,
-                            fmtDate(batch.expiry),
-                            batch.dte,
+                            batch.expiry ? fmtDate(batch.expiry) : '無效期',
+                            batch.dte === null ? '' : batch.dte,
                             ...cols.map(c => batch[c.key]),
                             sumSelected(batch)
                         ]);
@@ -966,6 +1072,9 @@
                 const tier = tierOf(dte);
                 return tier ? tier.cls : '';
             };
+
+            // 只鎖定單一系列時，每一列再標系列是多餘的
+            const showSeries = !activeSeries || activeSeries.size > 1;
 
             return (
                 <div className="min-h-screen bg-gray-50 p-3 sm:p-4">
@@ -1039,6 +1148,19 @@
                                                 />
                                             </div>
                                             <div>
+                                                <label className="block text-sm font-medium mb-1">Series Column</label>
+                                                <input
+                                                    className="input"
+                                                    value={source.seriesCol || ''}
+                                                    onChange={(e) => {
+                                                        const newSources = [...sources];
+                                                        newSources[index].seriesCol = e.target.value.toUpperCase();
+                                                        setSources(newSources);
+                                                    }}
+                                                    placeholder="C"
+                                                />
+                                            </div>
+                                            <div>
                                                 <label className="block text-sm font-medium mb-1">Name Column</label>
                                                 <input
                                                     className="input"
@@ -1109,8 +1231,9 @@
 
                         {/* Toolbar */}
                         <div className="card rounded-lg p-3 sm:p-4">
-                            <div className="flex flex-col lg:flex-row gap-2 sm:gap-4 items-stretch lg:items-center">
-                                <div className="flex-1 relative">
+                            {/* 手機 2 欄、平板一排、桌機跟搜尋框同一行 */}
+                            <div className="flex flex-col lg:flex-row gap-2 sm:gap-3 lg:items-center">
+                                <div className="relative lg:flex-1 lg:min-w-[180px]">
                                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 opacity-50" />
                                     <input
                                         className="input pl-10"
@@ -1120,14 +1243,28 @@
                                     />
                                 </div>
 
-                                <div className="flex gap-2">
-                                    <LocationMultiSelect 
-                                        locationFilter={locationFilter}
-                                        setLocationFilter={setLocationFilter}
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 lg:flex lg:items-center lg:gap-2 lg:shrink-0">
+                                    <MultiSelect
+                                        options={seriesOptions}
+                                        value={seriesFilter}
+                                        onChange={setSeriesFilter}
+                                        allLabel="全部系列"
+                                        triggerClass="lg:w-44"
+                                        panelClass="w-60 max-w-[calc(100vw-3rem)]"
                                     />
-                                    
+
+                                    <MultiSelect
+                                        options={LOCATION_OPTIONS}
+                                        value={locationFilter}
+                                        onChange={setLocationFilter}
+                                        allLabel="全部倉別"
+                                        triggerClass="lg:w-36"
+                                        panelClass="w-40"
+                                        align="right"
+                                    />
+
                                     <select
-                                        className="select-trigger flex-1 lg:flex-none lg:w-32"
+                                        className="select-trigger lg:w-32"
                                         value={dteFilter}
                                         onChange={(e) => setDteFilter(e.target.value)}
                                     >
@@ -1139,11 +1276,12 @@
                                         <option value="≥548">≥548天</option>
                                         <option value="≥730">≥730天</option>
                                         <option value="≥913">≥913天</option>
+                                        <option value="none">無效期</option>
                                         <option value="custom">自訂區間</option>
                                     </select>
 
                                     <button
-                                        className="btn btn-outline px-3 shrink-0"
+                                        className="btn btn-outline h-10 px-3 lg:px-4"
                                         onClick={exportCSV}
                                         disabled={filteredAndSortedData.length === 0}
                                         title="匯出目前篩選結果（批次層級）"
@@ -1154,7 +1292,7 @@
                             </div>
 
                             <div className="text-xs opacity-60 mt-2">
-                                數量為符合目前效期篩選的批次合計，點品名展開各批。
+                                數量為符合目前效期篩選的批次合計，點品名展開各批。包材與周邊沒有效期，選「全部效期」或「無效期」才會出現。
                             </div>
 
                             {dteFilter === 'custom' && (
@@ -1238,11 +1376,13 @@
                         )}
 
                         {/* 到期壓力分層（點一下就套成該區間） */}
-                        <div className="grid grid-cols-4 gap-2 sm:gap-4">
+                        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3">
                             {tierStats.map(tier => {
-                                const active = dteFilter === 'custom'
-                                    && customDteMin === (Number.isFinite(tier.min) ? String(tier.min) : '')
-                                    && customDteMax === (Number.isFinite(tier.max) ? String(tier.max) : '');
+                                const active = tier.key === 'none'
+                                    ? dteFilter === 'none'
+                                    : dteFilter === 'custom'
+                                        && customDteMin === (Number.isFinite(tier.min) ? String(tier.min) : '')
+                                        && customDteMax === (Number.isFinite(tier.max) ? String(tier.max) : '');
                                 return (
                                     <div
                                         key={tier.key}
@@ -1262,7 +1402,7 @@
                         </div>
 
                         <div className="text-xs opacity-50 -mt-1">
-                            四層的件數加起來等於總件數；品項數會加起來比總品項數多，因為同一品項的不同批可能落在不同層。
+                            五格的件數加起來等於目前範圍的總件數；品項數會加起來比總品項數多，因為同一品項的不同批可能落在不同格。
                         </div>
 
                         {/* Stats：手機壓成一行摘要，桌機維持三張卡 */}
@@ -1270,9 +1410,11 @@
                             <span><span className="font-bold text-sm">{stats.sku.toLocaleString()}</span> 品項</span>
                             <span><span className="font-bold text-sm">{stats.qty.toLocaleString()}</span> 件</span>
                             <span className="opacity-70 truncate">
-                                最早 {filteredAndSortedData.length
-                                    ? `${fmtDate(filteredAndSortedData.reduce((e, i) => !e || i.expiry < e.expiry ? i : e, null).expiry)}`
-                                    : '無'}
+                                最早 {(() => {
+                                    const dated = filteredAndSortedData.filter(i => i.expiry);
+                                    if (!dated.length) return '無';
+                                    return fmtDate(dated.reduce((e, i) => !e || i.expiry < e.expiry ? i : e, null).expiry);
+                                })()}
                             </span>
                         </div>
 
@@ -1324,14 +1466,17 @@
                                             <div className="px-3 py-2" onClick={() => toggleExpanded(item.name)}>
                                                 <div className="flex items-start justify-between gap-2">
                                                     <div className="font-medium text-sm leading-snug">
+                                                        {showSeries && (
+                                                            <span className="text-xs opacity-50 font-normal mr-1">{item.series}</span>
+                                                        )}
                                                         {item.name}
                                                         {item.batches.length > 1 && (
                                                             <span className="text-xs opacity-50 ml-1">{item.batches.length} 批</span>
                                                         )}
                                                     </div>
                                                     <span className={`shrink-0 px-2 py-0.5 rounded text-xs font-medium ${getDTEStatusClass(item.dte)}`}>
-                                                        {item.dte < 0 && <AlertTriangle className="inline h-3 w-3 mr-1" />}
-                                                        {item.dte} 天
+                                                        {item.dte !== null && item.dte < 0 && <AlertTriangle className="inline h-3 w-3 mr-1" />}
+                                                        {item.dte === null ? '無效期' : `${item.dte} 天`}
                                                     </span>
                                                 </div>
                                                 <div className="flex items-center justify-between gap-2 mt-1 text-xs opacity-70">
@@ -1348,8 +1493,12 @@
                                                     {item.batches.map(batch => (
                                                         <div key={batch.expiry.getTime()} className="batch-row rounded px-2 py-1 text-xs">
                                                             <div className="flex items-center justify-between gap-2">
-                                                                <span className="opacity-70 whitespace-nowrap">效期 {fmtDate(batch.expiry)}</span>
-                                                                <span className={`px-1.5 py-0.5 rounded shrink-0 ${getDTEStatusClass(batch.dte)}`}>{batch.dte} 天</span>
+                                                                <span className="opacity-70 whitespace-nowrap">
+                                                                    {batch.expiry ? `效期 ${fmtDate(batch.expiry)}` : '無效期'}
+                                                                </span>
+                                                                <span className={`px-1.5 py-0.5 rounded shrink-0 ${getDTEStatusClass(batch.dte)}`}>
+                                                                    {batch.dte === null ? '—' : `${batch.dte} 天`}
+                                                                </span>
                                                             </div>
                                                             <div className="opacity-70 mt-0.5">
                                                                 {selectedLocationColumns.map(c => `${c.label} ${batch[c.key].toLocaleString()}`).join('　')}
@@ -1425,6 +1574,9 @@
                                                                     className="btn btn-ghost p-0 h-auto text-left"
                                                                     onClick={() => toggleExpanded(item.name)}
                                                                 >
+                                                                    {showSeries && (
+                                                                        <span className="text-xs opacity-50 mr-2">{item.series}</span>
+                                                                    )}
                                                                     <span className="font-medium">{item.name}</span>
                                                                     <span className="text-xs opacity-60 ml-2">
                                                                         {item.batches.length} 批
@@ -1445,11 +1597,11 @@
                                                                 </td>
                                                             )}
                                                             <td className="p-3 text-right">
-                                                                <span className={`px-2 py-1 rounded text-xs font-medium ${getDTEStatusClass(item.dte)}`}>
-                                                                    {item.dte < 0 && <AlertTriangle className="inline h-3 w-3 mr-1" />}
-                                                                    {item.dte}
+                                                                <span className={`px-2 py-1 rounded text-xs font-medium whitespace-nowrap ${getDTEStatusClass(item.dte)}`}>
+                                                                    {item.dte !== null && item.dte < 0 && <AlertTriangle className="inline h-3 w-3 mr-1" />}
+                                                                    {item.dte === null ? '無效期' : item.dte}
                                                                 </span>
-                                                                {multiBatch && (
+                                                                {multiBatch && item.dte !== null && (
                                                                     <div className="text-xs opacity-50 mt-1">最早批</div>
                                                                 )}
                                                             </td>
@@ -1457,7 +1609,7 @@
                                                         {isOpen && item.batches.map(batch => (
                                                             <tr key={`${item.name}-${batch.expiry.getTime()}`} className="batch-row border-t">
                                                                 <td className="p-2 pl-8 text-xs opacity-70">
-                                                                    效期 {fmtDate(batch.expiry)}
+                                                                    {batch.expiry ? `效期 ${fmtDate(batch.expiry)}` : '無效期'}
                                                                 </td>
                                                                 {selectedLocationColumns.map(column => (
                                                                     <td key={column.key} className="p-2 text-right text-xs">
@@ -1470,8 +1622,8 @@
                                                                     </td>
                                                                 )}
                                                                 <td className="p-2 text-right">
-                                                                    <span className={`px-2 py-0.5 rounded text-xs ${getDTEStatusClass(batch.dte)}`}>
-                                                                        {batch.dte}
+                                                                    <span className={`px-2 py-0.5 rounded text-xs whitespace-nowrap ${getDTEStatusClass(batch.dte)}`}>
+                                                                        {batch.dte === null ? '—' : batch.dte}
                                                                     </span>
                                                                 </td>
                                                             </tr>
@@ -1489,7 +1641,7 @@
                             {lastFetch && (
                                 <span className="sm:hidden">資料讀取 {lastFetch.toLocaleTimeString()}　</span>
                             )}
-                            最後更新 2026/07/27 22:10
+                            最後更新 2026/07/31 16:54
                         </div>
                     </div>
                 </div>
