@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>出貨量 vs 庫存 警示表 v55</title>
+    <title>出貨量 vs 庫存 警示表 v58</title>
     <script src="https://cdn.tailwindcss.com"></script>
 <style>
     :root{
@@ -68,6 +68,25 @@
     .btn-primary:hover{background:#4338ca;color:#fff;}
 
     .basis{font-size:11.5px;color:var(--ink-3);line-height:1.4;}
+
+    /* ---- 系列多選下拉 ---- */
+    .dd{position:relative;flex:none;}
+    .dd-panel{position:absolute;top:calc(100% + 4px);right:0;z-index:30;display:none;
+              background:var(--card);border:1px solid var(--line);border-radius:10px;
+              box-shadow:0 8px 24px rgb(16 24 40 / .12);padding:6px;
+              min-width:212px;max-width:calc(100vw - 24px);max-height:min(320px,60vh);overflow:auto;}
+    .dd.open .dd-panel{display:block;}
+    .dd-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;
+             cursor:pointer;font-size:13px;color:var(--ink);white-space:nowrap;}
+    .dd-item:hover{background:var(--line-soft);}
+    .dd-item input{width:15px;height:15px;accent-color:var(--accent);flex:none;cursor:pointer;}
+    .dd-item .t{overflow:hidden;text-overflow:ellipsis;}
+    .dd-item .c{margin-left:auto;padding-left:12px;font-size:11.5px;color:var(--ink-3);
+                font-variant-numeric:tabular-nums;}
+    .dd-sep{height:1px;background:var(--line);margin:4px 2px;}
+    .btn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+    .btn .caret{width:13px;height:13px;opacity:.5;}
+    #series-label{max-width:120px;overflow:hidden;text-overflow:ellipsis;}
 
     /* ---- Table ---- */
     .wrap{flex:1;overflow:auto;background:var(--card);-webkit-overflow-scrolling:touch;}
@@ -164,7 +183,7 @@
                 <div class="logo">PM</div>
                 <div style="min-width:0;">
                     <div class="title">出貨量 vs 庫存 警示表</div>
-                    <div class="sub">v55 · <span id="status">讀取中</span></div>
+                    <div class="sub">v58 · <span id="status">讀取中</span></div>
                 </div>
             </div>
             <div style="display:flex;gap:8px;">
@@ -189,6 +208,13 @@
                 <div class="search">
                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     <input type="text" id="search" placeholder="搜尋品名">
+                </div>
+                <div class="dd" id="series-dd">
+                    <button class="btn" onclick="app.toggleSeriesPanel()" id="series-btn" title="用系列篩選">
+                        <span id="series-label">全部系列</span>
+                        <svg class="caret" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg>
+                    </button>
+                    <div class="dd-panel" id="series-panel"></div>
                 </div>
                 <button class="btn" onclick="app.exportCSV()">
                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
@@ -266,6 +292,7 @@
                     <button onclick="app.clearAllHidden()" style="margin-top:8px;border:1px solid var(--line);background:#fff;border-radius:6px;padding:5px 12px;font-size:12.5px;cursor:pointer;">三個分頁全部復原</button>
                 </div>
             </div>
+            <div style="margin-top:12px;font-size:11.5px;color:var(--ink-3);">最後更新 2026/07/31 21:09</div>
             <div class="mt-6 flex justify-end"><button onclick="app.saveSettings()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded text-xs shadow-md">Save</button></div>
         </div>
     </div>
@@ -273,7 +300,9 @@
     <script>
         // headers=2 讓 gviz 把第 1 列（進出貨類別）與第 2 列（時戳）合成欄位標題。
         // 用 headers=0 讀會拿不到，因為 gviz 把出貨欄判定為數字欄，文字儲存格會被丟掉。
-        const CONFIG = { ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI', TAB: 'inventory_tracking', D_ROW: 1, SKU_IDX: 3, INV_IDX: 9, START_IDX: 11 };
+        // SERIES_IDX 2＝C 欄 series_name，跟庫存水位儀表板同一個口徑
+        const CONFIG = { ID: '14yjT90s9CV988KZZ_o6m8F4LbeDWpKTuqVO66gfLboI', TAB: 'inventory_tracking', D_ROW: 1, SKU_IDX: 3, SERIES_IDX: 2, INV_IDX: 9, START_IDX: 11 };
+        const SERIES_UNKNOWN = '未分類';
         // 盤點是校正、退庫是退回台北倉的內部移動，兩者的負數都不是需求。
         // 進貨、歸倉、客退本來就只有正數，進不了分子，不必列。
         const NON_DEMAND = ['盤點', '退庫'];
@@ -289,11 +318,27 @@
             data: [], productData: [], sortCol: 'itemNo', sortAsc: true, view: 'sku', mult: 1,
             // 三個分頁各自一份隱藏清單：品項用 unique_key，產品與年量各用產品名
             hidden: { sku: new Set(), product: new Set(), year: new Set() }, showHidden: false,
+            // 系列順序照試算表的列序；seriesSel 為 null＝全部系列，三個分頁共用同一組選擇
+            seriesOrder: [], seriesSel: null,
 
             init() {
                 this.loadHidden();
+                this.readHash();
                 this.bindEvents();
                 this.fetchData();
+            },
+
+            // 選擇寫進網址，重新整理與丟連結給同事都留得住
+            readHash() {
+                const p = new URLSearchParams((location.hash || '').replace(/^#/, ''));
+                const raw = (p.get('series') || '').split(',').map(s => s.trim()).filter(Boolean);
+                this.seriesSel = raw.length ? new Set(raw) : null;
+            },
+            writeHash() {
+                const p = new URLSearchParams();
+                if (this.seriesSel) p.set('series', [...this.seriesSel].join(','));
+                const q = p.toString();
+                history.replaceState(null, '', location.pathname + location.search + (q ? '#' + q : ''));
             },
 
             setMult(v) {
@@ -306,7 +351,78 @@
             },
 
             bindEvents() { document.getElementById('search').addEventListener('input', (e) => this.render(e.target.value));
-                document.getElementById('mult-input').addEventListener('input', (e) => this.setMult(e.target.value)); },
+                document.getElementById('mult-input').addEventListener('input', (e) => this.setMult(e.target.value));
+                // 點面板外面收起來
+                document.addEventListener('mousedown', (e) => {
+                    const dd = document.getElementById('series-dd');
+                    if (dd.classList.contains('open') && !dd.contains(e.target)) dd.classList.remove('open');
+                });
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') document.getElementById('series-dd').classList.remove('open');
+                }); },
+
+            toggleSeriesPanel() {
+                const dd = document.getElementById('series-dd');
+                dd.classList.toggle('open');
+                if (dd.classList.contains('open')) this.renderSeriesPanel();
+            },
+
+            // 目前分頁裡每個系列有幾項，計數不受系列選擇影響，只受搜尋影響
+            seriesCounts() {
+                const term = document.getElementById('search').value.toLowerCase();
+                const dataset = this.view === 'sku' ? this.data : this.productData;
+                const counts = new Map();
+                dataset.forEach(row => {
+                    if (this.hidden[this.view].has(this.keyOf(row)) && !this.showHidden) return;
+                    if (this.view === 'year' && !(row.runRate > 0)) return;
+                    if (term && !this.matchTerm(row, term)) return;
+                    counts.set(row.series, (counts.get(row.series) || 0) + 1);
+                });
+                return counts;
+            },
+
+            renderSeriesPanel() {
+                const counts = this.seriesCounts();
+                const list = this.seriesOrder.filter(s => counts.has(s));
+                const row = (val, label, count, checked) =>
+                    `<label class="dd-item"><input type="checkbox" ${checked ? 'checked' : ''} onchange="app.toggleSeries('${String(val).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')">` +
+                    `<span class="t">${label}</span>${count === null ? '' : `<span class="c">${count}</span>`}</label>`;
+                document.getElementById('series-panel').innerHTML =
+                    row('ALL', '全部系列', null, !this.seriesSel) + '<div class="dd-sep"></div>' +
+                    (list.length
+                        ? list.map(s => row(s, s, counts.get(s), !!this.seriesSel && this.seriesSel.has(s))).join('')
+                        : '<div class="dd-item" style="color:var(--ink-3);cursor:default;">目前條件下沒有系列</div>');
+            },
+
+            toggleSeries(val) {
+                if (val === 'ALL') {
+                    this.seriesSel = null;
+                } else if (!this.seriesSel) {
+                    // 目前是全部時點一項＝只看那一項
+                    this.seriesSel = new Set([val]);
+                } else {
+                    this.seriesSel.has(val) ? this.seriesSel.delete(val) : this.seriesSel.add(val);
+                    if (!this.seriesSel.size) this.seriesSel = null;
+                }
+                this.writeHash();
+                this.render(document.getElementById('search').value);
+                this.renderSeriesPanel();
+            },
+
+            updateSeriesButton() {
+                const btn = document.getElementById('series-btn');
+                const label = document.getElementById('series-label');
+                const sel = this.seriesSel ? [...this.seriesSel] : [];
+                label.innerText = !sel.length ? '全部系列' : sel.length === 1 ? sel[0] : `系列 ${sel.length} 項`;
+                btn.title = sel.length ? sel.join('、') : '用系列篩選';
+                btn.classList.toggle('on', sel.length > 0);
+            },
+
+            matchTerm(row, term) {
+                return row.name.toLowerCase().includes(term)
+                    || (row.sku && row.sku.toLowerCase().includes(term))
+                    || (row.series && row.series.toLowerCase().includes(term));
+            },
             switchView(mode) {
                 this.view = mode;
                 ['sku','product','year'].forEach(v =>
@@ -354,11 +470,14 @@
                         `T: ${denom}m (${first} ~ ${last}) · 已排除 ${NON_DEMAND.join('/')} 共 ${Math.round(skipped).toLocaleString()} 件`;
 
                     const skuResults = [];
+                    const seriesSeen = [];
                     for(let i = CONFIG.D_ROW; i < rows.length; i++) {
                         const row = rows[i];
                         if (!row[CONFIG.SKU_IDX]) continue;
                         const sku = String(row[CONFIG.SKU_IDX]).trim();
                         if (sku.toLowerCase().includes('unique_key') || sku.includes('sort_')) continue;
+                        const series = String(row[CONFIG.SERIES_IDX] || '').trim() || SERIES_UNKNOWN;
+                        if (!seriesSeen.includes(series)) seriesSeen.push(series);
                         const itemNo = parseInt(row[0]) || 9999;
                         const invRaw = row[CONFIG.INV_IDX];
                         let inv = typeof invRaw === 'string' ? parseFloat(invRaw.replace(/,/g, '')) : (typeof invRaw === 'number' ? invRaw : 0);
@@ -373,9 +492,10 @@
                         const product = sku; 
                         let status = 'OK';
                         if (monthlyRate > 0 && (inv / monthlyRate) < 2) status = 'Risk';
-                        skuResults.push({ itemNo, sku, name: product, inv: inv || 0, rawOutflow: totalOut, months: denom, runRate: monthlyRate, status });
+                        skuResults.push({ itemNo, sku, series, name: product, inv: inv || 0, rawOutflow: totalOut, months: denom, runRate: monthlyRate, status });
                     }
                     this.data = skuResults;
+                    this.seriesOrder = seriesSeen;
                     this.aggregateProducts(skuResults);
                     document.getElementById('status').innerText =
                         `${skuResults.length} 個品項 · ${new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })} 更新`;
@@ -392,7 +512,7 @@
                 skuData.forEach(item => {
                     // For aggregation, we use the cleaned name
                     const cleanName = item.sku.replace(/\s*\(?\d{4}-\d{2}-\d{2}\)?.*$/, "").replace(/\s*-\s*$/, "").trim();
-                    if(!map.has(cleanName)) map.set(cleanName, { name: cleanName, rawOutflow: 0, inv: 0, months: item.months });
+                    if(!map.has(cleanName)) map.set(cleanName, { name: cleanName, series: item.series, rawOutflow: 0, inv: 0, months: item.months });
                     const p = map.get(cleanName);
                     p.rawOutflow += item.rawOutflow;
                     p.inv += item.inv;
@@ -404,6 +524,7 @@
                   return {
                     itemNo: i + 1,
                     name: p.name,
+                    series: p.series,
                     rawOutflow: p.rawOutflow,
                     inv: p.inv,
                     runRate,
@@ -451,8 +572,9 @@
                     const hKey = this.keyOf(row);
                     const isHidden = this.hidden[this.view].has(hKey);
                     if (isHidden && !this.showHidden) return;
-                    if (term && !row.name.toLowerCase().includes(term) && !(row.sku && row.sku.toLowerCase().includes(term))) return;
-                    
+                    if (this.seriesSel && !this.seriesSel.has(row.series)) return;
+                    if (term && !this.matchTerm(row, term)) return;
+
                     visibleCount++;
                     const tr = document.createElement('tr');
                     const esc = String(hKey).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -508,6 +630,7 @@
                 const nHidden = this.hidden[this.view].size;
                 document.getElementById('hid-bar').style.display = nHidden ? 'flex' : 'none';
                 document.getElementById('hid-count').innerText = nHidden;
+                this.updateSeriesButton();
                 this.updateSortIcons();
             },
 
@@ -588,16 +711,21 @@
                 if(!dataset.length) { alert("No data"); return; }
                 let headers, mapper;
                 if (this.view === 'year') {
-                    headers = ["項次","產品","月需","年需求",`倍數 ${this.mult} 後總量`];
-                    mapper = r => [r.itemNo, r.name, r.runRate, r.runRate * 12, Math.round(r.runRate * 12 * this.mult)];
+                    headers = ["項次","系列","產品","月需","年需求",`倍數 ${this.mult} 後總量`];
+                    mapper = r => [r.itemNo, r.series, r.name, r.runRate, r.runRate * 12, Math.round(r.runRate * 12 * this.mult)];
                 } else if (this.view === 'sku') {
-                    headers = ["項次","品項","總出","月需","北倉","風險"];
-                    mapper = r => [r.itemNo, r.sku, r.rawOutflow, r.runRate, r.inv, r.status];
+                    headers = ["項次","系列","品項","總出","月需","北倉","風險"];
+                    mapper = r => [r.itemNo, r.series, r.sku, r.rawOutflow, r.runRate, r.inv, r.status];
                 } else {
-                    headers = ["項次","產品","總出","月需","北倉","風險"];
-                    mapper = r => [r.itemNo, r.name, r.rawOutflow, r.runRate, r.inv, r.status];
+                    headers = ["項次","系列","產品","總出","月需","北倉","風險"];
+                    mapper = r => [r.itemNo, r.series, r.name, r.rawOutflow, r.runRate, r.inv, r.status];
                 }
-                const csv = "\ufeff" + [headers.join(","), ...dataset.filter(r => !this.hidden[this.view].has(this.keyOf(r)) && (this.view !== 'year' || r.runRate > 0)).map(r => mapper(r).map(c => `"${String(c).replace(/"/g, '""')}"`).join(","))].join("\n");
+                // 匯出跟畫面同一個範圍：隱藏的、不在所選系列的、年量分頁沒出貨的都不出
+                const rowsOut = dataset.filter(r => !this.hidden[this.view].has(this.keyOf(r))
+                    && (this.view !== 'year' || r.runRate > 0)
+                    && (!this.seriesSel || this.seriesSel.has(r.series)));
+                if (!rowsOut.length) { alert("目前條件下沒有資料"); return; }
+                const csv = "\ufeff" + [headers.join(","), ...rowsOut.map(r => mapper(r).map(c => `"${String(c).replace(/"/g, '""')}"`).join(","))].join("\n");
                 const url = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
                 const a = document.createElement("a"); a.href = url; a.download = `Inv_${this.view}_${new Date().toISOString().split('T')[0]}.csv`; a.click();
             },
