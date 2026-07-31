@@ -695,7 +695,8 @@
 
                         // 數量可能帶千分位逗號或空白，先洗掉再轉數字
                         const qty = parseFloat(String(qtyStr || '').replace(/[,\s]/g, ''));
-                        items.push({ name, series: series || SERIES_UNKNOWN, expiry, qty: isNaN(qty) ? 0 : qty });
+                        // 試算表的列順序就是公司慣用的排法，記下來當預設排序用
+                        items.push({ name, series: series || SERIES_UNKNOWN, expiry, qty: isNaN(qty) ? 0 : qty, row: i });
                     });
 
                     return { items, read: items.length, skipped };
@@ -715,10 +716,15 @@
                     const results = await Promise.all(srcs.map(fetchSheetData));
                     // 以「品名 + 效期」為單位保留批次，不再把不同效期壓成一列
                     const batchMap = new Map();
+                    // 系列與品名在試算表裡第一次出現的位置＝公司慣用順序，第一個來源說了算
+                    const seriesRank = new Map();
+                    const nameRank = new Map();
 
                     results.forEach((result, sourceIndex) => {
                         const sourceName = srcs[sourceIndex].name;
                         result.items.forEach(item => {
+                            if (!seriesRank.has(item.series)) seriesRank.set(item.series, seriesRank.size);
+                            if (!nameRank.has(item.name)) nameRank.set(item.name, nameRank.size);
                             const key = `${item.name}|${item.expiry ? item.expiry.getTime() : 'none'}`;
                             let batch = batchMap.get(key);
                             if (!batch) {
@@ -751,6 +757,8 @@
                         .filter(batch => batch.qty_TPE !== 0 || batch.qty_SC !== 0 || batch.qty_MOMO !== 0)
                         .map(batch => ({
                             ...batch,
+                            seriesRank: seriesRank.has(batch.series) ? seriesRank.get(batch.series) : 9999,
+                            nameRank: nameRank.has(batch.name) ? nameRank.get(batch.name) : 9999,
                             qty_TTQ: batch.qty_TPE + batch.qty_SC + batch.qty_MOMO,
                             // 沒效期的批次 dte 給 null，全程當獨立一類處理，不要拿 0 或 Infinity 混充
                             dte: batch.expiry
@@ -822,16 +830,16 @@
                 return filtered;
             }, [data, searchTerm, locationFilter, selectedKeys]);
 
-            // 系列選項與各自的品項數，跟著搜尋與倉別動
+            // 系列選項與各自的品項數，跟著搜尋與倉別動。順序照試算表，不照數量
             const seriesOptions = useMemo(() => {
                 const map = new Map();
                 baseBatches.forEach(batch => {
-                    if (!map.has(batch.series)) map.set(batch.series, new Set());
-                    map.get(batch.series).add(batch.name);
+                    if (!map.has(batch.series)) map.set(batch.series, { names: new Set(), rank: batch.seriesRank });
+                    map.get(batch.series).names.add(batch.name);
                 });
                 return Array.from(map.entries())
-                    .map(([value, names]) => ({ value, label: value, count: names.size }))
-                    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'zh-Hant'));
+                    .map(([value, v]) => ({ value, label: value, count: v.names.size, rank: v.rank }))
+                    .sort((a, b) => a.rank - b.rank);
             }, [baseBatches]);
 
             // 網址帶了現在資料裡沒有的系列時視同全部，不讓畫面莫名其妙變空
@@ -896,6 +904,8 @@
                         product = {
                             name: batch.name,
                             series: batch.series,
+                            seriesRank: batch.seriesRank,
+                            nameRank: batch.nameRank,
                             expiry: batch.expiry,
                             qty_TPE: 0,
                             qty_SC: 0,
@@ -933,6 +943,12 @@
                 const shownTotal = (item) => selectedKeys.reduce((sum, k) => sum + item[k], 0);
 
                 products.sort((a, b) => {
+                    // 品名欄的排序＝公司慣用排法：先照系列在試算表的順序，同系列內照試算表列序。
+                    // 純文字排會讓 100%生絲、DM、OPP 這種開頭跑到最前面，跟大家腦中的產品線順序對不起來
+                    if (sortField === 'name') {
+                        const diff = (a.seriesRank - b.seriesRank) || (a.nameRank - b.nameRank);
+                        return sortDirection === 'asc' ? diff : -diff;
+                    }
                     // 不論升冪降冪，沒效期的都沉到最後，免得它們卡在有效期的品項中間
                     if (sortField === 'dte' || sortField === 'expiry') {
                         const aNone = a.dte === null;
@@ -1466,9 +1482,6 @@
                                             <div className="px-3 py-2" onClick={() => toggleExpanded(item.name)}>
                                                 <div className="flex items-start justify-between gap-2">
                                                     <div className="font-medium text-sm leading-snug">
-                                                        {showSeries && (
-                                                            <span className="text-xs opacity-50 font-normal mr-1">{item.series}</span>
-                                                        )}
                                                         {item.name}
                                                         {item.batches.length > 1 && (
                                                             <span className="text-xs opacity-50 ml-1">{item.batches.length} 批</span>
@@ -1520,11 +1533,18 @@
                                 <table className="w-full data-table">
                                     <thead>
                                         <tr>
-                                            <th className="p-3 text-left font-medium">
-                                                <button onClick={() => handleSort('name')} className="hover:text-blue-600">
+                                            <th className="p-3 text-left font-medium w-px whitespace-nowrap">
+                                                <button
+                                                    onClick={() => handleSort('name')}
+                                                    className="hover:text-blue-600"
+                                                    title="照系列與試算表的順序排"
+                                                >
                                                     # Item {sortField === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
                                                 </button>
                                             </th>
+                                            {showSeries && (
+                                                <th className="p-3 pl-0 text-left font-medium">系列</th>
+                                            )}
                                             {selectedLocationColumns.map(column => (
                                                 <th key={column.key} className="p-3 text-right font-medium">
                                                     <button onClick={() => handleSort(column.key)} className="hover:text-blue-600">
@@ -1549,7 +1569,7 @@
                                     <tbody>
                                         {loading ? (
                                             <tr>
-                                                <td colSpan={2 + selectedLocationColumns.length + (selectedLocationColumns.length > 1 ? 1 : 0)} className="p-8 text-center">
+                                                <td colSpan={2 + selectedLocationColumns.length + (selectedLocationColumns.length > 1 ? 1 : 0) + (showSeries ? 1 : 0)} className="p-8 text-center">
                                                     <div className="flex items-center justify-center gap-2">
                                                         <RefreshCw className="h-4 w-4 animate-spin" />
                                                         Loading data...
@@ -1558,7 +1578,7 @@
                                             </tr>
                                         ) : filteredAndSortedData.length === 0 ? (
                                             <tr>
-                                                <td colSpan={2 + selectedLocationColumns.length + (selectedLocationColumns.length > 1 ? 1 : 0)} className="p-8 text-center opacity-60">
+                                                <td colSpan={2 + selectedLocationColumns.length + (selectedLocationColumns.length > 1 ? 1 : 0) + (showSeries ? 1 : 0)} className="p-8 text-center opacity-60">
                                                     No data available
                                                 </td>
                                             </tr>
@@ -1574,9 +1594,6 @@
                                                                     className="btn btn-ghost p-0 h-auto text-left"
                                                                     onClick={() => toggleExpanded(item.name)}
                                                                 >
-                                                                    {showSeries && (
-                                                                        <span className="text-xs opacity-50 mr-2">{item.series}</span>
-                                                                    )}
                                                                     <span className="font-medium">{item.name}</span>
                                                                     <span className="text-xs opacity-60 ml-2">
                                                                         {item.batches.length} 批
@@ -1586,6 +1603,17 @@
                                                                         : <ChevronDown className="h-3 w-3 ml-1 opacity-60" />}
                                                                 </button>
                                                             </td>
+                                                            {showSeries && (
+                                                                <td className="p-3 pl-0 text-xs whitespace-nowrap">
+                                                                    <button
+                                                                        className="btn btn-ghost px-1.5 py-0.5 rounded opacity-60 hover:opacity-100 hover:text-blue-600"
+                                                                        onClick={() => setSeriesFilter([item.series])}
+                                                                        title={`只看 ${item.series}`}
+                                                                    >
+                                                                        {item.series}
+                                                                    </button>
+                                                                </td>
+                                                            )}
                                                             {selectedLocationColumns.map(column => (
                                                                 <td key={column.key} className="p-3 text-right font-medium">
                                                                     {item[column.key].toLocaleString()}
@@ -1611,6 +1639,7 @@
                                                                 <td className="p-2 pl-8 text-xs opacity-70">
                                                                     {batch.expiry ? `效期 ${fmtDate(batch.expiry)}` : '無效期'}
                                                                 </td>
+                                                                {showSeries && <td />}
                                                                 {selectedLocationColumns.map(column => (
                                                                     <td key={column.key} className="p-2 text-right text-xs">
                                                                         {batch[column.key].toLocaleString()}
@@ -1641,7 +1670,7 @@
                             {lastFetch && (
                                 <span className="sm:hidden">資料讀取 {lastFetch.toLocaleTimeString()}　</span>
                             )}
-                            最後更新 2026/07/31 16:54
+                            最後更新 2026/07/31 17:32
                         </div>
                     </div>
                 </div>
