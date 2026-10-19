@@ -333,6 +333,38 @@
 
         const SOURCES_KEY = 'pm_inventory_sources_v1';
 
+        // 各倉「資料最後異動」：台北三重讀 LOG 最後一筆事件，MOMO 讀每日快照打勾表的最後一個 Done。
+        // 用 gviz 查詢只抓一列，不拖慢主資料。失敗就回 null，不影響主畫面。
+        const parseLogStamp = (s) => {
+            // 26.1019.1001 → 2026-10-19 10:01
+            const m = String(s).match(/^(\d{2})\.(\d{2})(\d{2})\.(\d{2})(\d{2})$/);
+            return m ? new Date(2000 + +m[1], +m[2] - 1, +m[3], +m[4], +m[5]) : null;
+        };
+        const parseAnyDate = (s) => {
+            const t = String(s).trim();
+            let m = t.match(/(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
+            if (!m) m = t.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);
+            return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+        };
+        const fetchFreshness = async (source) => {
+            if (!source.sheetId || !source.freshTab) return { name: source.name, when: null, kind: source.freshKind };
+            try {
+                const tq = source.freshKind === 'snapshot'
+                    ? 'select A,B where B = true order by A desc limit 1'
+                    : 'select A order by A desc limit 1';
+                const url = `https://docs.google.com/spreadsheets/d/${source.sheetId}/gviz/tq?sheet=${encodeURIComponent(source.freshTab)}&tq=${encodeURIComponent(tq)}&tqx=out:csv`;
+                const res = await fetch(url, { cache: 'no-store' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const lines = (await res.text()).trim().split(/\r?\n/);
+                const cell = (lines[1] || '').split(',')[0].replace(/^"|"$/g, '');
+                const when = source.freshKind === 'snapshot' ? parseAnyDate(cell) : parseLogStamp(cell);
+                return { name: source.name, when, kind: source.freshKind };
+            } catch (e) {
+                console.warn(`[${source.name}] 資料時間讀取失敗`, e);
+                return { name: source.name, when: null, kind: source.freshKind, error: true };
+            }
+        };
+
         // 倉別與系列共用的多選下拉。options 為 [{ value, label, count }]，不含「全部」那一列
         const MultiSelect = ({ options, value, onChange, allLabel = '全部', triggerClass = '', panelClass = '', align = 'left' }) => {
             const [open, setOpen] = useState(false);
@@ -493,6 +525,7 @@
             const [diag, setDiag] = useState([]);
             const [showDiag, setShowDiag] = useState(false);
             const [zeroHidden, setZeroHidden] = useState(0);
+            const [fresh, setFresh] = useState([]);
 
             const defaultSources = [{
                 name: 'TPE',
@@ -502,7 +535,9 @@
                 seriesCol: 'C',
                 nameCol: 'D',
                 expiryCol: 'E',
-                qtyCol: 'J'
+                qtyCol: 'J',
+                freshKind: 'log',
+                freshTab: 'LOG_inventory_update'
             }, {
                 name: 'SC',
                 sheetId: '12C25rcfSEMtSkkARzLtxlW9Wmhu64m6eSP_KoK8M-js',
@@ -511,7 +546,9 @@
                 seriesCol: 'C',
                 nameCol: 'D',
                 expiryCol: 'E',
-                qtyCol: 'J'
+                qtyCol: 'J',
+                freshKind: 'log',
+                freshTab: 'LOG_inventory_update'
             }, {
                 name: 'MOMO',
                 sheetId: '1j04xLITImSX6WgtXkaGQfs0IZ5E8r3UEOrT2CKKGAxE',
@@ -520,7 +557,10 @@
                 seriesCol: 'C',
                 nameCol: 'D',
                 expiryCol: 'E',
-                qtyCol: 'J'
+                qtyCol: 'J',
+                // MOMO 是每天從後台報表整份覆蓋，不走逐筆異動，資料時間看打勾表
+                freshKind: 'snapshot',
+                freshTab: 'momo_庫存更新日期'
             }];
 
             // 試算表設定記在瀏覽器，重新整理不會退回預設
@@ -713,7 +753,12 @@
                 setLoading(true);
                 setErrors([]);
                 try {
-                    const results = await Promise.all(srcs.map(fetchSheetData));
+                    // 資料時間跟主資料一起抓，但各自失敗各自吞，不互相拖累
+                    const [results, freshness] = await Promise.all([
+                        Promise.all(srcs.map(fetchSheetData)),
+                        Promise.all(srcs.map(fetchFreshness))
+                    ]);
+                    setFresh(freshness);
                     // 以「品名 + 效期」為單位保留批次，不再把不同效期壓成一列
                     const batchMap = new Map();
                     // 系列與品名在試算表裡第一次出現的位置＝公司慣用順序，第一個來源說了算
@@ -1351,6 +1396,31 @@
                         {/* 對帳列：讀進來幾筆、略過幾筆、為什麼略過 */}
                         {diag.length > 0 && (
                             <div className="card rounded-lg px-3 py-2 text-xs">
+                                {/* 各倉資料時間：三個倉新鮮度不一樣，混在一起看會誤判 */}
+                                {fresh.length > 0 && (
+                                    <div className="flex items-center gap-x-3 gap-y-1 flex-wrap pb-2 mb-2 border-b">
+                                        <span className="font-medium">資料時間</span>
+                                        {fresh.map(f => {
+                                            const now = new Date();
+                                            const days = f.when ? Math.floor((now - f.when) / 86400000) : null;
+                                            const isSnap = f.kind === 'snapshot';
+                                            const text = !f.when
+                                                ? (f.error ? '讀不到' : '無紀錄')
+                                                : isSnap
+                                                    ? `${String(f.when.getMonth() + 1).padStart(2, '0')}/${String(f.when.getDate()).padStart(2, '0')}`
+                                                    : `${String(f.when.getMonth() + 1).padStart(2, '0')}/${String(f.when.getDate()).padStart(2, '0')} ${String(f.when.getHours()).padStart(2, '0')}:${String(f.when.getMinutes()).padStart(2, '0')}`;
+                                            // 超過 7 天沒動標橘，提醒去確認是真的沒出貨還是忘了更新
+                                            const tone = !f.when ? 'text-rose-600' : days > 7 ? 'text-orange-600' : 'opacity-70';
+                                            return (
+                                                <span key={f.name} className={tone} title={isSnap ? '每個工作日從 MOMO 後台報表整份覆蓋，日期是最後一次打勾' : '出貨日誌最後一筆事件'}>
+                                                    {f.name} {text}
+                                                    {f.when && days > 0 && <span className="opacity-60">（{days} 天前）</span>}
+                                                    {isSnap && f.when && <span className="opacity-60">　每日快照</span>}
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                                 <div className="flex items-center justify-between gap-2 flex-wrap">
                                     <span className="opacity-70">
                                         讀入 {diag.map(d => `${d.name} ${d.read}`).join('　')}
@@ -1670,7 +1740,7 @@
                             {lastFetch && (
                                 <span className="sm:hidden">資料讀取 {lastFetch.toLocaleTimeString()}　</span>
                             )}
-                            最後更新 2026/07/31 17:32
+                            最後更新 2026/10/19 22:30
                         </div>
                     </div>
                 </div>
