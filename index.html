@@ -4,12 +4,239 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
-    <meta http-equiv="refresh" content="0; url=https://product-ingredient-hub.vercel.app/portal" />
     <title>鉑翡斯工具入口</title>
+    <link rel="stylesheet" href="./portal.css" />
+    <script src="./portal.js" defer></script>
   </head>
   <body>
-    <main>
-      <p><a href="https://product-ingredient-hub.vercel.app/portal">開啟鉑翡斯工具入口</a></p>
+    <main class="portal">
+      <h1>鉑翡斯工具入口</h1>
+
+      <div data-enhancement hidden>
+        <label for="tool-search" class="sr-only">搜尋工具</label>
+        <input id="tool-search" type="search" placeholder="搜尋出貨、進貨、做圖" />
+        <nav aria-label="工具檢視">
+          <button type="button" data-view="home" aria-pressed="true">常用</button>
+          <button type="button" data-view="all" aria-pressed="false">全部工具</button>
+          <button type="button" data-view="favorites" aria-pressed="false">我的收藏</button>
+        </nav>
+      </div>
+
+      <p id="results" role="status" class="sr-only"></p>
+      <div class="tool-grid">
+        <article class="tool" id="warehouse-movement" data-tool data-home data-keywords="inventory logistics shipping 銷售 PO 扣庫存 進出貨 台北倉 三重倉">
+          <div class="tool-heading">
+            <h2>出貨與庫存異動</h2>
+            <button class="favorite" type="button" data-favorite aria-label="收藏出貨與庫存異動" aria-pressed="false" hidden>☆</button>
+          </div>
+              <ul class="steps">
+                <li><a class="action" href="./taipei_inventory/"><span>台北倉｜出貨與銷售扣庫存</span><span aria-hidden="true">→</span></a></li>
+                <li><a class="action" href="./sanchong_inventory/"><span>三重倉｜進貨與出貨</span><span aria-hidden="true">→</span></a></li>
+              </ul>
+          <details>
+            <summary>更多操作</summary>
+              <ul class="steps">
+                <li><a class="action" href="./inventory_dashboard/"><span>查更新後庫存</span><span aria-hidden="true">→</span></a></li>
+              </ul>
+          </details>
+        </article>
+
+        <article class="tool" id="demand-request" data-tool data-home data-keywords="Excel Google Sheets 需求確認 產品需求 進貨申請 主管核准 到貨 採購">
+          <div class="tool-heading">
+            <h2>進貨申請與追蹤</h2>
+            <button class="favorite" type="button" data-favorite aria-label="收藏進貨申請與追蹤" aria-pressed="false" hidden>☆</button>
+          </div>
+              <ul class="steps">
+                <li><a class="action" href="https://drive.google.com/drive/search?q=%E7%94%A2%E5%93%81%E9%9C%80%E6%B1%82%E8%AE%8A%E5%8B%95%E7%94%B3%E8%AB%8B%E8%A1%A8"><span>找進貨申請表<small>Google Drive 搜尋</small></span><span aria-hidden="true">→</span></a></li>
+                <li><a class="action" href="https://drive.google.com/drive/search?q=%E7%94%A2%E5%93%81%E9%9C%80%E6%B1%82%E8%A1%A8"><span>找產品需求追蹤表<small>Google Drive 搜尋</small></span><span aria-hidden="true">→</span></a></li>
+              </ul>
+          <details>
+            <summary>更多操作</summary>
+              <ul class="steps">
+                <li><span>交主管核准送出<small>核准送出後，流程會把需求寫入追蹤表並通知製程。</small></span></li>
+              </ul>
+          </details>
+        </article>
+
+        <article class="tool" id="product-images" data-tool data-home data-keywords="Kive AI 生圖 做圖 圖片 視覺 參考圖 banner resize brief SKU 設計">
+          <div class="tool-heading">
+            <h2>圖片製作</h2>
+            <button class="favorite" type="button" data-favorite aria-label="收藏圖片製作" aria-pressed="false" hidden>☆</button>
+          </div>
+              <ul class="steps">
+                <li><a class="action" href="https://kive.ai/app"><span>進入 Kive 製作</span><span aria-hidden="true">→</span></a></li>
+              </ul>
+          <details>
+            <summary>更多操作</summary>
+              <ul class="steps">
+                <li><a class="action" href="https://drive.google.com/drive/search?q=Kive%20%E7%B4%A0%E6%9D%90%E5%BA%AB%E6%95%B4%E7%90%86%E8%88%87%E9%87%8D%E6%8B%8D%E6%8C%87%E5%8D%97%20v2"><span>找 Kive 素材指南<small>Google Drive 搜尋</small></span><span aria-hidden="true">→</span></a></li>
+                <li><span>核對商品、包裝文字及構圖<small>確認使用的 SKU、標籤與包裝比例，定稿前請需求人覆核。</small></span></li>
+                <li><a class="action" href="https://pm-campaign-planner.vercel.app/"><span>檔期作品回到製作清單交付<small>打開對應檔期的「製作」，記錄完成狀態與正檔位置。</small></span><span aria-hidden="true">→</span></a></li>
+              </ul>
+          </details>
+        </article>
+
+        <article class="tool" id="campaign-planning" data-tool data-home data-keywords="campaign planner 行銷 活動 週年慶 套組 加購 折扣 檔期庫存">
+          <div class="tool-heading">
+            <h2><a class="action" href="https://pm-campaign-planner.vercel.app/"><span>檔期規劃</span><span aria-hidden="true">→</span></a></h2>
+            <button class="favorite" type="button" data-favorite aria-label="收藏檔期規劃" aria-pressed="false" hidden>☆</button>
+          </div>
+          <p class="description">規劃套組、試算折扣及可出貨組數，追蹤各通路製作。</p>
+        </article>
+
+        <article class="tool" id="operations-workbench" data-tool data-home data-keywords="ingredient hub 成分 產品 合規 後台 內容 工作臺">
+          <div class="tool-heading">
+            <h2><a class="action" href="https://product-ingredient-hub.vercel.app/"><span>營運工作台</span><span aria-hidden="true">→</span></a></h2>
+            <button class="favorite" type="button" data-favorite aria-label="收藏營運工作台" aria-pressed="false" hidden>☆</button>
+          </div>
+          <p class="description">SEO、產品成分、內容與合規。</p>
+        </article>
+
+        <article class="tool" id="stock-watch" data-tool data-home data-keywords="inventory 即時庫存 庫存警示 缺貨 出貨流速 看板 MOMO">
+          <div class="tool-heading">
+            <h2>庫存與缺貨警示</h2>
+            <button class="favorite" type="button" data-favorite aria-label="收藏庫存與缺貨警示" aria-pressed="false" hidden>☆</button>
+          </div>
+              <ul class="steps">
+                <li><a class="action" href="./inventory_dashboard/"><span>開啟庫存看板</span><span aria-hidden="true">→</span></a></li>
+                <li><a class="action" href="./outflow_rate/"><span>查看出貨量與庫存警示</span><span aria-hidden="true">→</span></a></li>
+              </ul>
+        </article>
+
+        <article class="tool" id="customer-analytics" data-tool data-home data-keywords="analytics ga4 分析 電商 訂單 營收 廣告 KPI">
+          <div class="tool-heading">
+            <h2><a class="action" href="https://prophecy-tracker-five.vercel.app/"><span>客戶分析</span><span aria-hidden="true">→</span></a></h2>
+            <button class="favorite" type="button" data-favorite aria-label="收藏客戶分析" aria-pressed="false" hidden>☆</button>
+          </div>
+          <p class="description">進客戶分析 Dashboard 查會員、購物流程及廣告對帳。</p>
+        </article>
+
+        <article class="tool" id="warehouse-receiving" data-tool data-keywords="進貨 到貨 收貨 調貨 台北入庫 三重出庫 LOG 倉庫">
+          <div class="tool-heading">
+            <h2>核對入庫與兩倉調撥</h2>
+            <button class="favorite" type="button" data-favorite aria-label="收藏核對入庫與兩倉調撥" aria-pressed="false" hidden>☆</button>
+          </div>
+              <ul class="steps">
+                <li><a class="action" href="https://drive.google.com/drive/search?q=%E7%94%A2%E5%93%81%E9%9C%80%E6%B1%82%E8%A1%A8"><span>找產品需求追蹤表<small>Google Drive 搜尋</small></span><span aria-hidden="true">→</span></a></li>
+                <li><a class="action" href="https://drive.google.com/drive/search?q=Taipei_Inventory_Tracking"><span>找台北倉異動紀錄<small>Google Drive 搜尋</small></span><span aria-hidden="true">→</span></a></li>
+              </ul>
+          <details>
+            <summary>更多操作</summary>
+              <ul class="steps">
+                <li><span>由倉務確認批次及送出方式<small>依目前倉務流程送出，完成後回查追蹤表與兩倉異動紀錄。</small></span></li>
+                <li><a class="action" href="https://drive.google.com/drive/search?q=%E4%B8%89%E9%87%8D_Inventory_Tracking"><span>找三重倉異動紀錄<small>Google Drive 搜尋</small></span><span aria-hidden="true">→</span></a></li>
+              </ul>
+          </details>
+        </article>
+
+        <article class="tool" id="product-master" data-tool data-keywords="SKU inventory master 產品主檔 品項 批號 有效期限">
+          <div class="tool-heading">
+            <h2><a class="action" href="https://pm-inventory-management.vercel.app/"><span>維護商品與效期</span><span aria-hidden="true">→</span></a></h2>
+            <button class="favorite" type="button" data-favorite aria-label="收藏維護商品與效期" aria-pressed="false" hidden>☆</button>
+          </div>
+          <p class="description">查商品主檔、批次及效期，從庫存管理系統維護資料。</p>
+        </article>
+
+        <article class="tool" id="momo-stock" data-tool data-keywords="momo 寄倉 品號 規格 盤點 貼報表">
+          <div class="tool-heading">
+            <h2><a class="action" href="https://drive.google.com/drive/search?q=MOMO_Inventory_Tracking"><span>更新 MOMO 倉庫存</span><span aria-hidden="true">→</span></a></h2>
+            <button class="favorite" type="button" data-favorite aria-label="收藏更新 MOMO 倉庫存" aria-pressed="false" hidden>☆</button>
+          </div>
+          <p class="description">Google Drive 搜尋</p>
+        </article>
+
+        <article class="tool" id="momo-images" data-tool data-keywords="momo 圖片 搬移 重新命名 商品圖 通路 素材">
+          <div class="tool-heading">
+            <h2>整理 MOMO 通路圖片</h2>
+            <button class="favorite" type="button" data-favorite aria-label="收藏整理 MOMO 通路圖片" aria-pressed="false" hidden>☆</button>
+          </div>
+              <ul class="steps">
+                <li><a class="action" href="https://drive.google.com/drive/search?q=MOMO%20%E5%9C%96%E7%89%87"><span>找 MOMO 圖片資料夾<small>Google Drive 搜尋</small></span><span aria-hidden="true">→</span></a></li>
+                <li><a class="action" href="https://drive.google.com/drive/search?q=folder_vs_file"><span>找 MOMO 命名規則表<small>Google Drive 搜尋</small></span><span aria-hidden="true">→</span></a></li>
+              </ul>
+          <details>
+            <summary>更多操作</summary>
+              <ul class="steps">
+                <li><span>由流程維護人執行整理<small>確認商品對照後，使用既有 MOMO 圖片整理流程。</small></span></li>
+              </ul>
+          </details>
+        </article>
+
+        <article class="tool" id="brand-links" data-tool data-keywords="URL 網址 網頁 官網 網頁的鏈接 連結 edm email blog 短連結">
+          <div class="tool-heading">
+            <h2><a class="action" href="https://docs.google.com/spreadsheets/d/12JChv8f8eHq3gLx2ublM2RmAOfcT6xVORyH6UBygmTY/edit#gid=467596457"><span>找官網與 EDM 網頁連結</span><span aria-hidden="true">→</span></a></h2>
+            <button class="favorite" type="button" data-favorite aria-label="收藏找官網與 EDM 網頁連結" aria-pressed="false" hidden>☆</button>
+          </div>
+          <p class="description">查找指定文章或頁面網址，供 EDM 與內容作業使用。</p>
+        </article>
+
+        <article class="tool" id="seo-tasks" data-tool data-keywords="seo GSC 搜尋 內容 文章 FAQ">
+          <div class="tool-heading">
+            <h2><a class="action" href="https://product-ingredient-hub.vercel.app/seo/pages"><span>處理 SEO 優化待辦</span><span aria-hidden="true">→</span></a></h2>
+            <button class="favorite" type="button" data-favorite aria-label="收藏處理 SEO 優化待辦" aria-pressed="false" hidden>☆</button>
+          </div>
+          <p class="description">打開文章清單，核對優化建議，記錄完成進度。</p>
+        </article>
+
+        <article class="tool" id="compliance-tasks" data-tool data-keywords="法規 PIF 合規 文案 療效 敏感字">
+          <div class="tool-heading">
+            <h2><a class="action" href="https://product-ingredient-hub.vercel.app/compliance/tasks"><span>查敏感字與合規修正</span><span aria-hidden="true">→</span></a></h2>
+            <button class="favorite" type="button" data-favorite aria-label="收藏查敏感字與合規修正" aria-pressed="false" hidden>☆</button>
+          </div>
+          <p class="description">看待修正的文案及對應建議，追蹤完成狀態。</p>
+        </article>
+
+        <article class="tool" id="content-ledger" data-tool data-keywords="content 文章 內容總帳 搜尋 轉換 漏斗">
+          <div class="tool-heading">
+            <h2><a class="action" href="https://product-ingredient-hub.vercel.app/content/ledger"><span>規劃官網內容與漏斗</span><span aria-hidden="true">→</span></a></h2>
+            <button class="favorite" type="button" data-favorite aria-label="收藏規劃官網內容與漏斗" aria-pressed="false" hidden>☆</button>
+          </div>
+          <p class="description">查各頁面用途與優化進度，安排內容工作。</p>
+        </article>
+
+        <article class="tool" id="seo-health" data-tool data-keywords="GSC SEO 資料健康 同步 更新 時間 報表">
+          <div class="tool-heading">
+            <h2><a class="action" href="https://product-ingredient-hub.vercel.app/seo/health"><span>確認 SEO 資料更新</span><span aria-hidden="true">→</span></a></h2>
+            <button class="favorite" type="button" data-favorite aria-label="收藏確認 SEO 資料更新" aria-pressed="false" hidden>☆</button>
+          </div>
+          <p class="description">查搜尋數據最近更新時間與同步問題。</p>
+        </article>
+
+        <article class="tool" id="product-lookup" data-tool data-keywords="商品 成分 包裝 產品資料 品項 產品目錄">
+          <div class="tool-heading">
+            <h2><a class="action" href="https://product-ingredient-hub.vercel.app/products"><span>查產品資料</span><span aria-hidden="true">→</span></a></h2>
+            <button class="favorite" type="button" data-favorite aria-label="收藏查產品資料" aria-pressed="false" hidden>☆</button>
+          </div>
+          <p class="description">找產品規格與資料，供內容、客服及產品作業參考。</p>
+        </article>
+
+        <article class="tool" id="ingredient-lookup" data-tool data-keywords="inci ingredient 成份 配方 明星成分">
+          <div class="tool-heading">
+            <h2><a class="action" href="https://product-ingredient-hub.vercel.app/ingredients"><span>查成分資料</span><span aria-hidden="true">→</span></a></h2>
+            <button class="favorite" type="button" data-favorite aria-label="收藏查成分資料" aria-pressed="false" hidden>☆</button>
+          </div>
+          <p class="description">查成分名稱、功用與產品資料。</p>
+        </article>
+
+        <article class="tool" id="product-pif" data-tool data-keywords="產品資訊檔案 PIF 法規 品管 檢驗">
+          <div class="tool-heading">
+            <h2><a class="action" href="https://product-ingredient-hub.vercel.app/pif"><span>查產品資訊檔案 PIF</span><span aria-hidden="true">→</span></a></h2>
+            <button class="favorite" type="button" data-favorite aria-label="收藏查產品資訊檔案 PIF" aria-pressed="false" hidden>☆</button>
+          </div>
+          <p class="description">依產品查 PIF 文件與備齊狀態。</p>
+        </article>
+
+        <article class="tool" id="automation-status" data-tool data-keywords="n8n automation workflow 工作流 webhook Shopline 故障 同步 失敗 排程">
+          <div class="tool-heading">
+            <h2>查自動化與 Shopline 庫存同步</h2>
+            <button class="favorite" type="button" data-favorite aria-label="收藏查自動化與 Shopline 庫存同步" aria-pressed="false" hidden>☆</button>
+          </div>
+              <ul class="steps">
+                <li><a class="action" href="https://n8n.srv972195.hstgr.cloud/"><span>開啟 n8n 工作流管理</span><span aria-hidden="true">→</span></a></li>
+                <li><a class="action" href="https://drive.google.com/drive/search?q=%E9%89%91%E7%BF%A1%E6%96%AF%20API%20%E8%87%AA%E5%8B%95%E7%B3%BB%E7%B5%B1%E6%9B%B4%E6%96%B0%E5%95%86%E5%93%81%E5%BA%AB%E5%AD%98"><span>找 Shopline 庫存同步報表<small>Google Drive 搜尋</small></span><span aria-hidden="true">→</span></a></li>
+              </ul>
+        </article>
+      </div>
     </main>
   </body>
 </html>
