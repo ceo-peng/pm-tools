@@ -30,8 +30,10 @@ function readLocal(key, fallback) {
 function saveLocal(key, value) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
+    return true;
   } catch {
     // The current view and changes remain available when storage is disabled.
+    return false;
   }
 }
 
@@ -310,21 +312,26 @@ const settingsFile = document.getElementById("link-settings-file");
 const settingsText = document.getElementById("link-settings-text");
 const importDialog = document.getElementById("import-dialog");
 const importStatus = document.getElementById("import-status");
+function parseFileSettings(text) {
+  if (text.length > 32768) throw new Error("Settings too large");
+  const settings = JSON.parse(text);
+  if (settings?.version !== 1 || !settings.files || typeof settings.files !== "object") {
+    throw new Error("Invalid settings");
+  }
+  const accepted = new Map();
+  for (const { key, kind } of fileControls) {
+    if (!Object.hasOwn(settings.files, key) || accepted.has(key)) continue;
+    const target = driveFileUrl(settings.files[key], kind);
+    if (!target) throw new Error("Invalid file URL");
+    accepted.set(key, target.href);
+  }
+  if (!accepted.size) throw new Error("No recognized file links");
+  return accepted;
+}
+
 function importLinks(text) {
   try {
-    if (text.length > 32768) throw new Error();
-    const settings = JSON.parse(text);
-    if (settings?.version !== 1 || !settings.files || typeof settings.files !== "object") {
-      throw new Error();
-    }
-    const accepted = new Map();
-    for (const entry of fileControls) {
-      if (!Object.hasOwn(settings.files, entry.key)) continue;
-      const target = driveFileUrl(settings.files[entry.key], entry.kind);
-      if (!target) throw new Error();
-      accepted.set(entry.key, target.href);
-    }
-    if (!accepted.size) throw new Error();
+    const accepted = parseFileSettings(text);
     for (const [key, value] of accepted) fileLinks[key] = value;
     saveLocal(keys.files, fileLinks);
     render();
@@ -332,6 +339,34 @@ function importLinks(text) {
   } catch {
     importStatus.textContent = "無法匯入，請確認檔案是 Tools 的私用連結設定。";
   }
+}
+
+function applySetupLink() {
+  const url = new URL(location.href);
+  const text = new URLSearchParams(url.hash.slice(1)).get("private-links");
+  if (text === null) return false;
+
+  url.hash = "";
+  url.searchParams.delete("private-setup");
+  history.replaceState(history.state, "", url);
+  const status = document.getElementById("setup-status");
+  status.hidden = false;
+  try {
+    const accepted = parseFileSettings(text);
+    for (const [key, value] of accepted) {
+      const { kind } = fileControls.find((file) => file.key === key);
+      // Keep file links the user has already chosen in this browser.
+      if (!driveFileUrl(fileLinks[key], kind)) fileLinks[key] = value;
+    }
+    const persisted = saveLocal(keys.files, fileLinks);
+    status.textContent = persisted
+      ? "已設定 " + accepted.size + " 個 Google 檔案直達連結。"
+      : "目前可使用檔案直達連結。此瀏覽器無法儲存設定。";
+  } catch {
+    status.textContent = "這個私用設定連結無法讀取。";
+  }
+  render();
+  return true;
 }
 document.getElementById("import-links").addEventListener("click", () => {
   settingsText.value = "";
@@ -408,5 +443,6 @@ for (const button of document.querySelectorAll("[data-dismiss]")) {
 }
 
 search.addEventListener("input", () => render());
-render();
+window.addEventListener("hashchange", applySetupLink);
+if (!applySetupLink()) render();
 document.querySelector("[data-enhancement]").hidden = false;
