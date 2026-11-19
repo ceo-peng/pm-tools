@@ -347,6 +347,7 @@ function applySetupLink() {
   if (text === null) return false;
 
   url.hash = "";
+  url.searchParams.delete("private-setup");
   history.replaceState(history.state, "", url);
   const status = document.getElementById("setup-status");
   status.hidden = false;
