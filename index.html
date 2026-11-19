@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
     <title>鉑翡斯工具入口</title>
-    <link rel="stylesheet" href="./portal.css" />
-    <script src="./portal.js" defer></script>
+    <link rel="stylesheet" href="./portal.css?v=layout" />
+    <script src="./portal.js?v=layout" defer></script>
   </head>
   <body>
     <main class="portal">
@@ -16,10 +16,23 @@
         <label for="tool-search" class="sr-only">搜尋工具</label>
         <input id="tool-search" type="search" placeholder="搜尋出貨、進貨、做圖" />
         <nav aria-label="工具檢視">
-          <button type="button" data-view="home" aria-pressed="true">常用</button>
-          <button type="button" data-view="all" aria-pressed="false">全部工具</button>
-          <button type="button" data-view="favorites" aria-pressed="false">我的收藏</button>
+          <label class="sr-only" for="team-picker">入口分組</label>
+          <select id="team-picker">
+            <option value="home">常用</option>
+            <option value="sales">業務</option>
+            <option value="operations">營運與設計</option>
+            <option value="admin">管理</option>
+            <option value="all">全部工具</option>
+          </select>
+          <button type="button" id="favorites-filter" aria-pressed="false">我的收藏</button>
+          <button type="button" id="edit-layout" aria-pressed="false">編排</button>
+          <button type="button" id="share-layout">分享入口</button>
         </nav>
+        <div id="edit-controls" hidden>
+          <p>拖拉卡片右上角，或用方向鍵調整順序。勾選要顯示的卡片。</p>
+          <button type="button" id="reset-layout">恢復入口預設</button>
+          <button type="button" id="import-links">匯入私用連結</button>
+        </div>
       </div>
 
       <p id="results" role="status" class="sr-only"></p>
@@ -47,8 +60,8 @@
             <button class="favorite" type="button" data-favorite aria-label="收藏進貨申請與追蹤" aria-pressed="false" hidden>☆</button>
           </div>
               <ul class="steps">
-                <li><a class="action" href="https://drive.google.com/drive/search?q=%E7%94%A2%E5%93%81%E9%9C%80%E6%B1%82%E8%AE%8A%E5%8B%95%E7%94%B3%E8%AB%8B%E8%A1%A8"><span>找進貨申請表<small>Google Drive 搜尋</small></span><span aria-hidden="true">→</span></a></li>
-                <li><a class="action" href="https://drive.google.com/drive/search?q=%E7%94%A2%E5%93%81%E9%9C%80%E6%B1%82%E8%A1%A8"><span>找產品需求追蹤表<small>Google Drive 搜尋</small></span><span aria-hidden="true">→</span></a></li>
+                <li><span class="file-link" data-local-file="demand-form" data-document-type="spreadsheets" data-gid="0"><a class="action" data-file-anchor hidden><span>進貨申請表</span><span aria-hidden="true">→</span></a><button class="file-setup" type="button" data-file-setup hidden>設定進貨申請表連結</button><span data-file-help>進貨申請表需要個人設定</span></span></li>
+                <li><span class="file-link" data-local-file="demand-tracking" data-document-type="spreadsheets" data-gid="69590198"><a class="action" data-file-anchor hidden><span>產品需求追蹤表</span><span aria-hidden="true">→</span></a><button class="file-setup" type="button" data-file-setup hidden>設定產品需求追蹤表連結</button><span data-file-help>產品需求追蹤表需要個人設定</span></span></li>
               </ul>
           <details>
             <summary>更多操作</summary>
@@ -69,9 +82,9 @@
           <details>
             <summary>更多操作</summary>
               <ul class="steps">
-                <li><a class="action" href="https://drive.google.com/drive/search?q=Kive%20%E7%B4%A0%E6%9D%90%E5%BA%AB%E6%95%B4%E7%90%86%E8%88%87%E9%87%8D%E6%8B%8D%E6%8C%87%E5%8D%97%20v2"><span>找 Kive 素材指南<small>Google Drive 搜尋</small></span><span aria-hidden="true">→</span></a></li>
+                <li><span class="file-link" data-local-file="kive-guide" data-document-type="document"><a class="action" data-file-anchor hidden><span>Kive 素材指南</span><span aria-hidden="true">→</span></a><button class="file-setup" type="button" data-file-setup hidden>設定Kive 素材指南連結</button><span data-file-help>Kive 素材指南需要個人設定</span></span></li>
                 <li><span>核對商品、包裝文字及構圖<small>確認使用的 SKU、標籤與包裝比例，定稿前請需求人覆核。</small></span></li>
-                <li><a class="action" href="https://pm-campaign-planner.vercel.app/"><span>檔期作品回到製作清單交付<small>打開對應檔期的「製作」，記錄完成狀態與正檔位置。</small></span><span aria-hidden="true">→</span></a></li>
+                <li><a class="action" href="https://pm-campaign-planner.vercel.app/"><span>開啟檔期規劃台<small>選對應檔期的「製作」以交付定稿。</small></span><span aria-hidden="true">→</span></a></li>
               </ul>
           </details>
         </article>
@@ -117,14 +130,15 @@
             <button class="favorite" type="button" data-favorite aria-label="收藏核對入庫與兩倉調撥" aria-pressed="false" hidden>☆</button>
           </div>
               <ul class="steps">
-                <li><a class="action" href="https://drive.google.com/drive/search?q=%E7%94%A2%E5%93%81%E9%9C%80%E6%B1%82%E8%A1%A8"><span>找產品需求追蹤表<small>Google Drive 搜尋</small></span><span aria-hidden="true">→</span></a></li>
-                <li><a class="action" href="https://drive.google.com/drive/search?q=Taipei_Inventory_Tracking"><span>找台北倉異動紀錄<small>Google Drive 搜尋</small></span><span aria-hidden="true">→</span></a></li>
+                <li><span class="file-link" data-local-file="demand-tracking" data-document-type="spreadsheets" data-gid="69590198"><a class="action" data-file-anchor hidden><span>產品需求追蹤表</span><span aria-hidden="true">→</span></a><button class="file-setup" type="button" data-file-setup hidden>設定產品需求追蹤表連結</button><span data-file-help>產品需求追蹤表需要個人設定</span></span></li>
+                <li><span class="file-link" data-local-file="taipei-log" data-document-type="spreadsheets" data-gid="1912544656"><a class="action" data-file-anchor hidden><span>台北倉異動紀錄</span><span aria-hidden="true">→</span></a><button class="file-setup" type="button" data-file-setup hidden>設定台北倉異動紀錄連結</button><span data-file-help>台北倉異動紀錄需要個人設定</span></span></li>
               </ul>
           <details>
             <summary>更多操作</summary>
               <ul class="steps">
                 <li><span>由倉務確認批次及送出方式<small>依目前倉務流程送出，完成後回查追蹤表與兩倉異動紀錄。</small></span></li>
-                <li><a class="action" href="https://drive.google.com/drive/search?q=%E4%B8%89%E9%87%8D_Inventory_Tracking"><span>找三重倉異動紀錄<small>Google Drive 搜尋</small></span><span aria-hidden="true">→</span></a></li>
+                <li><span class="file-link" data-local-file="sanchong-log" data-document-type="spreadsheets" data-gid="1912544656"><a class="action" data-file-anchor hidden><span>三重倉異動紀錄</span><span aria-hidden="true">→</span></a><button class="file-setup" type="button" data-file-setup hidden>設定三重倉異動紀錄連結</button><span data-file-help>三重倉異動紀錄需要個人設定</span></span></li>
+                <li><a class="action" href="https://n8n.srv972195.hstgr.cloud/workflow/1WWC19CZkfMcoZdG/executions"><span>查看兩倉調撥執行紀錄</span><span aria-hidden="true">→</span></a></li>
               </ul>
           </details>
         </article>
@@ -139,10 +153,13 @@
 
         <article class="tool" id="momo-stock" data-tool data-keywords="momo 寄倉 品號 規格 盤點 貼報表">
           <div class="tool-heading">
-            <h2><a class="action" href="https://drive.google.com/drive/search?q=MOMO_Inventory_Tracking"><span>更新 MOMO 倉庫存</span><span aria-hidden="true">→</span></a></h2>
+            <h2>更新 MOMO 倉庫存</h2>
             <button class="favorite" type="button" data-favorite aria-label="收藏更新 MOMO 倉庫存" aria-pressed="false" hidden>☆</button>
           </div>
-          <p class="description">Google Drive 搜尋</p>
+          <ul class="steps">
+            <li><span class="file-link" data-local-file="momo-stock" data-document-type="spreadsheets" data-gid="2121112599"><a class="action" data-file-anchor hidden><span>MOMO 規格庫存表</span><span aria-hidden="true">→</span></a><button class="file-setup" type="button" data-file-setup hidden>設定MOMO 規格庫存表連結</button><span data-file-help>MOMO 規格庫存表需要個人設定</span></span></li>
+            <li><span class="file-link" data-local-file="momo-stock" data-document-type="spreadsheets" data-gid="1174239281"><a class="action" data-file-anchor hidden><span>MOMO 庫存更新日期</span><span aria-hidden="true">→</span></a><button class="file-setup" type="button" data-file-setup hidden>設定MOMO 庫存更新日期連結</button><span data-file-help>MOMO 庫存更新日期需要個人設定</span></span></li>
+          </ul>
         </article>
 
         <article class="tool" id="momo-images" data-tool data-keywords="momo 圖片 搬移 重新命名 商品圖 通路 素材">
@@ -151,8 +168,8 @@
             <button class="favorite" type="button" data-favorite aria-label="收藏整理 MOMO 通路圖片" aria-pressed="false" hidden>☆</button>
           </div>
               <ul class="steps">
-                <li><a class="action" href="https://drive.google.com/drive/search?q=MOMO%20%E5%9C%96%E7%89%87"><span>找 MOMO 圖片資料夾<small>Google Drive 搜尋</small></span><span aria-hidden="true">→</span></a></li>
-                <li><a class="action" href="https://drive.google.com/drive/search?q=folder_vs_file"><span>找 MOMO 命名規則表<small>Google Drive 搜尋</small></span><span aria-hidden="true">→</span></a></li>
+                <li><a class="action" href="https://n8n.srv972195.hstgr.cloud/workflow/_pIyzjrE4O25xi_vHg7Bq/executions"><span>查看 MOMO 圖片整理執行紀錄</span><span aria-hidden="true">→</span></a></li>
+                <li><span class="file-link" data-local-file="momo-image-rules" data-document-type="spreadsheets" data-gid="1704052246"><a class="action" data-file-anchor hidden><span>MOMO 命名規則表</span><span aria-hidden="true">→</span></a><button class="file-setup" type="button" data-file-setup hidden>設定MOMO 命名規則表連結</button><span data-file-help>MOMO 命名規則表需要個人設定</span></span></li>
               </ul>
           <details>
             <summary>更多操作</summary>
@@ -232,11 +249,52 @@
             <button class="favorite" type="button" data-favorite aria-label="收藏查自動化與 Shopline 庫存同步" aria-pressed="false" hidden>☆</button>
           </div>
               <ul class="steps">
-                <li><a class="action" href="https://n8n.srv972195.hstgr.cloud/"><span>開啟 n8n 工作流管理</span><span aria-hidden="true">→</span></a></li>
-                <li><a class="action" href="https://drive.google.com/drive/search?q=%E9%89%91%E7%BF%A1%E6%96%AF%20API%20%E8%87%AA%E5%8B%95%E7%B3%BB%E7%B5%B1%E6%9B%B4%E6%96%B0%E5%95%86%E5%93%81%E5%BA%AB%E5%AD%98"><span>找 Shopline 庫存同步報表<small>Google Drive 搜尋</small></span><span aria-hidden="true">→</span></a></li>
+                <li><a class="action" href="https://n8n.srv972195.hstgr.cloud/workflow/PGCiPY8zL3HHMGwN/executions"><span>查看 Shopline 庫存同步執行紀錄<small>核對最近一次是否成功</small></span><span aria-hidden="true">→</span></a></li>
+                <li><span class="file-link" data-local-file="shopline-sync-report" data-document-type="spreadsheets" data-gid="1763326509"><a class="action" data-file-anchor hidden><span>Shopline 庫存同步報表</span><span aria-hidden="true">→</span></a><button class="file-setup" type="button" data-file-setup hidden>設定Shopline 庫存同步報表連結</button><span data-file-help>Shopline 庫存同步報表需要個人設定</span></span></li>
               </ul>
         </article>
       </div>
+
+      <dialog id="file-link-dialog" aria-labelledby="file-link-title">
+        <form id="file-link-form">
+          <h2 id="file-link-title">設定檔案直達連結</h2>
+          <p>貼上檔案網址，連結會儲存在這個瀏覽器。</p>
+          <label for="file-url">檔案網址</label>
+          <input id="file-url" type="url" required autocomplete="off" inputmode="url" />
+          <p id="file-link-error" role="alert" hidden></p>
+          <div class="dialog-actions">
+            <button type="button" data-dismiss>取消</button>
+            <button type="submit" class="primary">儲存連結</button>
+          </div>
+        </form>
+      </dialog>
+
+      <dialog id="import-dialog" aria-labelledby="import-title">
+        <form id="import-form">
+          <h2 id="import-title">匯入私用連結</h2>
+          <label for="link-settings-text">連結設定</label>
+          <textarea id="link-settings-text" rows="5" placeholder="在此貼上私用連結設定" required></textarea>
+          <p id="import-status" role="status"></p>
+          <input type="file" id="link-settings-file" accept=".json,application/json" hidden />
+          <div class="dialog-actions">
+            <button type="button" id="pick-settings-file">選擇檔案</button>
+            <button type="button" data-dismiss>關閉</button>
+            <button type="submit" class="primary">匯入</button>
+          </div>
+        </form>
+      </dialog>
+
+      <dialog id="share-dialog" aria-labelledby="share-title">
+        <h2 id="share-title">分享此入口</h2>
+        <p>這個網址包含已選的工具與順序。各工具各自處理存取權限。</p>
+        <label for="share-url">入口網址</label>
+        <input id="share-url" readonly />
+        <p id="share-status" role="status"></p>
+        <div class="dialog-actions">
+          <button type="button" data-dismiss>關閉</button>
+          <button type="button" id="copy-share" class="primary">複製網址</button>
+        </div>
+      </dialog>
     </main>
   </body>
 </html>
